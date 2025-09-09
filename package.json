@@ -42,6 +42,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "myExtension.showHelloWorld",
+        "title": "显示 Hello World Webview"
+      },
+      {
         "command": "yonbip.mcp.start",
         "title": "启动MCP服务",
         "category": "YonBIP"
@@ -161,22 +165,26 @@
         {
           "id": "yonbip-mcp",
           "name": "MCP服务",
-          "icon": "resources/mcp-icon.svg"
+          "icon": "resources/mcp-icon.svg", 
+          "type": "webview"
         },
         {
           "id": "yonbip-database",
           "name": "数据库连接",
-          "icon": "resources/database-icon.svg"
+          "icon": "resources/database-icon.svg",
+          "type": "webview"
         },
         {
           "id": "yonbip-nchome",
           "name": "NC Home配置",
-          "icon": "resources/nchome-icon.svg"
+          "icon": "resources/nchome-icon.svg",
+          "type": "webview"
         },
         {
           "id": "yonbip-openapi",
           "name": "OpenAPI测试",
-          "icon": "resources/openapi-icon.svg"
+          "icon": "resources/openapi-icon.svg",
+          "type": "webview"
         }
       ]
     },
