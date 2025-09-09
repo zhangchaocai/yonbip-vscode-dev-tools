@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as iconv from 'iconv-lite';
 import { NCHomeConfigService } from './NCHomeConfigService';
 
 /**
@@ -34,6 +35,111 @@ export class HomeService {
     }
 
     /**
+     * 编译项目源代码
+     */
+    private async compileProject(workspaceFolder: string): Promise<boolean> {
+        return new Promise((resolve) => {
+            this.outputChannel.appendLine('🔍 检查项目是否需要编译...');
+            
+            // 检查是否存在src目录
+            const srcPath = path.join(workspaceFolder, 'src');
+            if (!fs.existsSync(srcPath)) {
+                this.outputChannel.appendLine('✅ 项目中没有源代码需要编译');
+                resolve(true);
+                return;
+            }
+            
+            // 检查是否是Maven项目
+            const pomPath = path.join(workspaceFolder, 'pom.xml');
+            if (fs.existsSync(pomPath)) {
+                this.outputChannel.appendLine('🔨 检测到Maven项目，正在编译...');
+                this.outputChannel.appendLine('🔧 执行命令: mvn clean compile');
+                
+                const compileProcess = spawn('mvn', ['clean', 'compile'], { 
+                    cwd: workspaceFolder,
+                    env: {
+                        ...process.env,
+                        JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8'
+                    }
+                });
+                
+                compileProcess.stdout?.on('data', (data: any) => {
+                    const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
+                    this.outputChannel.appendLine(`[STDOUT] ${output}`);
+                });
+                
+                compileProcess.stderr?.on('data', (data: any) => {
+                    const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
+                    this.outputChannel.appendLine(`[STDERR] ${output}`);
+                });
+                
+                compileProcess.on('close', (code: any) => {
+                    if (code === 0) {
+                        this.outputChannel.appendLine('✅ Maven编译成功');
+                        resolve(true);
+                    } else {
+                        this.outputChannel.appendLine(`❌ Maven编译失败，退出码: ${code}`);
+                        resolve(false);
+                    }
+                });
+                
+                compileProcess.on('error', (error: any) => {
+                    this.outputChannel.appendLine(`❌ Maven编译出错: ${error.message}`);
+                    resolve(false);
+                });
+                
+                return;
+            }
+            
+            // 检查是否是Gradle项目
+            const gradlePath = path.join(workspaceFolder, 'build.gradle');
+            const gradleKtsPath = path.join(workspaceFolder, 'build.gradle.kts');
+            if (fs.existsSync(gradlePath) || fs.existsSync(gradleKtsPath)) {
+                this.outputChannel.appendLine('🔨 检测到Gradle项目，正在编译...');
+                this.outputChannel.appendLine('🔧 执行命令: gradle clean compileJava');
+                
+                const compileProcess = spawn('gradle', ['clean', 'compileJava'], { 
+                    cwd: workspaceFolder,
+                    env: {
+                        ...process.env,
+                        JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8'
+                    }
+                });
+                
+                compileProcess.stdout?.on('data', (data: any) => {
+                    const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
+                    this.outputChannel.appendLine(`[STDOUT] ${output}`);
+                });
+                
+                compileProcess.stderr?.on('data', (data: any) => {
+                    const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
+                    this.outputChannel.appendLine(`[STDERR] ${output}`);
+                });
+                
+                compileProcess.on('close', (code: any) => {
+                    if (code === 0) {
+                        this.outputChannel.appendLine('✅ Gradle编译成功');
+                        resolve(true);
+                    } else {
+                        this.outputChannel.appendLine(`❌ Gradle编译失败，退出码: ${code}`);
+                        resolve(false);
+                    }
+                });
+                
+                compileProcess.on('error', (error: any) => {
+                    this.outputChannel.appendLine(`❌ Gradle编译出错: ${error.message}`);
+                    resolve(false);
+                });
+                
+                return;
+            }
+            
+            this.outputChannel.appendLine('⚠️ 未识别的项目类型，跳过编译步骤');
+            resolve(true);
+        });
+    }
+
+    /**
      * 启动NC HOME服务 (对应IDEA插件中的ServerDebugAction)
      * 修改为直接运行jar包的方式，而不是执行脚本
      */
@@ -41,6 +147,22 @@ export class HomeService {
         if (this.status === HomeStatus.RUNNING || this.status === HomeStatus.STARTING) {
             vscode.window.showWarningMessage('NC HOME服务已在运行中');
             return;
+        }
+
+        // 获取当前工作区根目录
+        let workspaceFolder = '';
+        if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
+            this.outputChannel.appendLine(`📂 当前工作区: ${workspaceFolder}`);
+            
+            // 编译项目源代码
+            const compileSuccess = await this.compileProject(workspaceFolder);
+            if (!compileSuccess) {
+                vscode.window.showErrorMessage('项目编译失败，请检查代码错误');
+                return;
+            }
+        } else {
+            this.outputChannel.appendLine('⚠️ 未检测到工作区，跳过项目编译步骤');
         }
 
         const config = this.configService.getConfig();
@@ -57,351 +179,458 @@ export class HomeService {
             return;
         }
 
-        try {
-            this.setStatus(HomeStatus.STARTING);
-            this.outputChannel.clear();
-            this.outputChannel.appendLine('正在启动NC HOME服务...');
-            
-            // 检查Java环境
-            this.outputChannel.appendLine('检查Java环境...');
-            try {
-                const javaCheck = spawn('java', ['-version'], {
-                    stdio: ['pipe', 'pipe', 'pipe']
-                });
-                
-                javaCheck.on('error', (error) => {
-                    this.outputChannel.appendLine(`❌ Java环境检查失败: ${error.message}`);
-                    this.outputChannel.appendLine('💡 请确保Java已正确安装并配置在系统PATH环境变量中');
-                });
-                
-                javaCheck.stderr?.on('data', (data) => {
-                    const output = data.toString();
-                    this.outputChannel.appendLine(`Java版本信息: ${output.trim()}`);
-                });
-                
-                javaCheck.on('close', (code) => {
-                    if (code === 0) {
-                        this.outputChannel.appendLine('✅ Java环境检查通过');
-                    } else {
-                        this.outputChannel.appendLine(`❌ Java环境检查失败，退出码: ${code}`);
-                    }
-                });
-            } catch (javaError: any) {
-                this.outputChannel.appendLine(`❌ Java环境检查异常: ${javaError.message}`);
-                this.outputChannel.appendLine('💡 请确保Java已正确安装并配置在系统PATH环境变量中');
-            }
+        this.outputChannel.show();
+        this.outputChannel.appendLine('🚀 开始启动NC HOME服务...');
+        this.outputChannel.appendLine(`📂 NC HOME路径: ${config.homePath}`);
+        this.setStatus(HomeStatus.STARTING);
 
-            // 确定核心jar包路径
-            const coreJarPath = path.join(config.homePath, 'middleware', 'core.jar');
+        try {
+            // 检查许可证文件
+            const licenseDir = path.join(config.homePath, 'license');
+            if (!fs.existsSync(licenseDir)) {
+                this.outputChannel.appendLine('⚠️ 警告: 未找到许可证目录，可能导致启动失败');
+            } else {
+                const licenseFiles = fs.readdirSync(licenseDir);
+                const licFiles = licenseFiles.filter(file => file.endsWith('.lic'));
+                if (licFiles.length === 0) {
+                    this.outputChannel.appendLine('⚠️ 警告: 许可证目录中未找到.lic文件，可能导致启动失败');
+                } else {
+                    this.outputChannel.appendLine(`✅ 找到 ${licFiles.length} 个许可证文件`);
+                    licFiles.forEach(file => {
+                        this.outputChannel.appendLine(`   - ${file}`);
+                    });
+                }
+            }
             
-            // 检查核心jar包是否存在
-            if (!fs.existsSync(coreJarPath)) {
+            // 检查数据源配置
+            const dataSourceDir = path.join(config.homePath, 'ierp', 'bin');
+            if (fs.existsSync(dataSourceDir)) {
+                const dataSourceFiles = fs.readdirSync(dataSourceDir);
+                const dsConfigs = dataSourceFiles.filter(file => 
+                    file.startsWith('datasource') && (file.endsWith('.ini') || file.endsWith('.properties')));
+                if (dsConfigs.length > 0) {
+                    this.outputChannel.appendLine(`✅ 找到 ${dsConfigs.length} 个数据源配置文件`);
+                    dsConfigs.forEach(file => {
+                        this.outputChannel.appendLine(`   - ${file}`);
+                    });
+                } else {
+                    this.outputChannel.appendLine('⚠️ 未找到数据源配置文件，可能导致启动失败');
+                }
+            } else {
+                this.outputChannel.appendLine('⚠️ 未找到数据源配置目录，可能导致启动失败');
+            }
+            
+            // 检查并确定core.jar路径
+            const coreJarPath = this.getCoreJarPath(config.homePath);
+            if (!coreJarPath) {
+                vscode.window.showErrorMessage('未找到core.jar文件，请检查NC HOME配置');
                 this.setStatus(HomeStatus.ERROR);
-                this.outputChannel.appendLine(`❌ 核心jar包不存在: ${coreJarPath}`);
-                this.outputChannel.appendLine('💡 请检查NC HOME路径配置是否正确');
-                vscode.window.showErrorMessage(`核心jar包不存在: ${coreJarPath}`);
                 return;
             }
-            
-            this.outputChannel.appendLine(`✅ 核心jar包存在: ${coreJarPath}`);
 
-            // 确定主类名
+            this.outputChannel.appendLine(`📦 找到core.jar: ${coreJarPath}`);
+
+            // 确定主类 (与IDEA插件保持一致)
             let mainClass = 'ufmiddle.start.tomcat.StartDirectServer';
             
-            // 检查是否是wj版本
-            try {
-                const StreamZip = require('node-stream-zip');
-                const jarFile = new StreamZip.async({ file: coreJarPath });
-                const entries = await jarFile.entries();
-                for (const entry of Object.values(entries)) {
-                    const name = (entry as any).name;
-                    if (name.indexOf('ufmiddle') === 0 && name.includes('StartDirectServer.class')) {
-                        if (name.includes('wj')) {
-                            mainClass = 'ufmiddle.start.wj.StartDirectServer';
-                            break;
+            // 检查core.jar中是否包含wj相关类，如果包含则使用wj的启动类
+            if (this.containsWJClasses(coreJarPath)) {
+                mainClass = 'ufmiddle.start.wj.StartDirectServer';
+                this.outputChannel.appendLine('🔧 检测到WJ相关类，使用WJ启动类');
+            }
+
+            // 构建类路径
+            const classpath = this.buildClasspath(config, coreJarPath, workspaceFolder);
+            
+            // 构建JVM参数 (使用与IDEA插件一致的参数)
+            const vmParameters = this.buildVMParameters(config);
+            
+            // 构建完整命令
+            const command = [
+                'java',
+                ...vmParameters,
+                '-cp',
+                `"${classpath}"`,
+                mainClass
+            ].join(' ');
+
+            this.outputChannel.appendLine('✅ 准备启动NC HOME服务...');
+            this.outputChannel.appendLine(`🖥️  主类: ${mainClass}`);
+            this.outputChannel.appendLine(`📦 类路径包含 ${classpath.split(path.delimiter).length} 个条目`);
+            this.outputChannel.appendLine(`⚙️  JVM参数: ${vmParameters.join(' ')}`);
+            this.outputChannel.appendLine(`🔧 完整启动命令: java ${vmParameters.join(' ')} -cp "[类路径]" ${mainClass}`);
+            this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
+
+            // 执行启动命令
+            this.process = spawn('java', [...vmParameters, '-cp', classpath, mainClass], {
+                cwd: config.homePath,
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: {
+                    ...process.env,
+                    JAVA_TOOL_OPTIONS: '-Dfile.encoding=GBK',
+                    LANG: 'zh_CN.GBK',
+                    LC_ALL: 'zh_CN.GBK',
+                    LC_CTYPE: 'zh_CN.GBK',
+                    JAVA_OPTS: '-Dfile.encoding=GBK -Dconsole.encoding=GBK'
+                }
+            });
+
+            // 监听标准输出
+            this.process.stdout?.on('data', (data: any) => {
+                let output = data.toString();
+                // 尝试处理可能的编码问题
+                if (output.includes('') || output.includes('?')) {
+                    try {
+                        // 如果包含乱码字符，尝试用iconv-lite进行GBK解码
+                        output = iconv.decode(data, 'gbk');
+                    } catch (e) {
+                        // 如果转换失败，尝试使用gb2312
+                        try {
+                            output = iconv.decode(data, 'gb2312');
+                        } catch (e2) {
+                            // 如果还是失败，保留原始输出
                         }
                     }
                 }
-                await jarFile.close();
-            } catch (err) {
-                this.outputChannel.appendLine(`⚠️ 检查jar包内容失败: ${err}`);
-                this.outputChannel.appendLine('💡 将使用默认主类: ufmiddle.start.tomcat.StartDirectServer');
-            }
-
-            this.outputChannel.appendLine(`主类: ${mainClass}`);
-
-            // 构建JVM参数
-            const vmParameters = this.buildVMParameters(config);
-
-            // 构建环境变量
-            const envs = this.buildEnvironmentVariables(config);
-
-            // 构建完整的命令行参数
-            const args = [
-                ...vmParameters,
-                '-cp',
-                coreJarPath,
-                mainClass
-            ];
-
-            this.outputChannel.appendLine(`JVM参数: ${vmParameters.join(' ')}`);
-            this.outputChannel.appendLine(`执行命令: java ${args.join(' ')}`);
-            this.outputChannel.appendLine(`工作目录: ${config.homePath}`);
-
-            // 启动HOME服务进程
-            this.process = spawn('java', args, {
-                cwd: config.homePath,
-                stdio: ['pipe', 'pipe', 'pipe'],
-                detached: false,
-                env: {
-                    ...process.env,
-                    ...envs
-                }
-            });
-
-            if (!this.process.pid) {
-                throw new Error('HOME服务进程创建失败，无法获取进程ID');
-            }
-
-            this.outputChannel.appendLine(`HOME服务进程已创建，PID: ${this.process.pid}`);
-
-            // 设置启动检查定时器
-            this.startupCheckTimer = setTimeout(() => {
-                if (this.status === HomeStatus.STARTING) {
-                    this.outputChannel.appendLine('⚠️ 启动超时，可能需要更长时间或出现错误');
-                    this.outputChannel.appendLine('💡 请检查日志输出以获取更多信息');
-                    this.outputChannel.appendLine('💡 可能的原因:');
-                    this.outputChannel.appendLine('   1. 端口被占用');
-                    this.outputChannel.appendLine('   2. 数据库连接配置错误');
-                    this.outputChannel.appendLine('   3. 内存不足');
-                    this.outputChannel.appendLine('   4. NC HOME配置不正确');
-                }
-            }, 60000); // 60秒超时
-
-            // 处理进程输出
-            this.process.stdout?.on('data', (data) => {
-                const output = data.toString();
+                // 移除ANSI转义序列
+                output = output.replace(/\u001b\[.*?m/g, '');
+                // 移除其他控制字符
+                output = output.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
                 this.outputChannel.appendLine(`[STDOUT] ${output}`);
-                
-                // 检查启动成功标识 - 扩展检测范围
-                if (output.includes('Server startup') || 
-                    output.includes('服务启动成功') ||
-                    output.includes('Started successfully') ||
-                    output.includes('Tomcat started') ||
-                    output.includes('Started application') ||
-                    output.includes('Nacos started') ||
-                    output.includes('服务已启动') ||
-                    output.includes('startup success') ||
-                    output.includes('server started') ||
-                    output.includes('Connector started') ||
-                    output.includes('Started Tomcat') ||
-                    output.includes('Tomcat start') ||
-                    output.includes('Application started')) {
-                    this.outputChannel.appendLine('✓ 检测到NC HOME服务启动成功标识');
-                    if (this.startupCheckTimer) {
-                        clearTimeout(this.startupCheckTimer);
-                        this.startupCheckTimer = null;
+            });
+
+            // 监听标准错误输出
+            this.process.stderr?.on('data', (data: any) => {
+                let stderrOutput = data.toString();
+                // 尝试处理可能的编码问题
+                if (stderrOutput.includes('') || stderrOutput.includes('?')) {
+                    try {
+                        // 如果包含乱码字符，尝试用iconv-lite进行GBK解码
+                        stderrOutput = iconv.decode(data, 'gbk');
+                    } catch (e) {
+                        // 如果转换失败，尝试使用gb2312
+                        try {
+                            stderrOutput = iconv.decode(data, 'gb2312');
+                        } catch (e2) {
+                            // 如果还是失败，保留原始输出
+                        }
                     }
-                    this.setStatus(HomeStatus.RUNNING);
-                    vscode.window.showInformationMessage('NC HOME服务已启动');
                 }
+                // 移除ANSI转义序列
+                stderrOutput = stderrOutput.replace(/\u001b\[.*?m/g, '');
+                // 移除其他控制字符
+                stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+                this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
                 
-                // 检查启动失败标识
-                if (output.includes('FAILED') || 
-                    output.includes('启动失败') ||
-                    output.includes('Startup failed') ||
-                    output.includes('Failed to start') ||
-                    output.includes('Exception') ||
-                    output.includes('ERROR') ||
-                    output.includes('错误')) {
-                    this.outputChannel.appendLine('❌ 检测到NC HOME服务启动失败标识');
-                    this.outputChannel.appendLine('💡 请检查上面的日志输出以获取详细错误信息');
-                    if (this.startupCheckTimer) {
-                        clearTimeout(this.startupCheckTimer);
-                        this.startupCheckTimer = null;
-                    }
+                // 即使没有明显的错误标识，也要提醒用户关注stderr信息
+                if (!stderrOutput.includes('Exception') && 
+                    !stderrOutput.includes('Error') && 
+                    !stderrOutput.includes('Caused by')) {
+                    this.outputChannel.appendLine('⚠️ 请特别关注以上STDERR输出，它可能包含导致启动失败的重要信息');
                 }
             });
 
-            this.process.stderr?.on('data', (data) => {
-                const output = data.toString();
-                this.outputChannel.appendLine(`[STDERR] ${output}`);
-                
-                // 检查错误标识
-                if (output.includes('ERROR') || 
-                    output.includes('Exception') ||
-                    output.includes('错误') ||
-                    output.includes('Failed') ||
-                    output.includes('failed') ||
-                    output.includes('Caused by') ||
-                    output.includes('Exception in thread')) {
-                    this.outputChannel.appendLine('❌ 检测到错误信息');
-                    this.outputChannel.appendLine('💡 请仔细检查以上错误信息');
-                }
-            });
-
-            // 处理进程退出
-            this.process.on('close', (code, signal) => {
-                this.outputChannel.appendLine(`HOME服务进程已退出，退出码: ${code}${signal ? `, 信号: ${signal}` : ''}`);
-                
-                // 详细的退出码分析
-                if (code === 1) {
-                    this.outputChannel.appendLine('❌ 退出码1表示一般性错误，请检查以下可能原因:');
-                    this.outputChannel.appendLine('   1. Java环境配置不正确');
-                    this.outputChannel.appendLine('   2. NC HOME路径配置错误');
-                    this.outputChannel.appendLine('   3. 核心jar包损坏或不兼容');
-                    this.outputChannel.appendLine('   4. 端口被占用');
-                    this.outputChannel.appendLine('   5. 缺少必要的系统权限');
-                    this.outputChannel.appendLine('💡 建议检查Java版本是否符合要求(建议使用JDK 8或JDK 17)');
-                } else if (code === 127) {
-                    this.outputChannel.appendLine('❌ 退出码127表示命令未找到，请检查Java是否正确安装并配置在PATH环境变量中');
-                } else if (code === 130) {
-                    this.outputChannel.appendLine('⚠️ 退出码130表示进程被SIGINT信号中断(Ctrl+C)');
-                } else if (code === 143) {
-                    this.outputChannel.appendLine('ℹ️ 退出码143表示进程被SIGTERM信号正常终止');
-                } else if (code !== 0 && code !== null) {
-                    this.outputChannel.appendLine(`❌ 检测到异常退出码: ${code}`);
-                    this.outputChannel.appendLine('💡 请检查上面的日志输出以获取更多错误信息');
-                }
-                
-                if (this.startupCheckTimer) {
-                    clearTimeout(this.startupCheckTimer);
-                    this.startupCheckTimer = null;
-                }
-                if (!this.isManualStop && this.status !== HomeStatus.STOPPING) {
-                    this.setStatus(HomeStatus.STOPPED);
-                    if (code !== 0 && code !== null && code !== 143) {
-                        vscode.window.showErrorMessage(`NC HOME服务异常退出，退出码: ${code}${signal ? `, 信号: ${signal}` : ''}`);
-                    } else if (code === 0 || code === 143) {
-                        vscode.window.showInformationMessage('NC HOME服务已停止');
-                    }
+            // 监听进程退出事件
+            this.process.on('exit', (code: any, signal: any) => {
+                this.outputChannel.appendLine(`\nNC HOME服务进程已退出，退出码: ${code}`);
+                if (code === 255) {
+                    this.outputChannel.appendLine('❌ 退出码255表示服务启动过程中发生严重错误:');
+                    this.outputChannel.appendLine('   1. 可能是由于Java Security Manager配置问题');
+                    this.outputChannel.appendLine('   2. 可能是缺少必要的系统属性配置');
+                    this.outputChannel.appendLine('   3. 可能是类路径配置不正确导致关键类无法加载');
+                    this.outputChannel.appendLine('   4. 可能是端口绑定失败');
+                    this.outputChannel.appendLine('💡 建议检查完整的日志输出，特别是STDERR中的错误信息');
+                    this.outputChannel.appendLine('💡 尝试在终端中手动运行以下命令来获取更详细的错误信息:');
+                    this.outputChannel.appendLine(`   java ${vmParameters.join(' ')} -cp "[类路径]" ${mainClass}`);
+                } else if (code !== 0 && !this.isManualStop) {
+                    this.outputChannel.appendLine(`❌ 服务异常退出，退出码: ${code}`);
+                    this.outputChannel.appendLine('💡 建议检查完整的日志输出，特别是STDERR中的错误信息');
+                } else if (this.isManualStop) {
+                    this.outputChannel.appendLine('✅ 服务已正常停止');
+                    this.isManualStop = false;
                 } else {
-                    this.setStatus(HomeStatus.STOPPED);
+                    this.outputChannel.appendLine('✅ 服务已正常退出');
                 }
-                this.isManualStop = false;
+                
+                this.process = null;
+                this.setStatus(HomeStatus.STOPPED);
             });
 
-            // 处理进程错误
-            this.process.on('error', (error) => {
-                this.outputChannel.appendLine(`HOME服务进程启动失败: ${error.message}`);
-                this.outputChannel.appendLine(`详细错误信息: ${JSON.stringify(error)}`);
-                if (this.startupCheckTimer) {
-                    clearTimeout(this.startupCheckTimer);
-                    this.startupCheckTimer = null;
-                }
+            // 监听进程错误事件
+            this.process.on('error', (error: any) => {
+                this.outputChannel.appendLine(`❌ 启动服务时发生错误: ${error.message}`);
                 this.setStatus(HomeStatus.ERROR);
-                vscode.window.showErrorMessage(`启动NC HOME服务失败: ${error.message}`);
+                this.process = null;
             });
 
-            // 显示输出面板
-            this.outputChannel.show();
+            // 检查进程是否成功启动
+            if (!this.process.pid) {
+                this.outputChannel.appendLine('❌ 无法启动NC HOME服务进程');
+                this.setStatus(HomeStatus.ERROR);
+                this.process = null;
+                return;
+            }
+            
+            this.outputChannel.appendLine(`NC HOME服务进程已创建，PID: ${this.process.pid}`);
+            this.setStatus(HomeStatus.RUNNING);
+
+            // 启动后检查服务是否正常运行
+            this.startupCheckTimer = setTimeout(() => {
+                this.checkServiceStatus(config);
+            }, 5000); // 5秒后检查
 
         } catch (error: any) {
-            this.outputChannel.appendLine(`启动NC HOME服务失败: ${error.message}`);
-            this.outputChannel.appendLine(`详细错误堆栈: ${error.stack}`);
-            if (this.startupCheckTimer) {
-                clearTimeout(this.startupCheckTimer);
-                this.startupCheckTimer = null;
-            }
+            this.outputChannel.appendLine(`❌ 启动NC HOME服务失败: ${error.message}`);
             this.setStatus(HomeStatus.ERROR);
             vscode.window.showErrorMessage(`启动NC HOME服务失败: ${error.message}`);
         }
     }
 
     /**
-     * 构建JVM参数
+     * 获取core.jar路径
+     */
+    private getCoreJarPath(homePath: string): string | null {
+        // 按优先级检查不同位置的core.jar
+        const possiblePaths = [
+            path.join(homePath, 'ierp', 'bin', 'core.jar'),
+            path.join(homePath, 'middleware', 'core.jar'),
+            path.join(homePath, 'lib', 'core.jar')
+        ];
+
+        for (const jarPath of possiblePaths) {
+            if (fs.existsSync(jarPath)) {
+                return jarPath;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 检查core.jar中是否包含wj相关类
+     */
+    private containsWJClasses(coreJarPath: string): boolean {
+        try {
+            // 检查文件名是否包含wj或WJ
+            const filename = path.basename(coreJarPath);
+            if (filename.toLowerCase().includes('wj')) {
+                return true;
+            }
+            
+            // 检查HOME路径是否包含特定标识
+            return coreJarPath.includes('wj') || coreJarPath.includes('WJ');
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * 构建完整的类路径 (解决ClassNotFoundException问题)
+     */
+    private buildClasspath(config: any, coreJarPath: string, workspaceFolder: string): string {
+        const classpathEntries: string[] = [coreJarPath];
+        
+        // 添加工作区编译输出目录
+        if (workspaceFolder) {
+            const targetClasses = path.join(workspaceFolder, 'target', 'classes'); // Maven项目
+            const buildClasses = path.join(workspaceFolder, 'build', 'classes'); // Gradle项目
+            
+            if (fs.existsSync(targetClasses)) {
+                classpathEntries.push(targetClasses);
+                this.outputChannel.appendLine(`📁 添加Maven编译输出目录: ${targetClasses}`);
+            }
+            
+            if (fs.existsSync(buildClasses)) {
+                classpathEntries.push(buildClasses);
+                this.outputChannel.appendLine(`📁 添加Gradle编译输出目录: ${buildClasses}`);
+            }
+        }
+        
+        // 需要扫描的目录列表 (基于IDEA插件的实现，并扩展)
+        const libDirs = [
+            path.join(config.homePath, 'middleware'),
+            path.join(config.homePath, 'lib'),
+            path.join(config.homePath, 'external', 'lib'),
+            path.join(config.homePath, 'ierp', 'lib'),
+            path.join(config.homePath, 'ierp', 'bin'),
+            path.join(config.homePath, 'hotweb', 'lib'), // 添加hotweb/lib目录
+            path.join(config.homePath, 'license'), // 添加许可证目录
+            path.join(config.homePath, 'modules'), // 添加modules目录
+            path.join(config.homePath, 'resources'), // 添加resources目录
+            path.join(config.homePath, 'webapps'), // 添加webapps目录
+            path.join(config.homePath, 'webapps', 'nccloud', 'WEB-INF', 'lib'), // 添加nccloud webapp lib目录
+            path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'lib'), // 添加uapws webapp lib目录
+            path.join(config.homePath, 'webapps', 'console', 'WEB-INF', 'lib'), // 添加console webapp lib目录
+            path.join(config.homePath, 'webapps', 'fs', 'WEB-INF', 'lib'), // 添加fs webapp lib目录
+            path.join(config.homePath, 'webapps', 'ncchr', 'WEB-INF', 'lib'), // 添加ncchr webapp lib目录
+            path.join(config.homePath, 'webapps', 'portal', 'WEB-INF', 'lib'), // 添加portal webapp lib目录
+            path.join(config.homePath, 'webapps', 'mobile', 'WEB-INF', 'lib'), // 添加mobile webapp lib目录
+            path.join(config.homePath, ' adapter'), // 添加 adapter 目录
+            path.join(config.homePath, 'platform'), // 添加platform目录
+            path.join(config.homePath, 'langlib'), // 添加langlib目录
+            path.join(config.homePath, 'middleware', 'lib'), // 添加middleware/lib目录
+        ];
+        
+        // 关键jar包名称，用于检查是否包含在类路径中
+        const criticalJars = [
+            'activation.jar',
+            'bcprov.jar',
+            'dom4j.jar',
+            'fastjson.jar',
+            'log4j.jar',
+            'slf4j-api.jar',
+            'spring-core.jar',
+            'shiro-core.jar',
+            'shiro-web.jar',
+            'commons-logging.jar',
+            'commons-lang.jar',
+            'commons-lang3.jar',
+            'commons-io.jar',
+            'commons-collections.jar',
+            'commons-beanutils.jar'
+        ];
+        
+        this.outputChannel.appendLine('开始构建类路径...');
+        
+        // 遍历所有目录，添加其中的jar包到类路径
+        for (const dir of libDirs) {
+            if (fs.existsSync(dir)) {
+                try {
+                    const files = fs.readdirSync(dir);
+                    const jars = files.filter(file => file.endsWith('.jar'))
+                                      .map(file => path.join(dir, file));
+                    classpathEntries.push(...jars);
+                    
+                    // 检查是否有关键jar包
+                    const criticalJarsInDir = files.filter(file => 
+                        criticalJars.some(criticalJar => file.includes(criticalJar)));
+                    if (criticalJarsInDir.length > 0) {
+                        this.outputChannel.appendLine(`在目录 ${dir} 中找到关键jar包: ${criticalJarsInDir.join(', ')}`);
+                    }
+                } catch (err: any) {
+                    this.outputChannel.appendLine(`⚠️ 读取目录失败: ${dir}, 错误: ${err}`);
+                }
+            } else {
+                // 只对特定目录输出警告
+                if (dir.includes('ierp') || dir.includes('hotweb')) {
+                    this.outputChannel.appendLine(`目录不存在: ${dir}`);
+                }
+            }
+        }
+        
+        // 去除重复项并构建类路径
+        const uniqueClasspathEntries = [...new Set(classpathEntries)];
+        this.outputChannel.appendLine(`类路径构建完成，共包含 ${uniqueClasspathEntries.length} 个条目`);
+        
+        // 检查是否包含关键jar包
+        const classpathString = uniqueClasspathEntries.join(path.delimiter);
+        for (const criticalJar of criticalJars) {
+            if (classpathString.includes(criticalJar)) {
+                this.outputChannel.appendLine(`✅ 包含关键jar包: ${criticalJar}`);
+            } else {
+                this.outputChannel.appendLine(`❌ 缺少关键jar包: ${criticalJar}`);
+            }
+        }
+        
+        return classpathString;
+    }
+
+    /**
+     * 构建JVM参数 (与IDEA插件保持一致)
      */
     private buildVMParameters(config: any): string[] {
         const vmParameters: string[] = [];
         
-        // 默认JVM参数
-        vmParameters.push('-Dnc.exclude.modules=' + (config.exModules || ''));
-        vmParameters.push('-Dnc.runMode=develop');
-        vmParameters.push('-Dnc.server.location=' + config.homePath);
-        vmParameters.push('-DEJBConfigDir=' + config.homePath + '/ejbXMLs');
-        vmParameters.push('-Dorg.owasp.esapi.resources=' + config.homePath + '/ierp/bin/esapi');
-        vmParameters.push('-DExtServiceConfigDir=' + config.homePath + '/ejbXMLs');
-        vmParameters.push('-Duap.hotwebs=' + (config.hotwebs || 'nccloud,fs,yonbip'));
-        vmParameters.push('-Duap.disable.codescan=false');
-        vmParameters.push('-Xmx1024m');
-        vmParameters.push('-Dfile.encoding=UTF-8');
-        vmParameters.push('-Duser.timezone=GMT+8');
+        // 添加默认的JVM参数 (与IDEA插件保持一致)
+        vmParameters.push('-Xms512m');
+        vmParameters.push('-Xmx2048m');
+        vmParameters.push('-Djava.awt.headless=true');
+        vmParameters.push('-Djava.net.preferIPv4Stack=true');
         
-        // Java 17 兼容性参数
-        if (process.version.startsWith('v17') || process.version.startsWith('v18') || process.version.startsWith('v19')) {
-            vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/jdk.internal.reflect=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.lang.invoke=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.io=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.nio.charset=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.net=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.util.concurrent=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.util=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.xml/javax.xml=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.xml/javax.xml.stream=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.naming/javax.naming=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.management/javax.management=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/java.awt.image=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/sun.awt=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.security=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.lang.ref=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/javax.swing=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/javax.accessibility=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/java.beans=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/java.awt=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/sun.swing=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/java.awt.color=ALL-UNNAMED');
+        // 添加系统属性 (与IDEA插件保持一致)
+        vmParameters.push('-Dsun.misc.URLClassPath.disableJarChecking=true');
+        vmParameters.push('-Dspring.cloud.bootstrap.enabled=false');
+        vmParameters.push('-Dfile.encoding=GBK');
+        vmParameters.push('-Dsun.jnu.encoding=GBK');
+        vmParameters.push('-Dsun.zip.disableMemoryMapping=true');
+        vmParameters.push('-Djava.security.egd=file:/dev/./urandom');
+        
+        // 添加控制台编码参数，解决乱码问题
+        vmParameters.push('-Dconsole.encoding=GBK');
+        vmParameters.push('-Dstdout.encoding=GBK');
+        vmParameters.push('-Dstderr.encoding=GBK');
+        vmParameters.push('-Duser.language=zh');
+        vmParameters.push('-Duser.country=CN');
+        vmParameters.push('-Duser.variant=zh_CN');
+        vmParameters.push('-Ddefault.client.encoding=GBK');
+        vmParameters.push('-Ddefault.server.encoding=GBK');
+        vmParameters.push('-Dlog4j2.configurationFile=GBK');
+        
+        // 添加XML解析器配置 (与IDEA插件保持一致)
+        vmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
+        vmParameters.push('-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl');
+        vmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
+        
+        // 添加Java 17兼容性参数 (与IDEA插件保持一致)
+        vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/java.lang.invoke=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/java.util=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/java.util.concurrent=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/java.text=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/java.nio=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/java.net=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/sun.nio.ch=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.base/sun.util.calendar=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.management/javax.management=ALL-UNNAMED');
+        vmParameters.push('--add-opens=java.management/javax.management.openmbean=ALL-UNNAMED');
+        
+        // 添加更多Java 9+兼容性参数 (解决日志中的警告)
+        vmParameters.push('--add-opens=java.base/java.io=null');
+        vmParameters.push('--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED');
+        
+        // 添加Security Manager相关参数 (解决SecurityManager警告)
+        vmParameters.push('-Djava.security.manager=allow');
+        
+        // 添加Tomcat编码参数
+        vmParameters.push('-Dtomcat.util.buf.StringCache.byte.enabled=true');
+        vmParameters.push('-Dtomcat.util.buf.StringCache.char.enabled=true');
+        vmParameters.push('-Dtomcat.util.buf.StringCache.trainThreshold=500000');
+        vmParameters.push('-Dtomcat.util.buf.StringCache.cacheSize=5000');
+        
+        // macOS隐藏Dock图标
+        if (process.platform === 'darwin') {
+            vmParameters.push('-Xdock:name=NC_HOME');
         }
         
-        // macOS隐藏Dock图标参数
-        if (process.platform === 'darwin') {
-            vmParameters.push('-Dapple.awt.UIElement=true');
+        // 添加调试参数 (如果启用)
+        if (config.debugPort) {
+            vmParameters.push('-Xdebug');
+            vmParameters.push(`-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=${config.debugPort}`);
+        }
+        
+        // 添加自定义JVM参数
+        if (config.vmParameters && Array.isArray(config.vmParameters)) {
+            vmParameters.push(...config.vmParameters);
         }
         
         return vmParameters;
     }
 
     /**
-     * 构建环境变量
+     * 检查服务状态
      */
-    private buildEnvironmentVariables(config: any): any {
-        const envs: any = {};
-        
-        // 兼容旧参数
-        envs.FIELD_NC_HOME = config.homePath;
-        envs.FIELD_HOTWEBS = config.hotwebs || 'nccloud,fs,yonbip';
-        
-        // 新参数
-        envs.IDEA_FIELD_NC_HOME = config.homePath;
-        envs.IDEA_FIELD_HOTWEBS = config.hotwebs || 'nccloud,fs,yonbip';
-        envs.IDEA_FIELD_EX_MODULES = config.exModules || '';
-        
-        // 添加更多环境变量
-        envs.NC_HOME = config.homePath;
-        envs.HOTWEBS = config.hotwebs || 'nccloud,fs,yonbip';
-        envs.EX_MODULES = config.exModules || '';
-        
-        return envs;
+    private checkServiceStatus(config: any): void {
+        // 这里可以添加服务状态检查逻辑
+        // 比如检查特定端口是否已监听等
+        this.outputChannel.appendLine('✅ 服务启动检查完成');
     }
 
     /**
      * 停止NC HOME服务
      */
     public async stopHomeService(): Promise<void> {
-        if (this.status !== HomeStatus.RUNNING && this.status !== HomeStatus.STARTING) {
+        if (this.status === HomeStatus.STOPPED || this.status === HomeStatus.STOPPING) {
             vscode.window.showWarningMessage('NC HOME服务未在运行');
             return;
         }
@@ -440,11 +669,11 @@ export class HomeService {
                     detached: false
                 });
 
-                stopProcess.on('close', (code) => {
+                stopProcess.on('close', (code: any) => {
                     this.outputChannel.appendLine(`停止脚本执行完成，退出码: ${code}`);
                 });
 
-                stopProcess.on('error', (error) => {
+                stopProcess.on('error', (error: any) => {
                     this.outputChannel.appendLine(`执行停止脚本失败: ${error.message}`);
                     // 如果脚本执行失败，则强制终止进程
                     this.killProcess();

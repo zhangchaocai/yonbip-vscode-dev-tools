@@ -109,6 +109,7 @@ export class NCHomeConfigService {
             await workspaceConfig.update('homePath', this.config.homePath, vscode.ConfigurationTarget.Workspace);
         }
         
+        // 修复：正确保存exportPatchPath到yonbip.patchOutputDir配置项
         if (this.config.exportPatchPath) {
             await workspaceConfig.update('patchOutputDir', this.config.exportPatchPath, vscode.ConfigurationTarget.Workspace);
         }

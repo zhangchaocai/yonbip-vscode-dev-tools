@@ -229,6 +229,7 @@
     "@types/axios": "^0.9.36",
     "@types/ws": "^8.18.1",
     "axios": "^1.11.0",
+    "iconv-lite": "^0.7.0",
     "node-stream-zip": "^1.15.0",
     "ws": "^8.18.3"
   }
