@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios from 'axios';
 
 /**
  * OpenAPI配置接口
@@ -91,7 +91,7 @@ export class OpenApiService {
             const fullUrl = this.buildUrl(request.url);
             
             // 构建请求配置
-            const axiosConfig: AxiosRequestConfig = {
+            const axiosConfig: any = {
                 method: request.method,
                 url: fullUrl,
                 timeout: this.config.timeout,
@@ -109,25 +109,25 @@ export class OpenApiService {
             // 添加请求体
             if (request.body) {
                 axiosConfig.data = request.body;
-                if (!axiosConfig.headers!['Content-Type']) {
-                    axiosConfig.headers!['Content-Type'] = 'application/json';
+                if (!axiosConfig.headers['Content-Type']) {
+                    axiosConfig.headers['Content-Type'] = 'application/json';
                 }
             }
 
             // 添加认证头
             if (this.config.accessKey && this.config.secretKey) {
-                axiosConfig.headers!['Authorization'] = this.generateAuthHeader(request);
+                axiosConfig.headers['Authorization'] = this.generateAuthHeader(request);
             }
 
             // 发送请求
-            const response: AxiosResponse = await axios(axiosConfig);
+            const response: any = await axios(axiosConfig);
             
             const duration = Date.now() - startTime;
             
             return {
                 status: response.status,
                 statusText: response.statusText,
-                headers: response.headers as Record<string, string>,
+                headers: response.headers,
                 data: response.data,
                 duration
             };
@@ -140,7 +140,7 @@ export class OpenApiService {
                 return {
                     status: error.response.status,
                     statusText: error.response.statusText,
-                    headers: error.response.headers as Record<string, string>,
+                    headers: error.response.headers,
                     data: error.response.data,
                     duration
                 };

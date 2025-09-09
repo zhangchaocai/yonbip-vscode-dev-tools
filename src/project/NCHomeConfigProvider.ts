@@ -74,6 +74,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'startHomeService':
                     await this.handleStartHomeService();
                     break;
+                case 'debugHomeService':
+                    await this.handleDebugHomeService();
+                    break;
+
             }
         });
 
@@ -342,6 +346,26 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     }
 
     /**
+     * 处理调试启动HOME服务
+     */
+    private async handleDebugHomeService() {
+        try {
+            // 执行调试启动HOME服务的命令
+            await vscode.commands.executeCommand('yonbip.home.debug');
+            this._view?.webview.postMessage({
+                type: 'homeServiceDebugged',
+                success: true
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'homeServiceDebugged',
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
      * 生成WebView HTML内容
      */
     private _getHtmlForWebview(webview: vscode.Webview) {
@@ -550,6 +574,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     <button onclick="openHomeDirectory()">📂 打开Home目录</button>
                     <button class="secondary" onclick="openSysConfig()">🔧 启动SysConfig</button>
                     <button class="secondary" onclick="startHomeService()">🚀 启动HOME服务</button>
+                    <button class="secondary" onclick="debugHomeService()">🐞 调试启动HOME服务</button>
                     <button class="secondary" onclick="showOutput()">📝 查看日志</button>
                 </div>
             </div>
@@ -660,6 +685,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'startHomeService' });
         }
         
+        // 调试启动HOME服务
+        function debugHomeService() {
+            vscode.postMessage({ type: 'debugHomeService' });
+        }
+
         // 显示输出
         function showOutput() {
             console.log('显示输出日志');
@@ -913,6 +943,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         showMessage('HOME服务启动成功', 'success');
                     } else {
                         showMessage('启动HOME服务失败: ' + message.error, 'error');
+                    }
+                    break;
+                case 'homeServiceDebugged':
+                    if (message.success) {
+                        showMessage('HOME服务调试启动成功', 'success');
+                    } else {
+                        showMessage('调试启动HOME服务失败: ' + message.error, 'error');
                     }
                     break;
                     

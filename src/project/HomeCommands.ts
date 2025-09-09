@@ -1,15 +1,18 @@
 import * as vscode from 'vscode';
 import { HomeService } from './HomeService';
 import { NCHomeConfigService } from './NCHomeConfigService';
+import { HomeDebugService } from './HomeDebugService';
 
 /**
  * HOME服务命令类
  */
 export class HomeCommands {
     private homeService: HomeService;
+    private homeDebugService: HomeDebugService;
 
     constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService) {
         this.homeService = new HomeService(context, configService);
+        this.homeDebugService = new HomeDebugService(context, configService);
     }
 
     /**
@@ -21,6 +24,11 @@ export class HomeCommands {
         // 注册启动HOME服务命令
         const startCommand = vscode.commands.registerCommand('yonbip.home.start', () => {
             homeCommands.startHomeService();
+        });
+
+        // 注册调试启动HOME服务命令
+        const debugCommand = vscode.commands.registerCommand('yonbip.home.debug', () => {
+            homeCommands.debugHomeService();
         });
 
         // 注册停止HOME服务命令
@@ -40,6 +48,7 @@ export class HomeCommands {
 
         context.subscriptions.push(
             startCommand,
+            debugCommand,
             stopCommand,
             statusCommand,
             logsCommand
@@ -54,6 +63,17 @@ export class HomeCommands {
             await this.homeService.startHomeService();
         } catch (error: any) {
             vscode.window.showErrorMessage(`启动HOME服务失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 调试启动HOME服务
+     */
+    public async debugHomeService(): Promise<void> {
+        try {
+            await this.homeDebugService.debugHomeService();
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`调试启动HOME服务失败: ${error.message}`);
         }
     }
 
