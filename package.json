@@ -1,0 +1,330 @@
+{
+  "name": "yonbip-premium-devtools",
+  "displayName": "YonBIP高级版开发者工具",
+  "description": "YonBIP高级版开发工具集，提供MCP服务、OpenAPI测试、多语言抽取、项目管理等功能",
+  "version": "1.0.0",
+  "publisher": "zhang-chaocai",
+  "author": {
+    "name": "YonBIP开发社区",
+    "email": "zhangchck@yonyou.com"
+  },
+  "homepage": "https://github.com/yonbip/vscode-dev-tools",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yonbip/vscode-dev-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yonbip/vscode-dev-tools/issues"
+  },
+  "license": "MIT",
+  "icon": "resources/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "keywords": [
+    "YonBIP",
+    "用友",
+    "NCC",
+    "MCP",
+    "OpenAPI"
+  ],
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "yonbip.mcp.start",
+        "title": "启动MCP服务",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.mcp.stop",
+        "title": "停止MCP服务",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.mcp.restart",
+        "title": "重启MCP服务",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.mcp.config",
+        "title": "MCP服务配置",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.mcp.status",
+        "title": "查看MCP服务状态",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.mcp.logs",
+        "title": "查看MCP服务日志",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.database.connect",
+        "title": "连接数据库",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.database.disconnect",
+        "title": "断开数据库连接",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.database.refresh",
+        "title": "刷新数据库连接",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.database.config",
+        "title": "数据库配置",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.project.create",
+        "title": "创建YonBIP项目",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.project.exportPatch",
+        "title": "导出补丁包",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.nchome.config",
+        "title": "NC Home配置",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.nchome.simpleConfig",
+        "title": "NC Home快速配置",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.home.start",
+        "title": "启动NC HOME服务",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.home.stop",
+        "title": "停止NC HOME服务",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.home.status",
+        "title": "查看NC HOME服务状态",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.home.logs",
+        "title": "查看NC HOME服务日志",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.openapi.test",
+        "title": "测试OpenAPI接口",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.openapi.config",
+        "title": "OpenAPI配置",
+        "category": "YonBIP"
+      },
+      {
+        "command": "yonbip.openapi.refresh",
+        "title": "刷新OpenAPI配置",
+        "category": "YonBIP"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "yonbip-tools",
+          "title": "YonBIP Tools",
+          "icon": "resources/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "yonbip-tools": [
+        {
+          "id": "yonbip-mcp",
+          "name": "MCP服务",
+          "icon": "resources/mcp-icon.svg"
+        },
+        {
+          "id": "yonbip-database",
+          "name": "数据库连接",
+          "icon": "resources/database-icon.svg"
+        },
+        {
+          "id": "yonbip-nchome",
+          "name": "NC Home配置",
+          "icon": "resources/nchome-icon.svg"
+        },
+        {
+          "id": "yonbip-openapi",
+          "name": "OpenAPI测试",
+          "icon": "resources/openapi-icon.svg"
+        }
+      ]
+    },
+    
+    "menus": {
+      "view/title": [
+        {
+          "command": "yonbip.mcp.start",
+          "when": "view == yonbip-mcp",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.mcp.stop",
+          "when": "view == yonbip-mcp",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.mcp.config",
+          "when": "view == yonbip-mcp",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.database.connect",
+          "when": "view == yonbip-database",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.database.disconnect",
+          "when": "view == yonbip-database",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.database.refresh",
+          "when": "view == yonbip-database",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.nchome.config",
+          "when": "view == yonbip-nchome",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.openapi.test",
+          "when": "view == yonbip-openapi",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.openapi.config",
+          "when": "view == yonbip-openapi",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "yonbip.database.disconnect",
+          "when": "view == yonbip-database && viewItem == connectedDatabase",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.database.connect",
+          "when": "view == yonbip-database && viewItem == disconnectedDatabase",
+          "group": "inline"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "yonbip.project.exportPatch",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "YonBIP高级版开发者工具",
+      "properties": {
+        "yonbip.mcp.port": {
+          "type": "number",
+          "default": 9000,
+          "description": "MCP服务端口"
+        },
+        "yonbip.mcp.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否启用调试模式"
+        },
+        "yonbip.mcp.debugPort": {
+          "type": "number",
+          "default": 5005,
+          "description": "调试模式端口"
+        },
+        "yonbip.mcp.homePath": {
+          "type": "string",
+          "default": "",
+          "description": "MCP服务HOME路径"
+        },
+        "yonbip.openapi.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:9000",
+          "description": "OpenAPI测试基础URL"
+        },
+        "yonbip.openapi.headers": {
+          "type": "object",
+          "default": {},
+          "description": "OpenAPI测试默认请求头"
+        },
+        "yonbip.openapi.timeout": {
+          "type": "number",
+          "default": 30000,
+          "description": "OpenAPI测试请求超时时间(毫秒)"
+        }
+      }
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "package.json",
+      "README.md",
+      "CHANGELOG.md"
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.0.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "@vscode/test-electron": "^2.2.0",
+    "eslint": "^8.28.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.1.0",
+    "typescript": "^4.9.3"
+  },
+  "dependencies": {
+    "axios": "^1.3.4",
+    "decompress": "^4.2.1",
+    "extract-zip": "^2.0.1",
+    "form-data": "^4.0.0",
+    "node-stream-zip": "^1.15.0",
+    "ws": "^8.13.0"
+  }
+}

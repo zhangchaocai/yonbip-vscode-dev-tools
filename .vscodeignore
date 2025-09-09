@@ -1,0 +1,43 @@
+# 排除源代码文件
+src/**
+*.ts
+.vscode-test/**
+.vscode/**
+
+# 排除开发文件
+node_modules/**
+!node_modules/axios/**
+!node_modules/ws/**
+!node_modules/follow-redirects/**
+.gitignore
+.git/**
+.eslintrc.json
+tsconfig.json
+
+# 排除测试文件
+test/**
+tests/**
+**/*.test.js
+**/*.test.ts
+
+# 排除构建文件
+*.vsix
+.DS_Store
+Thumbs.db
+
+# 排除文档（保留主要文档）
+docs/**
+.github/**
+*.log
+
+# 排除发布指南（用户不需要）
+PUBLISH_GUIDE.md
+MCP_EXIT_CODE_143_SOLUTION.md
+
+# 保留必要文件
+!out/**
+!resources/**
+!README.md
+!CHANGELOG.md
+!LICENSE
+!package.json

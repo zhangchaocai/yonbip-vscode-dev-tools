@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NC Home配置</title>
+    <style>
+        body {
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            color: var(--vscode-foreground);
+            background-color: var(--vscode-editor-background);
+            padding: 10px;
+            margin: 0;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 4px;
+            padding: 15px;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--vscode-textLink-foreground);
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            min-width: 100px;
+        }
+        
+        .form-row label {
+            margin-bottom: 0;
+            margin-right: 10px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid var(--vscode-input-border);
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+        
+        .form-row input, .form-row select {
+            flex: 1;
+        }
+        
+        button {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        
+        button:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
+        
+        button.secondary {
+            background-color: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
+        
+        button.secondary:hover {
+            background-color: var(--vscode-button-secondaryHoverBackground);
+        }
+        
+        .status-message {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .status-success {
+            background-color: var(--vscode-terminal-ansiGreen);
+            color: white;
+        }
+        
+        .status-error {
+            background-color: var(--vscode-errorForeground);
+            color: white;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--vscode-widget-border);
+            margin-bottom: 15px;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: var(--vscode-foreground);
+            margin-right: 2px;
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .tab.active {
+            background-color: var(--vscode-tab-activeBackground);
+            border-bottom: 2px solid var(--vscode-textLink-foreground);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 选项卡 -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('home')">Home配置</button>
+            <button class="tab" onclick="switchTab('datasources')">数据源</button>
+            <button class="tab" onclick="switchTab('advanced')">高级设置</button>
+        </div>
+
+        <!-- Home配置选项卡 -->
+        <div id="home-tab" class="tab-content active">
+            <div class="section">
+                <div class="section-title">NC Home 设置</div>
+                
+                <div class="form-group">
+                    <div class="form-row">
+                        <label for="homePath">Home路径:</label>
+                        <input type="text" id="homePath" readonly placeholder="请选择NC Home目录">
+                        <button onclick="selectHomeDirectory()" style="margin-left: 10px;">浏览...</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <button onclick="openHomeDirectory()">打开Home目录</button>
+                    <button class="secondary" onclick="openSysConfig()">启动SysConfig</button>
+                    <button class="secondary" onclick="showOutput()">查看日志</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据源选项卡 -->
+        <div id="datasources-tab" class="tab-content">
+            <div class="section">
+                <div class="section-title">
+                    数据源管理
+                    <button onclick="showAddDataSourceForm()" style="float: right;">添加数据源</button>
+                </div>
+                
+                <div id="datasourceList">
+                    <div class="status-message" style="text-align: center; color: var(--vscode-descriptionForeground);">
+                        暂无数据源配置
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 高级设置选项卡 -->
+        <div id="advanced-tab" class="tab-content">
+            <div class="section">
+                <div class="section-title">系统配置</div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="standardMode"> 标准模式
+                    </label>
+                    <small style="color: var(--vscode-descriptionForeground); display: block; margin-top: 5px;">
+                        启用标准模式以获得更稳定的运行环境
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="asyncTask"> 异步任务
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="autoClient"> 自动客户端
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label for="exportPatchPath">补丁输出目录:</label>
+                    <input type="text" id="exportPatchPath" placeholder="./patches">
+                </div>
+                
+                <div class="form-group">
+                    <button onclick="saveAdvancedConfig()">保存设置</button>
+                    <button class="secondary" onclick="resetToDefaults()">重置为默认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        let currentConfig = {};
+        
+        // 切换选项卡
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            const tabButtons = document.querySelectorAll('.tab');
+            tabButtons.forEach(button => button.classList.remove('active'));
+            
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // 选择Home目录
+        function selectHomeDirectory() {
+            vscode.postMessage({ type: 'selectHomeDirectory' });
+        }
+        
+        // 打开Home目录
+        function openHomeDirectory() {
+            vscode.postMessage({ type: 'openHomeDirectory' });
+        }
+        
+        // 打开SysConfig
+        function openSysConfig() {
+            vscode.postMessage({ type: 'openSysConfig' });
+        }
+        
+        // 显示输出
+        function showOutput() {
+            // 这里可以显示日志输出
+            showMessage('日志输出功能正在开发中', 'info');
+        }
+        
+        // 显示添加数据源表单
+        function showAddDataSourceForm() {
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.id = 'dataSourceModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 1000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="
+                    background: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-widget-border);
+                    border-radius: 6px;
+                    padding: 20px;
+                    width: 500px;
+                    max-width: 90%;
+                ">
+                    <h3 style="margin-top: 0; color: var(--vscode-foreground);">添加数据源</h3>
+                    <div class="form-group">
+                        <label for="dsName">数据源名称:</label>
+                        <input type="text" id="dsName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dsType">数据库类型:</label>
+                        <select id="dsType">
+                            <option value="mysql">MySQL</option>
+                            <option value="oracle">Oracle</option>
+                            <option value="sqlserver">SQL Server</option>
+                            <option value="postgresql">PostgreSQL</option>
+                            <option value="db2">DB2</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="dsHost">主机地址:</label>
+                        <input type="text" id="dsHost" value="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label for="dsPort">端口号:</label>
+                        <input type="number" id="dsPort" value="3306">
+                    </div>
+                    <div class="form-group">
+                        <label for="dsDatabase">数据库名:</label>
+                        <input type="text" id="dsDatabase">
+                    </div>
+                    <div class="form-group">
+                        <label for="dsUsername">用户名:</label>
+                        <input type="text" id="dsUsername">
+                    </div>
+                    <div class="form-group">
+                        <label for="dsPassword">密码:</label>
+                        <input type="password" id="dsPassword">
+                    </div>
+                    <div style="text-align: right; margin-top: 20px;">
+                        <button class="secondary" onclick="closeModal()">取消</button>
+                        <button onclick="saveDataSource()">保存</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        // 关闭模态框
+        function closeModal() {
+            const modal = document.getElementById('dataSourceModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // 保存数据源
+        function saveDataSource() {
+            const dataSource = {
+                name: document.getElementById('dsName').value,
+                databaseType: document.getElementById('dsType').value,
+                host: document.getElementById('dsHost').value,
+                port: parseInt(document.getElementById('dsPort').value),
+                databaseName: document.getElementById('dsDatabase').value,
+                username: document.getElementById('dsUsername').value,
+                password: document.getElementById('dsPassword').value,
+                driverClassName: '' // 这将在后端处理
+            };
+            
+            // 简单验证
+            if (!dataSource.name || !dataSource.host || !dataSource.databaseName || !dataSource.username) {
+                showMessage('请填写必填字段', 'error');
+                return;
+            }
+            
+            vscode.postMessage({
+                type: 'addDataSource',
+                dataSource: dataSource
+            });
+            
+            closeModal();
+        }
+        
+        // 保存高级配置
+        function saveAdvancedConfig() {
+            const config = {
+                ...currentConfig,
+                standardMode: document.getElementById('standardMode').checked,
+                asyncTask: document.getElementById('asyncTask').checked,
+                autoClient: document.getElementById('autoClient').checked,
+                exportPatchPath: document.getElementById('exportPatchPath').value
+            };
+            
+            vscode.postMessage({
+                type: 'saveConfig',
+                config: config
+            });
+        }
+        
+        // 重置为默认
+        function resetToDefaults() {
+            if (confirm('确定要重置所有设置为默认值吗？')) {
+                document.getElementById('standardMode').checked = true;
+                document.getElementById('asyncTask').checked = false;
+                document.getElementById('autoClient').checked = true;
+                document.getElementById('exportPatchPath').value = './patches';
+            }
+        }
+        
+        // 显示消息
+        function showMessage(message, type = 'info') {
+            // 移除现有的消息元素
+            const existingMessage = document.getElementById('messageToast');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            const messageEl = document.createElement('div');
+            messageEl.id = 'messageToast';
+            messageEl.textContent = message;
+            messageEl.className = 'status-message';
+            
+            if (type === 'error') {
+                messageEl.classList.add('status-error');
+            } else if (type === 'success') {
+                messageEl.classList.add('status-success');
+            } else {
+                messageEl.style.backgroundColor = 'var(--vscode-notificationsInfoIcon-foreground)';
+                messageEl.style.color = 'white';
+            }
+            
+            // 添加样式
+            messageEl.style.position = 'fixed';
+            messageEl.style.bottom = '20px';
+            messageEl.style.right = '20px';
+            messageEl.style.zIndex = '1001';
+            messageEl.style.maxWidth = '400px';
+            messageEl.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+            
+            document.body.appendChild(messageEl);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (messageEl.parentNode) {
+                    messageEl.parentNode.removeChild(messageEl);
+                }
+            }, 3000);
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // 更新配置显示
+        function updateConfigDisplay(config) {
+            currentConfig = config;
+            
+            // 更新Home路径
+            if (config.homePath) {
+                document.getElementById('homePath').value = config.homePath;
+            }
+            
+            // 更新高级设置
+            document.getElementById('standardMode').checked = config.standardMode || false;
+            document.getElementById('asyncTask').checked = config.asyncTask || false;
+            document.getElementById('autoClient').checked = config.autoClient || true;
+            document.getElementById('exportPatchPath').value = config.exportPatchPath || './patches';
+            
+            // 更新数据源列表
+            updateDataSourceList(config.dataSources || []);
+        }
+        
+        // 更新数据源列表显示
+        function updateDataSourceList(dataSources) {
+            const dataSourceListElement = document.getElementById('datasourceList');
+            
+            if (!dataSources || dataSources.length === 0) {
+                dataSourceListElement.innerHTML = '<div class="status-message" style="text-align: center; color: var(--vscode-descriptionForeground);">暂无数据源配置</div>';
+                return;
+            }
+            
+            let html = '<div style="margin-top: 10px;">';
+            dataSources.forEach((ds, index) => {
+                html += `
+                    <div style="
+                        padding: 10px; 
+                        border: 1px solid var(--vscode-widget-border); 
+                        border-radius: 4px; 
+                        margin-bottom: 10px;
+                        background-color: var(--vscode-input-background);
+                    ">
+                        <div style="font-weight: bold; color: var(--vscode-textLink-foreground);">${ds.name}</div>
+                        <div style="font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 5px;">
+                            <div>类型: ${ds.databaseType}</div>
+                            <div>主机: ${ds.host}:${ds.port}</div>
+                            <div>数据库: ${ds.databaseName}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            dataSourceListElement.innerHTML = html;
+        }
+        
+        // 监听消息
+        window.addEventListener('message', event => {
+            const message = event.data;
+            
+            switch (message.type) {
+                case 'configLoaded':
+                    updateConfigDisplay(message.config);
+                    break;
+                    
+                case 'homeDirectorySelected':
+                    if (message.success && message.homePath) {
+                        document.getElementById('homePath').value = message.homePath;
+                        showMessage('Home目录选择成功', 'success');
+                    } else {
+                        showMessage('Home目录选择失败', 'error');
+                    }
+                    break;
+                    
+                case 'configSaved':
+                    if (message.success) {
+                        showMessage('配置保存成功', 'success');
+                    } else {
+                        showMessage('配置保存失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
+                case 'homeDirectoryOpened':
+                    if (message.success) {
+                        showMessage('Home目录已打开', 'success');
+                    } else {
+                        showMessage('打开Home目录失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
+                case 'sysConfigOpened':
+                    if (message.success) {
+                        showMessage('SysConfig已启动', 'success');
+                    } else {
+                        showMessage('启动SysConfig失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
+                case 'dataSourceAdded':
+                    if (message.success) {
+                        showMessage('数据源添加成功', 'success');
+                        // 更新配置显示
+                        if (message.config) {
+                            updateConfigDisplay(message.config);
+                        }
+                    } else {
+                        showMessage('数据源添加失败: ' + message.error, 'error');
+                    }
+                    break;
+            }
+        });
+        
+        // 页面加载完成后加载配置
+        vscode.postMessage({ type: 'loadConfig' });
+    </script>
+</body>
+</html>

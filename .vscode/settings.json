@@ -1,0 +1,11 @@
+{
+    "editor.insertSpaces": false,
+    "typescript.preferences.quoteStyle": "single",
+    "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "typescript.validate.enable": true,
+    "search.exclude": {
+        "out/**": true,
+        "node_modules/**": true
+    },
+    "typescript.tsc.autoDetect": "off"
+}
