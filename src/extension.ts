@@ -17,6 +17,16 @@ import { NCHomeConfigCommands } from './project/NCHomeConfigCommands';
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	
+	// 显示插件加载成功的提示信息
+	vscode.window.showInformationMessage('🚀 YonBIP高级版开发者工具加载成功', '了解更多')
+		.then(selection => {
+			if (selection === '了解更多') {
+				// 这里可以打开文档或更多信息页面
+				vscode.env.openExternal(vscode.Uri.parse('https://community.yonyou.com'));
+			}
+		});
+	
 	// 注册MCP命令
 	const mcpCommands = McpCommands.registerCommands(context);
 	
@@ -83,38 +93,6 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		)
 	);
-
-
-	 // 注册命令
-    let disposable = vscode.commands.registerCommand('myExtension.showHelloWorld', () => {
-        // 创建 Webview 面板
-        const panel = vscode.window.createWebviewPanel(
-            'helloWorld', // viewType
-            'Hello World', // 标题
-            vscode.ViewColumn.One, // 显示在编辑器区域
-            {
-                enableScripts: true // 允许在 Webview 中执行脚本
-            }
-        );
-
-        // 设置 Webview HTML 内容
-        panel.webview.html = getWebviewContent();
-
-        // (可选) 处理来自 Webview 的消息
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'alert':
-                        vscode.window.showErrorMessage(message.text);
-                        return;
-                }
-            },
-            undefined,
-            context.subscriptions
-        );
-    });
-
-	context.subscriptions.push(disposable);
 
 }
 

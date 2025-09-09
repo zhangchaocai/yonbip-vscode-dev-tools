@@ -281,6 +281,16 @@
           "default": "",
           "description": "MCP服务HOME路径"
         },
+        "yonbip.homePath": {
+          "type": "string",
+          "default": "",
+          "description": "NC Home目录路径"
+        },
+        "yonbip.patchOutputDir": {
+          "type": "string",
+          "default": "./patches",
+          "description": "补丁输出目录"
+        },
         "yonbip.openapi.baseUrl": {
           "type": "string",
           "default": "http://localhost:9000",
