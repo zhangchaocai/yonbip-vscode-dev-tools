@@ -757,6 +757,28 @@ export class HomeService {
             }
         }
         
+        // 特别处理modules目录，扫描每个子目录下的lib目录
+        const modulesDir = path.join(config.homePath, 'modules');
+        if (fs.existsSync(modulesDir)) {
+            try {
+                const moduleDirs = fs.readdirSync(modulesDir);
+                this.outputChannel.appendLine(`📁 发现modules目录: ${modulesDir}，包含 ${moduleDirs.length} 个模块`);
+                
+                for (const moduleDir of moduleDirs) {
+                    const moduleLibDir = path.join(modulesDir, moduleDir, 'lib');
+                    if (fs.existsSync(moduleLibDir)) {
+                        const files = fs.readdirSync(moduleLibDir);
+                        const jars = files.filter(file => file.endsWith('.jar'))
+                                          .map(file => path.join(moduleLibDir, file));
+                        classpathEntries.push(...jars);
+                        this.outputChannel.appendLine(`📁 添加模块 ${moduleDir} 的lib目录: ${moduleLibDir} (${jars.length} 个jar包)`);
+                    }
+                }
+            } catch (err: any) {
+                this.outputChannel.appendLine(`⚠️ 读取modules目录失败: ${err}`);
+            }
+        }
+        
         // 额外检查是否包含ws相关的jar包
         this.checkAndAddWSJars(config.homePath, classpathEntries);
         
