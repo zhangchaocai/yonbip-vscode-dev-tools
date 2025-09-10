@@ -45,40 +45,28 @@
         {
           "id": "yonbip-view",
           "title": "YonBIP高级版开发者工具",
-          "icon": "resources/icons/yonbip-icon.svg"
+          "icon": "resources/nchome-icon.svg"
         }
       ]
     },
     "views": {
       "yonbip-view": [
         {
-          "id": "yonbip-test",
-          "name": "测试视图",
-          "when": "false",
-          "type": "webview"
-        },
-        {
           "id": "yonbip-mcp",
           "name": "MCP服务",
-          "icon": "resources/icons/mcp-icon.svg",
-          "type": "webview"
-        },
-        {
-          "id": "yonbip-database",
-          "name": "数据库连接",
-          "icon": "resources/icons/database-icon.svg",
+          "icon": "resources/mcp-icon.svg",
           "type": "webview"
         },
         {
           "id": "yonbip-nchome",
           "name": "NC HOME配置",
-          "icon": "resources/icons/nchome-icon.svg",
+          "icon": "resources/nchome-icon.svg",
           "type": "webview"
         },
         {
           "id": "yonbip-openapi",
           "name": "OpenAPI测试",
-          "icon": "resources/icons/openapi-icon.svg",
+          "icon": "resources/openapi-icon.svg",
           "type": "webview"
         }
       ]

@@ -362,7 +362,7 @@ export class HomeService {
 
         try {
             // 预处理HOME目录 - 解决ClassNotFoundException的关键步骤
-            await this.prepareHomeDirectory(config.homePath);
+            //await this.prepareHomeDirectory(config.homePath);
             // 检查许可证文件
             const licenseDir = path.join(config.homePath, 'license');
             if (!fs.existsSync(licenseDir)) {
