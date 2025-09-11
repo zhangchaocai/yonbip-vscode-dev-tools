@@ -4,8 +4,6 @@ import * as vscode from 'vscode';
 
 // 扩展组件
 import { McpCommands } from './mcp/McpCommands';
-import { DatabaseCommands } from './database/DatabaseCommands';
-import { ProjectCommands } from './project/ProjectCommands';
 import { McpProvider } from './mcp/McpProvider';
 import { DatabaseProvider } from './database/DatabaseProvider';
 import { NCHomeConfigProvider } from './project/NCHomeConfigProvider';
@@ -13,6 +11,8 @@ import { OpenApiProvider } from './openapi/OpenApiProvider';
 import { NCHomeConfigService } from './project/NCHomeConfigService';
 import { HomeCommands } from './project/HomeCommands';
 import { NCHomeConfigCommands } from './project/NCHomeConfigCommands';
+import { LibraryCommands } from './project/LibraryCommands';
+import { LibraryService } from './project/LibraryService';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -65,6 +65,15 @@ export function activate(context: vscode.ExtensionContext) {
 	
 	// 注册HOME服务命令
 	HomeCommands.registerCommands(context, ncHomeConfigService);
+	
+	// 注册库管理命令
+	LibraryCommands.registerCommands(context);
+	
+	// 自动初始化库（如果配置了HOME路径）
+	const libraryService = new LibraryService(context);
+	setTimeout(() => {
+		libraryService.autoInitLibrary();
+	}, 2000); // 延迟2秒执行，确保配置已加载
 	
 	// 注册NC Home配置界面
 	const ncHomeConfigProvider = new NCHomeConfigProvider(context.extensionUri, context);

@@ -136,6 +136,26 @@
         "command": "yonbip.home.logs",
         "title": "查看HOME服务日志",
         "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.library.init",
+        "title": "初始化Java项目库",
+        "category": "YonBIP/库管理"
+      },
+      {
+        "command": "yonbip.library.reinit",
+        "title": "重新初始化Java项目库",
+        "category": "YonBIP/库管理"
+      },
+      {
+        "command": "yonbip.library.check",
+        "title": "检查库状态",
+        "category": "YonBIP/库管理"
+      },
+      {
+        "command": "yonbip.library.debugConfig",
+        "title": "调试配置信息",
+        "category": "YonBIP/库管理"
       }
     ],
     "configuration": {
