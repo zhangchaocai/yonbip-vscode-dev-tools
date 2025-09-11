@@ -241,6 +241,7 @@ export class HomeService {
             this.outputChannel.appendLine('✅ 准备启动NC HOME服务...');
             this.outputChannel.appendLine(`🖥️  主类: ${mainClass}`);
             this.outputChannel.appendLine(`📦 类路径包含 ${classpath.split(path.delimiter).length} 个条目`);
+            this.outputChannel.appendLine(`🏠 HOME路径: ${config.homePath}`);
             this.outputChannel.appendLine(`⚙️  JVM参数: ${vmParameters.join(' ')}`);
             this.outputChannel.appendLine(`🔧 完整启动命令: java ${vmParameters.join(' ')} -cp "[类路径]" ${mainClass}`);
             this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
@@ -670,6 +671,14 @@ export class HomeService {
         vmParameters.push('-Xms256m');
         vmParameters.push('-Xmx1024m');
         vmParameters.push('-Dnc.server.location='+config.homePath);
+        vmParameters.push('-DEJBConfigDir='+config.homePath+'/ejbXMLs');
+        vmParameters.push('-Dorg.owasp.esapi.resources='+config.homePath+'/ierp/bin/esapi');
+        vmParameters.push('-DExtServiceConfigDir='+config.homePath+'/ejbXMLs');
+        vmParameters.push('-Duap.hotwebs='+config.homePath+'/hotwebs');
+        vmParameters.push('-Duap.disable.codescan=false');
+        vmParameters.push('-Xmx1024m');
+        vmParameters.push('-Dfile.encoding=UTF-8');
+        vmParameters.push('-Duser.timezone=GMT+8');
         
         // 检测Java版本，决定是否添加MaxPermSize参数
         // MaxPermSize参数在Java 9+版本中已被移除
