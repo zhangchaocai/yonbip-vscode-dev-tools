@@ -140,182 +140,6 @@ export class HomeService {
     }
 
     /**
-     * 准备HOME目录 - 模拟IDEA插件中的FileTool.removeHotwebsJars()功能
-     * 这是解决ClassNotFoundException的关键步骤
-     */
-    private async prepareHomeDirectory(homePath: string): Promise<void> {
-        this.outputChannel.appendLine('🧹 开始准备HOME目录...');
-        
-        // 定义目标目录
-        const externalLibDir = path.join(homePath, 'external', 'lib');
-        const externalClassesDir = path.join(homePath, 'external', 'classes');
-        const hotwebsDir = path.join(homePath, 'hotwebs');
-        
-        // 确保目标目录存在
-        if (!fs.existsSync(externalLibDir)) {
-            fs.mkdirSync(externalLibDir, { recursive: true });
-            this.outputChannel.appendLine(`📁 创建目录: ${externalLibDir}`);
-        }
-        
-        if (!fs.existsSync(externalClassesDir)) {
-            fs.mkdirSync(externalClassesDir, { recursive: true });
-            this.outputChannel.appendLine(`📁 创建目录: ${externalClassesDir}`);
-        }
-        
-        // 清除目标目录中的旧文件，确保每次都是干净的复制
-        this.cleanDirectory(externalLibDir);
-        this.cleanDirectory(externalClassesDir);
-        
-        this.outputChannel.appendLine(`🧹 已清除目标目录中的旧文件，准备全新复制`);
-        
-        // 检查hotwebs目录是否存在
-        if (!fs.existsSync(hotwebsDir)) {
-            this.outputChannel.appendLine('⚠️ hotwebs目录不存在，跳过预处理步骤');
-            return;
-        }
-        
-        // 遍历hotwebs下的所有子目录
-        const hotwebDirs = fs.readdirSync(hotwebsDir).filter(dir => {
-            const dirPath = path.join(hotwebsDir, dir);
-            return fs.statSync(dirPath).isDirectory();
-        });
-        
-        for (const hotwebDir of hotwebDirs) {
-            const webappPath = path.join(hotwebsDir, hotwebDir);
-            const webInfPath = path.join(webappPath, 'WEB-INF');
-            
-            // 检查WEB-INF目录是否存在
-            if (!fs.existsSync(webInfPath)) {
-                continue;
-            }
-            
-            // 处理WEB-INF/lib目录
-            const webInfLibPath = path.join(webInfPath, 'lib');
-            if (fs.existsSync(webInfLibPath)) {
-                const jarFiles = fs.readdirSync(webInfLibPath).filter(file => file.endsWith('.jar'));
-                
-                for (const jarFile of jarFiles) {
-                    try {
-                        const sourceJarPath = path.join(webInfLibPath, jarFile);
-                        const targetJarPath = path.join(externalLibDir, jarFile);
-                        
-                        // 复制jar文件到external/lib目录
-                        fs.copyFileSync(sourceJarPath, targetJarPath);
-                        
-                        // 为了避免类路径冲突，只记录第一个NC云应用的jar文件
-                        if (hotwebDir === 'nccloud') {
-                            this.outputChannel.appendLine(`📦 已复制 ${jarFile} 到external/lib目录`);
-                        }
-                    } catch (error: any) {
-                        this.outputChannel.appendLine(`⚠️ 复制文件失败: ${jarFile}, 错误: ${error.message}`);
-                    }
-                }
-            }
-            
-            // 处理WEB-INF/classes目录
-            const webInfClassesPath = path.join(webInfPath, 'classes');
-            if (fs.existsSync(webInfClassesPath)) {
-                // 递归复制classes目录下的所有文件到external/classes目录
-                this.copyDirectory(webInfClassesPath, externalClassesDir);
-                
-                // 只记录第一个NC云应用的classes目录
-                if (hotwebDir === 'nccloud') {
-                    this.outputChannel.appendLine(`📂 已复制 ${webInfClassesPath} 到external/classes目录`);
-                }
-            }
-            
-            // 处理yyconfig目录
-            const yyconfigPath = path.join(webappPath, 'yyconfig');
-            if (fs.existsSync(yyconfigPath)) {
-                const targetYyconfigPath = path.join(homePath, 'yyconfig');
-                if (!fs.existsSync(targetYyconfigPath)) {
-                    fs.mkdirSync(targetYyconfigPath, { recursive: true });
-                }
-                
-                const configFiles = fs.readdirSync(yyconfigPath);
-                for (const configFile of configFiles) {
-                    try {
-                        const sourceConfigPath = path.join(yyconfigPath, configFile);
-                        const targetConfigPath = path.join(targetYyconfigPath, configFile);
-                        
-                        // 复制配置文件
-                        fs.copyFileSync(sourceConfigPath, targetConfigPath);
-                        
-                        // 只记录第一个NC云应用的配置文件
-                        if (hotwebDir === 'nccloud') {
-                            this.outputChannel.appendLine(`⚙️  已复制配置文件: ${configFile}`);
-                        }
-                    } catch (error: any) {
-                        this.outputChannel.appendLine(`⚠️ 复制配置文件失败: ${configFile}, 错误: ${error.message}`);
-                    }
-                }
-            }
-        }
-        
-        this.outputChannel.appendLine('✅ HOME目录预处理完成');
-    }
-
-    /**
-     * 递归复制目录
-     */
-    private copyDirectory(source: string, target: string): void {
-        // 确保目标目录存在
-        if (!fs.existsSync(target)) {
-            fs.mkdirSync(target, { recursive: true });
-        }
-        
-        // 读取源目录下的所有文件和子目录
-        const entries = fs.readdirSync(source, { withFileTypes: true });
-        
-        for (const entry of entries) {
-            const sourcePath = path.join(source, entry.name);
-            const targetPath = path.join(target, entry.name);
-            
-            if (entry.isDirectory()) {
-                // 递归复制子目录
-                this.copyDirectory(sourcePath, targetPath);
-            } else {
-                try {
-                    // 复制文件
-                    fs.copyFileSync(sourcePath, targetPath);
-                } catch (error: any) {
-                    // 忽略权限错误等非关键错误
-                    this.outputChannel.appendLine(`⚠️ 复制文件失败: ${entry.name}, 错误: ${error.message}`);
-                }
-            }
-        }
-    }
-
-    /**
-     * 清理目录 - 删除目录中的所有文件和子目录
-     */
-    private cleanDirectory(dirPath: string): void {
-        if (!fs.existsSync(dirPath)) {
-            return;
-        }
-        
-        const entries = fs.readdirSync(dirPath);
-        
-        for (const entry of entries) {
-            const entryPath = path.join(dirPath, entry);
-            const stats = fs.statSync(entryPath);
-            
-            try {
-                if (stats.isDirectory()) {
-                    // 递归删除子目录
-                    fs.rmSync(entryPath, { recursive: true, force: true });
-                } else {
-                    // 删除文件
-                    fs.unlinkSync(entryPath);
-                }
-            } catch (error: any) {
-                // 忽略无法删除的文件
-                this.outputChannel.appendLine(`⚠️ 清理文件失败: ${entry}, 错误: ${error.message}`);
-            }
-        }
-    }
-
-    /**
      * 启动NC HOME服务 (对应IDEA插件中的ServerDebugAction)
      * 修改为直接运行jar包的方式，而不是执行脚本
      */
@@ -361,25 +185,7 @@ export class HomeService {
         this.setStatus(HomeStatus.STARTING);
 
         try {
-            // 预处理HOME目录 - 解决ClassNotFoundException的关键步骤
-            //await this.prepareHomeDirectory(config.homePath);
-            // 检查许可证文件
-            const licenseDir = path.join(config.homePath, 'license');
-            if (!fs.existsSync(licenseDir)) {
-                this.outputChannel.appendLine('⚠️ 警告: 未找到许可证目录，可能导致启动失败');
-            } else {
-                const licenseFiles = fs.readdirSync(licenseDir);
-                const licFiles = licenseFiles.filter(file => file.endsWith('.lic'));
-                if (licFiles.length === 0) {
-                    this.outputChannel.appendLine('⚠️ 警告: 许可证目录中未找到.lic文件，可能导致启动失败');
-                } else {
-                    this.outputChannel.appendLine(`✅ 找到 ${licFiles.length} 个许可证文件`);
-                    licFiles.forEach(file => {
-                        this.outputChannel.appendLine(`   - ${file}`);
-                    });
-                }
-            }
-            
+
             // 检查数据源配置
             const dataSourceDir = path.join(config.homePath, 'ierp', 'bin');
             if (fs.existsSync(dataSourceDir)) {
@@ -863,6 +669,7 @@ export class HomeService {
         // 默认JVM参数
         vmParameters.push('-Xms256m');
         vmParameters.push('-Xmx1024m');
+        vmParameters.push('-Dnc.server.location='+config.homePath);
         
         // 检测Java版本，决定是否添加MaxPermSize参数
         // MaxPermSize参数在Java 9+版本中已被移除
