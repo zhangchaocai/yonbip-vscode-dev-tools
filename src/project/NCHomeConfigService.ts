@@ -422,31 +422,95 @@ export class NCHomeConfigService {
     }
 
     /**
-     * 测试Oracle连接
+     * 测试Oracle连接 - 使用Thick模式确保兼容所有Oracle版本
      */
     private async testOracleConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
-            // 智能检测连接字符串格式
-            let connectString = '';
+            // 构建连接字符串
+            const connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
             
-            // 如果databaseName看起来像SID（没有特殊字符），优先尝试SID格式
-            if (dataSource.databaseName && !dataSource.databaseName.includes('/') && !dataSource.databaseName.includes('.')) {
-                // 尝试SID格式 (host:port:SID)
-                connectString = `${dataSource.host}:${dataSource.port}:${dataSource.databaseName}`;
-            } else {
-                // 使用服务名格式 (host:port/service)
-                connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
-            }
-
             this.outputChannel.appendLine(`🔍 开始测试Oracle连接: ${connectString}`);
             
             try {
-                // 首先尝试使用Thin模式
+                // 直接使用Thick模式以避免版本兼容性问题
+                this.outputChannel.appendLine(`🔄 初始化Oracle Thick模式...`);
+                
+                try {
+                    // 尝试初始化Thick模式
+                    // 首先尝试使用默认路径初始化
+                    oracledb.initOracleClient();
+                    this.outputChannel.appendLine(`✅ Oracle Thick模式初始化成功`);
+                } catch (initError: any) {
+                    this.outputChannel.appendLine(`⚠️ Oracle Thick模式初始化失败: ${initError.message}`);
+                    
+                    // 检查是否是DPI-1047错误（无法找到Oracle客户端库）
+                    if (initError.message && initError.message.includes('DPI-1047')) {
+                        // 尝试使用常见的Oracle Instant Client安装路径
+                        const commonPaths = [
+                            '/opt/oracle/instantclient_23_3',  // 你的实际安装路径
+                            '/opt/oracle/instantclient_21_8',
+                            '/opt/oracle/instantclient_19_17',
+                            '/usr/local/oracle/instantclient_23_3',
+                            '/usr/local/oracle/instantclient_21_8',
+                            '/usr/local/oracle/instantclient_19_17',
+                            '/opt/homebrew/lib',  // Homebrew库路径
+                            path.join(this.context.globalStoragePath, 'oracle_client')
+                        ];
+                        
+                        // 添加从环境变量中获取的路径
+                        if (process.env.DYLD_LIBRARY_PATH) {
+                            const dyldPaths = process.env.DYLD_LIBRARY_PATH.split(':');
+                            commonPaths.unshift(...dyldPaths);  // 将环境变量路径放在最前面
+                        }
+                        
+                        let initialized = false;
+                        for (const clientPath of commonPaths) {
+                            if (clientPath && fs.existsSync(clientPath)) {
+                                try {
+                                    // 检查是否已经初始化过Oracle客户端
+                                    if (!oracledb.oracleClientVersion) {
+                                        oracledb.initOracleClient({ libDir: clientPath });
+                                    }
+                                    this.outputChannel.appendLine(`✅ Oracle Thick模式使用路径初始化成功: ${clientPath}`);
+                                    initialized = true;
+                                    break;
+                                } catch (pathError: any) {
+                                    this.outputChannel.appendLine(`⚠️ 路径 ${clientPath} 初始化失败: ${pathError.message}`);
+                                }
+                            }
+                        }
+                        
+                        // 如果所有常见路径都失败了，返回详细的错误信息
+                        if (!initialized) {
+                            return {
+                                success: false,
+                                message: `❌ Oracle客户端库未找到\n\n` +
+                                    `错误详情: ${initError.message}\n\n` +
+                                    `解决方法:\n` +
+                                    `1. 从 https://www.oracle.com/database/technologies/instant-client.html 下载Oracle Instant Client\n` +
+                                    `2. 将Instant Client解压到目录（如: /opt/oracle/instantclient_21_8）\n` +
+                                    `3. 在macOS上创建符号链接:\n` +
+                                    `   cd /opt/oracle/instantclient_21_8\n` +
+                                    `   ln -s libclntsh.dylib.* libclntsh.dylib\n` +
+                                    `4. 设置环境变量:\n` +
+                                    `   export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_8:$LD_LIBRARY_PATH\n` +
+                                    `   (Linux) 或 export DYLD_LIBRARY_PATH=/opt/oracle/instantclient_21_8:$DYLD_LIBRARY_PATH (macOS)\n\n` +
+                                    `或者在代码中指定libDir路径:\n` +
+                                    `oracledb.initOracleClient({libDir: '/path/to/instantclient'});`
+                            };
+                        }
+                    } else {
+                        this.outputChannel.appendLine(`💡 提示: 请确保已安装Oracle Instant Client`);
+                    }
+                }
+                
+                // 使用Thick模式进行连接
                 const connection = await oracledb.getConnection({
                     user: dataSource.username,
                     password: dataSource.password || '',
                     connectString: connectString
                 });
+                
                 const result = await connection.execute('SELECT 1 as test FROM dual');
                 await connection.close();
 
@@ -454,63 +518,15 @@ export class NCHomeConfigService {
                     success: true,
                     message: `✅ Oracle连接成功 - 使用格式: ${connectString}`
                 };
-            } catch (oracleError: any) {
-                // 处理版本兼容性问题
-                if (oracleError.message && oracleError.message.includes('NJS-138')) {
-                    this.outputChannel.appendLine(`⚠️ 检测到版本兼容性问题，尝试使用Thick模式...`);
-                    // 尝试使用Thick模式
-                    return await this.testOracleThickMode(dataSource, connectString);
-                } else if (oracleError.message && oracleError.message.includes('NJS-515')) {
-                    // 处理Easy Connect格式错误，尝试不同格式
-                    this.outputChannel.appendLine(`⚠️ 连接字符串格式错误，尝试兼容模式...`);
-                    return await this.testOracleLegacyCompatibility(dataSource);
-                } else {
-                    throw oracleError;
-                }
+            } catch (thickError: any) {
+                this.outputChannel.appendLine(`⚠️ Thick模式连接失败: ${thickError.message}`);
+                // 如果Thick模式也失败了，尝试旧版本兼容模式
+                return await this.testOracleLegacyCompatibility(dataSource);
             }
 
         } catch (error: any) {
+            this.outputChannel.appendLine(`❌ Oracle连接测试出现未处理的错误: ${error.message}`);
             return await this.handleOracleConnectionError(error, dataSource);
-        }
-    }
-
-    /**
-     * Oracle Thick模式测试
-     */
-    private async testOracleThickMode(dataSource: DataSourceMeta, connectString: string): Promise<ConnectionTestResult> {
-        this.outputChannel.appendLine(`🔄 尝试Oracle Thick模式连接...`);
-        
-        try {
-            // 尝试初始化Oracle Thick模式
-            try {
-                // 尝试不带参数初始化（使用系统默认的Oracle客户端）
-                oracledb.initOracleClient();
-                this.outputChannel.appendLine(`✅ Oracle Thick模式初始化成功`);
-            } catch (initError: any) {
-                this.outputChannel.appendLine(`⚠️ Oracle Thick模式初始化失败: ${initError.message}`);
-                this.outputChannel.appendLine(`💡 提示: 请确保已安装Oracle Instant Client`);
-                // 如果初始化失败，仍然尝试连接，让驱动程序自动处理
-            }
-            
-            // 使用Thick模式尝试连接
-            const connection = await oracledb.getConnection({
-                user: dataSource.username,
-                password: dataSource.password || '',
-                connectString: connectString
-            });
-            
-            const result = await connection.execute('SELECT 1 as test FROM dual');
-            await connection.close();
-
-            return {
-                success: true,
-                message: `✅ Oracle Thick模式连接成功 - 使用格式: ${connectString}`
-            };
-
-        } catch (thickError: any) {
-            this.outputChannel.appendLine(`   Thick模式失败: ${thickError.message}`);
-            // 如果Thick模式也失败了，尝试旧版本兼容模式
-            return await this.testOracleLegacyCompatibility(dataSource);
         }
     }
 
@@ -521,14 +537,11 @@ export class NCHomeConfigService {
         try {
             this.outputChannel.appendLine(`🔄 尝试Oracle旧版本兼容模式...`);
             
-            // 尝试多种连接格式，优先处理NJS-515错误
+            // 尝试多种连接格式
             const connectionFormats = [
-                `${dataSource.host}:${dataSource.port}:${dataSource.databaseName}`, // SID格式 (优先)
-                `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`, // 服务名格式
-                `//${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`, // EZCONNECT格式
-                `//${dataSource.host}:${dataSource.port}:${dataSource.databaseName}`, // EZCONNECT SID格式
-                `(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${dataSource.host})(PORT=${dataSource.port}))(CONNECT_DATA=(SID=${dataSource.databaseName})))`, // TNS SID
-                `(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${dataSource.host})(PORT=${dataSource.port}))(CONNECT_DATA=(SERVICE_NAME=${dataSource.databaseName})))` // TNS服务名
+                `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`,
+                `${dataSource.host}:${dataSource.port}:${dataSource.databaseName}`,
+                `${dataSource.host}/${dataSource.databaseName}`
             ];
 
             for (let i = 0; i < connectionFormats.length; i++) {
@@ -547,7 +560,7 @@ export class NCHomeConfigService {
 
                     return {
                         success: true,
-                        message: `✅ Oracle连接成功 - 使用格式: ${connectString}`
+                        message: `✅ Oracle旧版本兼容连接成功 - 使用格式 ${i+1}: ${connectString}`
                     };
                 } catch (formatError: any) {
                     this.outputChannel.appendLine(`   格式 ${i+1} 失败: ${formatError.message.substring(0, 100)}...`);
@@ -555,122 +568,19 @@ export class NCHomeConfigService {
                 }
             }
 
-            return await this.testOracleJDBCFallback(dataSource);
-
-        } catch (error: any) {
-            return await this.handleOracleConnectionError(error, dataSource);
-        }
-    }
-
-    /**
-     * Oracle JDBC回退测试
-     */
-    private async testOracleJDBCFallback(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
-        this.outputChannel.appendLine(`🔄 尝试JDBC兼容模式...`);
-        
-        try {
-            // 使用SID格式作为最后的尝试
-            // 修复NJS-515错误，使用正确的Oracle连接字符串格式
-            const connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
-            
-            const connection = await oracledb.getConnection({
-                user: dataSource.username,
-                password: dataSource.password || '',
-                connectString: connectString
-            });
-            
-            const result = await connection.execute('SELECT 1 as test FROM dual');
-            await connection.close();
-
+            // 如果所有格式都失败了，返回错误信息
             return {
-                success: true,
-                message: `✅ Oracle JDBC兼容模式连接成功 - 使用格式: ${connectString}`
+                success: false,
+                message: `❌ 所有Oracle连接格式都失败，请检查连接参数和网络连接`
             };
 
-        } catch (jdbcError: any) {
-            this.outputChannel.appendLine(`   JDBC模式失败: ${jdbcError.message}`);
-            return await this.provideOracleCompatibilitySolution(dataSource, jdbcError);
+        } catch (error: any) {
+            this.outputChannel.appendLine(`❌ Oracle兼容模式出现未处理的错误: ${error.message}`);
+            return {
+                success: false,
+                message: `❌ Oracle兼容模式连接失败: ${error.message}`
+            };
         }
-    }
-
-    /**
-     * 提供Oracle兼容性解决方案
-     */
-    private async provideOracleCompatibilitySolution(dataSource: DataSourceMeta, error: any): Promise<ConnectionTestResult> {
-        const solution = `🎯 Oracle旧版本兼容性解决方案
-
-📊 当前配置分析：
-- 主机: ${dataSource.host}
-- 端口: ${dataSource.port}
-- 服务名/SID: ${dataSource.databaseName}
-- 用户名: ${dataSource.username}
-- 错误类型: 版本不兼容或配置问题
-
-🛠️ 解决方案选项：
-
-1️⃣ **立即尝试方案**（推荐）：
-   - 使用SID格式连接：${dataSource.host}:${dataSource.port}:${dataSource.databaseName}
-   - 使用服务名格式：${dataSource.host}:${dataSource.port}/${dataSource.databaseName}
-
-2️⃣ **Oracle Instant Client方案**：
-   - 下载Oracle Instant Client（Basic + SDK包）
-   - 设置环境变量：
-     export ORACLE_HOME=/path/to/instantclient
-     export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
-     export PATH=$ORACLE_HOME:$PATH
-
-3️⃣ **连接字符串优化**：
-   - 完整TNS格式：
-     (DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${dataSource.host})(PORT=${dataSource.port}))(CONNECT_DATA=(SERVICE_NAME=${dataSource.databaseName})))
-
-4️⃣ **数据库端检查**：
-   - 在Oracle数据库执行：
-     SELECT * FROM PRODUCT_COMPONENT_VERSION;
-     SELECT INSTANCE_NAME, STATUS FROM V$INSTANCE;
-     SELECT * FROM V$LISTENER_NETWORK;
-
-5️⃣ **网络诊断**：
-   - 执行：telnet ${dataSource.host} ${dataSource.port}
-   - 检查监听器：lsnrctl status
-
-🔍 故障排除命令：
-\`\`\`bash
-# 检查Oracle版本（在数据库服务器执行）
-sqlplus / as sysdba <<EOF
-SELECT * FROM PRODUCT_COMPONENT_VERSION;
-SELECT INSTANCE_NAME, STATUS, DATABASE_STATUS FROM V$INSTANCE;
-SELECT HOST, PORT, SERVICE_NAME FROM V$LISTENER_NETWORK;
-EXIT;
-EOF
-
-# 检查监听器状态
-lsnrctl status
-lsnrctl services
-
-# 网络连通性测试
-nc -zv ${dataSource.host} ${dataSource.port}
-telnet ${dataSource.host} ${dataSource.port}
-\`\`\`
-
-📞 如果问题持续：
-1. 确认Oracle版本（需要9i及以上）
-2. 检查监听器配置（listener.ora）
-3. 验证tnsnames.ora配置
-4. 联系DBA检查数据库配置
-
-💡 替代连接格式：
-- SID: ${dataSource.host}:${dataSource.port}:${dataSource.databaseName}
-- Service: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}
-- TNS: (DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${dataSource.host})(PORT=${dataSource.port}))(CONNECT_DATA=(SID=${dataSource.databaseName})))
-- EZCONNECT: //${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
-
-        this.outputChannel.appendLine(solution);
-
-        return {
-            success: false,
-            message: `❌ Oracle连接失败: ${error.message}`,
-            error: error.message + '\n\n' + solution
-        };
     }
 
     /**
@@ -684,7 +594,7 @@ telnet ${dataSource.host} ${dataSource.port}
 
         // 检查版本兼容性
         if (errorMessage.includes('NJS-138') || errorMessage.includes('Thin mode') || errorMessage.includes('version')) {
-            return this.provideOracleCompatibilitySolution(dataSource, error);
+            return this.handleOracleConnectionError(error, dataSource);
         }
 
         // 处理ORA错误
