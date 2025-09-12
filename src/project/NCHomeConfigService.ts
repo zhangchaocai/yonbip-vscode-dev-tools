@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as mysql from 'mysql2/promise';
+import * as pg from 'pg';
+import * as mssql from 'mssql';
+import * as oracledb from 'oracledb';
 import { NCHomeConfig, DataSourceMeta, ConnectionTestResult, AutoParseResult, DRIVER_INFO_MAP } from './NCHomeConfigTypes';
 
 /**
@@ -244,43 +248,49 @@ export class NCHomeConfigService {
      */
     public async testConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
-            this.outputChannel.appendLine(`测试数据库连接: ${dataSource.name}`);
+            this.outputChannel.appendLine(`开始测试数据库连接: ${dataSource.name}`);
             
-            // 构建连接URL
-            const driverInfo = DRIVER_INFO_MAP[dataSource.databaseType]?.find(
-                driver => driver.className === dataSource.driverClassName
-            );
-
-            if (!driverInfo) {
+            // 验证基本参数
+            if (!dataSource.host || !dataSource.username || !dataSource.databaseName) {
                 return {
                     success: false,
-                    message: '未找到匹配的数据库驱动信息'
+                    message: '连接参数不完整，请检查主机、用户名和数据库名'
                 };
             }
 
-            const url = driverInfo.url
-                .replace('{host}', dataSource.host)
-                .replace('{port}', dataSource.port.toString())
-                .replace('{database}', dataSource.databaseName);
-
-            // 模拟连接测试（实际应该使用相应的数据库驱动）
-            // 这里只做基本的参数验证
-            if (!dataSource.host || !dataSource.username) {
+            if (!dataSource.port || dataSource.port <= 0 || dataSource.port > 65535) {
                 return {
                     success: false,
-                    message: '连接参数不完整'
+                    message: '端口号无效'
                 };
             }
 
-            // 模拟延迟
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            let connectionResult: ConnectionTestResult;
 
-            this.outputChannel.appendLine(`连接测试完成: ${dataSource.name}`);
+            switch (dataSource.databaseType) {
+                case 'mysql':
+                    connectionResult = await this.testMySQLConnection(dataSource);
+                    break;
+                case 'oracle':
+                    connectionResult = await this.testOracleConnection(dataSource);
+                    break;
+                case 'sqlserver':
+                    connectionResult = await this.testSQLServerConnection(dataSource);
+                    break;
+                case 'postgresql':
+                    connectionResult = await this.testPostgreSQLConnection(dataSource);
+                    break;
+                default:
+                    return {
+                        success: false,
+                        message: `不支持的数据库类型: ${dataSource.databaseType}`
+                    };
+            }
+
+            this.outputChannel.appendLine(`连接测试结果: ${connectionResult.success ? '成功' : '失败'}`);
+            this.outputChannel.appendLine(`消息: ${connectionResult.message}`);
             
-            return {
-                success: true,
-                message: '连接测试成功'
-            };
+            return connectionResult;
 
         } catch (error: any) {
             const errorMsg = `连接测试失败: ${error.message}`;
@@ -292,6 +302,511 @@ export class NCHomeConfigService {
                 error: error.message
             };
         }
+    }
+
+    /**
+     * 测试MySQL连接
+     */
+    private async testMySQLConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        try {
+            const connectionConfig = {
+                host: dataSource.host,
+                port: dataSource.port,
+                user: dataSource.username,
+                password: dataSource.password || '',
+                database: dataSource.databaseName,
+                connectTimeout: 10000,
+                timeout: 10000
+            };
+
+            this.outputChannel.appendLine(`连接MySQL: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            
+            const connection = await mysql.createConnection(connectionConfig);
+            
+            // 执行简单的查询测试
+            const [rows] = await connection.execute('SELECT 1 as test');
+            await connection.end();
+
+            return {
+                success: true,
+                message: `MySQL连接成功 - 主机: ${dataSource.host}:${dataSource.port}, 数据库: ${dataSource.databaseName}`
+            };
+
+        } catch (error: any) {
+            return {
+                success: false,
+                message: `MySQL连接失败: ${error.message}`,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * 测试PostgreSQL连接
+     */
+    private async testPostgreSQLConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        try {
+            const connectionConfig = {
+                host: dataSource.host,
+                port: dataSource.port,
+                user: dataSource.username,
+                password: dataSource.password || '',
+                database: dataSource.databaseName,
+                connectionTimeoutMillis: 10000,
+                statement_timeout: 10000
+            };
+
+            this.outputChannel.appendLine(`连接PostgreSQL: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            
+            const client = new pg.Client(connectionConfig);
+            await client.connect();
+            
+            // 执行简单的查询测试
+            const result = await client.query('SELECT 1 as test');
+            await client.end();
+
+            return {
+                success: true,
+                message: `PostgreSQL连接成功 - 主机: ${dataSource.host}:${dataSource.port}, 数据库: ${dataSource.databaseName}`
+            };
+
+        } catch (error: any) {
+            return {
+                success: false,
+                message: `PostgreSQL连接失败: ${error.message}`,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * 测试SQL Server连接
+     */
+    private async testSQLServerConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        try {
+            const connectionConfig = {
+                server: dataSource.host,
+                port: dataSource.port,
+                user: dataSource.username,
+                password: dataSource.password || '',
+                database: dataSource.databaseName,
+                connectionTimeout: 10000,
+                requestTimeout: 10000,
+                options: {
+                    encrypt: false,
+                    trustServerCertificate: true
+                }
+            };
+
+            this.outputChannel.appendLine(`连接SQL Server: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            
+            const pool = new mssql.ConnectionPool(connectionConfig);
+            await pool.connect();
+            
+            // 执行简单的查询测试
+            const result = await pool.request().query('SELECT 1 as test');
+            await pool.close();
+
+            return {
+                success: true,
+                message: `SQL Server连接成功 - 主机: ${dataSource.host}:${dataSource.port}, 数据库: ${dataSource.databaseName}`
+            };
+
+        } catch (error: any) {
+            return {
+                success: false,
+                message: `SQL Server连接失败: ${error.message}`,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * 测试Oracle连接
+     */
+    private async testOracleConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        try {
+            // 智能检测连接字符串格式
+            let connectString = '';
+            
+            // 如果databaseName看起来像SID（没有特殊字符），优先尝试SID格式
+            if (dataSource.databaseName && !dataSource.databaseName.includes('/') && !dataSource.databaseName.includes('.')) {
+                // 尝试SID格式 (host:port:SID)
+                connectString = `${dataSource.host}:${dataSource.port}:${dataSource.databaseName}`;
+            } else {
+                // 使用服务名格式 (host:port/service)
+                connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
+            }
+
+            this.outputChannel.appendLine(`🔍 开始测试Oracle连接: ${connectString}`);
+            
+            try {
+                // 首先尝试使用Thin模式
+                const connection = await oracledb.getConnection({
+                    user: dataSource.username,
+                    password: dataSource.password || '',
+                    connectString: connectString
+                });
+                const result = await connection.execute('SELECT 1 as test FROM dual');
+                await connection.close();
+
+                return {
+                    success: true,
+                    message: `✅ Oracle连接成功 - 使用格式: ${connectString}`
+                };
+            } catch (oracleError: any) {
+                // 处理版本兼容性问题
+                if (oracleError.message && oracleError.message.includes('NJS-138')) {
+                    this.outputChannel.appendLine(`⚠️ 检测到版本兼容性问题，尝试使用Thick模式...`);
+                    // 尝试使用Thick模式
+                    return await this.testOracleThickMode(dataSource, connectString);
+                } else if (oracleError.message && oracleError.message.includes('NJS-515')) {
+                    // 处理Easy Connect格式错误，尝试不同格式
+                    this.outputChannel.appendLine(`⚠️ 连接字符串格式错误，尝试兼容模式...`);
+                    return await this.testOracleLegacyCompatibility(dataSource);
+                } else {
+                    throw oracleError;
+                }
+            }
+
+        } catch (error: any) {
+            return await this.handleOracleConnectionError(error, dataSource);
+        }
+    }
+
+    /**
+     * Oracle Thick模式测试
+     */
+    private async testOracleThickMode(dataSource: DataSourceMeta, connectString: string): Promise<ConnectionTestResult> {
+        this.outputChannel.appendLine(`🔄 尝试Oracle Thick模式连接...`);
+        
+        try {
+            // 尝试初始化Oracle Thick模式
+            try {
+                // 尝试不带参数初始化（使用系统默认的Oracle客户端）
+                oracledb.initOracleClient();
+                this.outputChannel.appendLine(`✅ Oracle Thick模式初始化成功`);
+            } catch (initError: any) {
+                this.outputChannel.appendLine(`⚠️ Oracle Thick模式初始化失败: ${initError.message}`);
+                this.outputChannel.appendLine(`💡 提示: 请确保已安装Oracle Instant Client`);
+                // 如果初始化失败，仍然尝试连接，让驱动程序自动处理
+            }
+            
+            // 使用Thick模式尝试连接
+            const connection = await oracledb.getConnection({
+                user: dataSource.username,
+                password: dataSource.password || '',
+                connectString: connectString
+            });
+            
+            const result = await connection.execute('SELECT 1 as test FROM dual');
+            await connection.close();
+
+            return {
+                success: true,
+                message: `✅ Oracle Thick模式连接成功 - 使用格式: ${connectString}`
+            };
+
+        } catch (thickError: any) {
+            this.outputChannel.appendLine(`   Thick模式失败: ${thickError.message}`);
+            // 如果Thick模式也失败了，尝试旧版本兼容模式
+            return await this.testOracleLegacyCompatibility(dataSource);
+        }
+    }
+
+    /**
+     * Oracle旧版本兼容模式
+     */
+    private async testOracleLegacyCompatibility(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        try {
+            this.outputChannel.appendLine(`🔄 尝试Oracle旧版本兼容模式...`);
+            
+            // 尝试多种连接格式，优先处理NJS-515错误
+            const connectionFormats = [
+                `${dataSource.host}:${dataSource.port}:${dataSource.databaseName}`, // SID格式 (优先)
+                `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`, // 服务名格式
+                `//${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`, // EZCONNECT格式
+                `//${dataSource.host}:${dataSource.port}:${dataSource.databaseName}`, // EZCONNECT SID格式
+                `(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${dataSource.host})(PORT=${dataSource.port}))(CONNECT_DATA=(SID=${dataSource.databaseName})))`, // TNS SID
+                `(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${dataSource.host})(PORT=${dataSource.port}))(CONNECT_DATA=(SERVICE_NAME=${dataSource.databaseName})))` // TNS服务名
+            ];
+
+            for (let i = 0; i < connectionFormats.length; i++) {
+                const connectString = connectionFormats[i];
+                this.outputChannel.appendLine(`   尝试连接格式 ${i+1}: ${connectString}`);
+                
+                try {
+                    const connection = await oracledb.getConnection({
+                        user: dataSource.username,
+                        password: dataSource.password || '',
+                        connectString: connectString
+                    });
+                    
+                    const result = await connection.execute('SELECT 1 as test FROM dual');
+                    await connection.close();
+
+                    return {
+                        success: true,
+                        message: `✅ Oracle连接成功 - 使用格式: ${connectString}`
+                    };
+                } catch (formatError: any) {
+                    this.outputChannel.appendLine(`   格式 ${i+1} 失败: ${formatError.message.substring(0, 100)}...`);
+                    continue;
+                }
+            }
+
+            return await this.testOracleJDBCFallback(dataSource);
+
+        } catch (error: any) {
+            return await this.handleOracleConnectionError(error, dataSource);
+        }
+    }
+
+    /**
+     * Oracle JDBC回退测试
+     */
+    private async testOracleJDBCFallback(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        this.outputChannel.appendLine(`🔄 尝试JDBC兼容模式...`);
+        
+        try {
+            // 使用SID格式作为最后的尝试
+            // 修复NJS-515错误，使用正确的Oracle连接字符串格式
+            const connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
+            
+            const connection = await oracledb.getConnection({
+                user: dataSource.username,
+                password: dataSource.password || '',
+                connectString: connectString
+            });
+            
+            const result = await connection.execute('SELECT 1 as test FROM dual');
+            await connection.close();
+
+            return {
+                success: true,
+                message: `✅ Oracle JDBC兼容模式连接成功 - 使用格式: ${connectString}`
+            };
+
+        } catch (jdbcError: any) {
+            this.outputChannel.appendLine(`   JDBC模式失败: ${jdbcError.message}`);
+            return await this.provideOracleCompatibilitySolution(dataSource, jdbcError);
+        }
+    }
+
+    /**
+     * 提供Oracle兼容性解决方案
+     */
+    private async provideOracleCompatibilitySolution(dataSource: DataSourceMeta, error: any): Promise<ConnectionTestResult> {
+        const solution = `🎯 Oracle旧版本兼容性解决方案
+
+📊 当前配置分析：
+- 主机: ${dataSource.host}
+- 端口: ${dataSource.port}
+- 服务名/SID: ${dataSource.databaseName}
+- 用户名: ${dataSource.username}
+- 错误类型: 版本不兼容或配置问题
+
+🛠️ 解决方案选项：
+
+1️⃣ **立即尝试方案**（推荐）：
+   - 使用SID格式连接：${dataSource.host}:${dataSource.port}:${dataSource.databaseName}
+   - 使用服务名格式：${dataSource.host}:${dataSource.port}/${dataSource.databaseName}
+
+2️⃣ **Oracle Instant Client方案**：
+   - 下载Oracle Instant Client（Basic + SDK包）
+   - 设置环境变量：
+     export ORACLE_HOME=/path/to/instantclient
+     export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
+     export PATH=$ORACLE_HOME:$PATH
+
+3️⃣ **连接字符串优化**：
+   - 完整TNS格式：
+     (DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${dataSource.host})(PORT=${dataSource.port}))(CONNECT_DATA=(SERVICE_NAME=${dataSource.databaseName})))
+
+4️⃣ **数据库端检查**：
+   - 在Oracle数据库执行：
+     SELECT * FROM PRODUCT_COMPONENT_VERSION;
+     SELECT INSTANCE_NAME, STATUS FROM V$INSTANCE;
+     SELECT * FROM V$LISTENER_NETWORK;
+
+5️⃣ **网络诊断**：
+   - 执行：telnet ${dataSource.host} ${dataSource.port}
+   - 检查监听器：lsnrctl status
+
+🔍 故障排除命令：
+\`\`\`bash
+# 检查Oracle版本（在数据库服务器执行）
+sqlplus / as sysdba <<EOF
+SELECT * FROM PRODUCT_COMPONENT_VERSION;
+SELECT INSTANCE_NAME, STATUS, DATABASE_STATUS FROM V$INSTANCE;
+SELECT HOST, PORT, SERVICE_NAME FROM V$LISTENER_NETWORK;
+EXIT;
+EOF
+
+# 检查监听器状态
+lsnrctl status
+lsnrctl services
+
+# 网络连通性测试
+nc -zv ${dataSource.host} ${dataSource.port}
+telnet ${dataSource.host} ${dataSource.port}
+\`\`\`
+
+📞 如果问题持续：
+1. 确认Oracle版本（需要9i及以上）
+2. 检查监听器配置（listener.ora）
+3. 验证tnsnames.ora配置
+4. 联系DBA检查数据库配置
+
+💡 替代连接格式：
+- SID: ${dataSource.host}:${dataSource.port}:${dataSource.databaseName}
+- Service: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}
+- TNS: (DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${dataSource.host})(PORT=${dataSource.port}))(CONNECT_DATA=(SID=${dataSource.databaseName})))
+- EZCONNECT: //${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
+
+        this.outputChannel.appendLine(solution);
+
+        return {
+            success: false,
+            message: `❌ Oracle连接失败: ${error.message}`,
+            error: error.message + '\n\n' + solution
+        };
+    }
+
+    /**
+     * 处理Oracle连接错误
+     */
+    private async handleOracleConnectionError(error: any, dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        let errorMessage = error.message || '未知Oracle连接错误';
+        let solution = '';
+
+        this.outputChannel.appendLine(`❌ Oracle连接错误: ${errorMessage}`);
+
+        // 检查版本兼容性
+        if (errorMessage.includes('NJS-138') || errorMessage.includes('Thin mode') || errorMessage.includes('version')) {
+            return this.provideOracleCompatibilitySolution(dataSource, error);
+        }
+
+        // 处理ORA错误
+        if (errorMessage.includes('ORA-')) {
+            const oraCode = this.extractOracleErrorCode(errorMessage);
+            solution = this.getOracleErrorSuggestion(oraCode, dataSource);
+        }
+
+        // 处理网络错误
+        if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('ECONNREFUSED')) {
+            solution = `
+🔧 网络连接问题解决方案：
+1. 检查主机名解析：nslookup ${dataSource.host}
+2. 测试端口连通性：telnet ${dataSource.host} ${dataSource.port}
+3. 检查防火墙设置
+4. 确认Oracle监听器运行状态：lsnrctl status`;
+        }
+
+        // 处理认证错误
+        if (errorMessage.includes('ORA-01017') || errorMessage.includes('invalid username/password')) {
+            solution = `
+🔐 认证问题解决方案：
+1. 验证用户名和密码
+2. 检查用户是否被锁定：SELECT ACCOUNT_STATUS FROM DBA_USERS WHERE USERNAME='${dataSource.username.toUpperCase()}'
+3. 重置密码：ALTER USER ${dataSource.username} IDENTIFIED BY new_password`;
+        }
+
+        const fullError = `❌ Oracle连接失败: ${errorMessage}\n\n${solution}`;
+        
+        this.outputChannel.appendLine(fullError);
+
+        return {
+            success: false,
+            message: `Oracle连接失败: ${errorMessage}`,
+            error: fullError
+        };
+    }
+
+    /**
+     * 创建Oracle兼容性错误信息（已弃用，使用handleOracleConnectionError替代）
+     */
+    private createOracleCompatibilityError(error: any, dataSource: DataSourceMeta): ConnectionTestResult {
+        // 由于handleOracleConnectionError是异步的，这里同步处理
+        let errorMessage = error.message || '未知Oracle连接错误';
+        let solution = '';
+
+        // 检查版本兼容性
+        if (errorMessage.includes('NJS-138') || errorMessage.includes('Thin mode') || errorMessage.includes('version')) {
+            solution = `
+🎯 Oracle版本兼容性解决方案
+
+📊 当前配置：
+- 主机: ${dataSource.host}
+- 端口: ${dataSource.port}
+- 服务名/SID: ${dataSource.databaseName}
+- 错误: 版本不兼容
+
+🛠️ 立即尝试：
+1. 使用SID格式: ${dataSource.host}:${dataSource.port}:${dataSource.databaseName}
+2. 使用服务名格式: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}
+3. 检查Oracle版本: SELECT * FROM PRODUCT_COMPONENT_VERSION
+4. 验证监听器: lsnrctl status`;
+        }
+
+        // 处理ORA错误
+        if (errorMessage.includes('ORA-')) {
+            const oraCode = this.extractOracleErrorCode(errorMessage);
+            solution = this.getOracleErrorSuggestion(oraCode, dataSource);
+        }
+
+        return {
+            success: false,
+            message: `Oracle连接失败: ${errorMessage}`,
+            error: errorMessage + '\n\n' + solution
+        };
+    }
+
+    /**
+     * 检查Oracle版本兼容性
+     */
+    private checkOracleVersionCompatibility(errorMessage: string): { detectedVersion?: string; errorType: string } {
+        if (errorMessage.includes('NJS-138')) {
+            return { errorType: '版本不兼容', detectedVersion: '低于11g R2' };
+        }
+        return { errorType: '未知错误' };
+    }
+
+    /**
+     * 提取Oracle错误代码
+     */
+    private extractOracleErrorCode(errorMessage: string): string {
+        const match = errorMessage.match(/ORA-\d+/);
+        return match ? match[0] : 'UNKNOWN';
+    }
+
+    /**
+     * 获取Oracle错误建议
+     */
+    private getOracleErrorSuggestion(oraCode: string, dataSource: DataSourceMeta): string {
+        const suggestions: Record<string, string> = {
+            'ORA-12514': `监听器无法识别服务名：
+- 检查服务名是否正确：${dataSource.databaseName}
+- 使用lsnrctl status查看可用服务
+- 尝试使用SID替代服务名`,
+            'ORA-12541': `无监听器：
+- Oracle监听器未启动
+- 执行：lsnrctl start
+- 检查监听器配置：listener.ora`,
+            'ORA-01017': `用户名/密码无效：
+- 检查用户名：${dataSource.username}
+- 确认密码正确性
+- 检查用户权限`,
+            'ORA-12154': `TNS无法解析服务名：
+- 检查tnsnames.ora配置
+- 确认服务名：${dataSource.databaseName}
+- 验证网络配置`
+        };
+
+        return suggestions[oraCode] || `Oracle错误 ${oraCode}：
+- 检查连接参数
+- 验证Oracle服务状态
+- 查看监听器日志`;
     }
 
     /**

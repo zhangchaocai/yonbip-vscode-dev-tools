@@ -185,7 +185,6 @@ export class HomeService {
         this.setStatus(HomeStatus.STARTING);
 
         try {
-
             // 检查数据源配置
             const dataSourceDir = path.join(config.homePath, 'ierp', 'bin');
             if (fs.existsSync(dataSourceDir)) {
@@ -667,18 +666,31 @@ export class HomeService {
     private buildVMParameters(config: any): string[] {
         const vmParameters: string[] = [];
         
-        // 默认JVM参数
-        vmParameters.push('-Xms256m');
-        vmParameters.push('-Xmx1024m');
-        vmParameters.push('-Dnc.server.location='+config.homePath);
-        vmParameters.push('-DEJBConfigDir='+config.homePath+'/ejbXMLs');
-        vmParameters.push('-Dorg.owasp.esapi.resources='+config.homePath+'/ierp/bin/esapi');
-        vmParameters.push('-DExtServiceConfigDir='+config.homePath+'/ejbXMLs');
-        vmParameters.push('-Duap.hotwebs='+config.homePath+'/hotwebs');
+        // 添加IDEA插件中的默认VM参数 (与IDEA插件保持一致)
+        vmParameters.push('-Dnc.exclude.modules=' + (config.exModules || ''));
+        //vmParameters.push('-Dnc.runMode=develop');
+        vmParameters.push('-Dnc.server.location=' + config.homePath);
+        vmParameters.push('-DEJBConfigDir=' + path.join(config.homePath, 'ejbXMLs'));
+        vmParameters.push('-Dorg.owasp.esapi.resources=' + path.join(config.homePath, 'ierp', 'bin', 'esapi'));
+        vmParameters.push('-DExtServiceConfigDir=' + path.join(config.homePath, 'ejbXMLs'));
+        vmParameters.push('-Duap.hotwebs=' + (config.hotwebs || 'nccloud,fs,yonbip'));
         vmParameters.push('-Duap.disable.codescan=false');
         vmParameters.push('-Xmx1024m');
         vmParameters.push('-Dfile.encoding=UTF-8');
         vmParameters.push('-Duser.timezone=GMT+8');
+        
+        // 添加数据源配置目录参数 - 与IDEA插件保持一致
+        vmParameters.push('-Dnc.prop.dir=' + path.join(config.homePath, 'ierp', 'bin'));
+        vmParameters.push('-Dprop.dir=' + path.join(config.homePath, 'ierp', 'bin'));
+        
+        // 添加默认数据源配置参数
+        if (config.selectedDataSource) {
+            vmParameters.push('-Dnc.datasource.default=' + config.selectedDataSource);
+        }
+        
+        // 默认JVM参数
+        vmParameters.push('-Xms256m');
+        vmParameters.push('-Xmx1024m');
         
         // 检测Java版本，决定是否添加MaxPermSize参数
         // MaxPermSize参数在Java 9+版本中已被移除
@@ -728,46 +740,53 @@ export class HomeService {
         vmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
         
         // Java 17兼容参数
-        vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
-        vmParameters.push('--add-opens=java.base/java.io=ALL-UNNAMED');
-        vmParameters.push('--add-opens=java.base/java.util=ALL-UNNAMED');
-        vmParameters.push('--add-opens=java.base/java.util.concurrent=ALL-UNNAMED');
-        vmParameters.push('--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED');
-        vmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
-        vmParameters.push('--add-opens=java.base/java.net=ALL-UNNAMED');
-        
-        // 解决Java 11+的类加载问题 - 仅在Java 11-16版本添加
-        if (javaVersion >= 11 && javaVersion < 17 && javaVersion !== 0) {
-            vmParameters.push('--illegal-access=permit');
-            this.outputChannel.appendLine('添加--illegal-access=permit参数 (Java 11-16)');
+        if (javaVersion >= 17) {
+            vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.io=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.util=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.util.concurrent=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.net=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.xml/javax.xml=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.xml/javax.xml.stream=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.naming/javax.naming=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.management/javax.management=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED');
+            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.desktop/java.awt.image=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.desktop/sun.awt=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.security=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.lang.ref=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.desktop/javax.swing=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.desktop/javax.accessibility=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.desktop/java.beans=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.desktop/java.awt=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.desktop/sun.swing=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.desktop/java.awt.color=ALL-UNNAMED');
         }
         
-        // 根据Java版本和配置决定是否使用Security Manager
-        // Java 17+中Security Manager已被废弃，且可能导致权限问题
-        if (javaVersion < 17 && javaVersion !== 0 && !config.skipSecurityManager) {
-            vmParameters.push('-Djava.security.manager');
-            vmParameters.push('-Djava.security.policy=' + path.join(config.homePath, 'middleware', 'policy', 'policy.all'));
-            this.outputChannel.appendLine('添加Security Manager参数 (Java < 17)');
-        } else {
-            this.outputChannel.appendLine('跳过Security Manager参数 (Java >= 17 或配置跳过)');
-        }
-        
-        // 添加Tomcat编码参数
-        vmParameters.push('-Dsun.jnu.encoding=GBK');
-        vmParameters.push('-Dclient.encoding.override=GBK');
-        
-        // macOS特有参数 - 隐藏Dock图标
+        // macOS参数
         if (process.platform === 'darwin') {
             vmParameters.push('-Dapple.awt.UIElement=true');
         }
         
-        // 添加调试参数
+        // 调试模式参数
         if (config.debugMode) {
             vmParameters.push('-Xdebug');
             vmParameters.push('-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8888');
         }
         
-        // 添加自定义JVM参数
+        // 自定义JVM参数
         if (config.vmParameters && config.vmParameters.length > 0) {
             vmParameters.push(...config.vmParameters);
         }

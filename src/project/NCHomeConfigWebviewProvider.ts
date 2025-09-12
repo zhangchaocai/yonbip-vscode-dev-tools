@@ -100,6 +100,9 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                     case 'setBaseDatabase':
                         await this.handleSetBaseDatabase(message.dataSourceName);
                         break;
+                    case 'testDataSourceConnection':
+                        await this.handleTestDataSourceConnection(message.dataSourceName);
+                        break;
                     case 'getDatabaseTypes':
                         await this.handleGetDatabaseTypes();
                         break;
@@ -195,6 +198,44 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
     }
 
     /**
+     * 处理设置为开发库
+     */
+    private async handleSetDesignDatabase(dataSourceName: string): Promise<void> {
+        try {
+            await this.service.setAsDesignDatabase(dataSourceName);
+            const config = this.service.getConfig();
+            this.panel?.webview.postMessage({
+                type: 'designDatabaseSet',
+                config
+            });
+        } catch (error: any) {
+            this.panel?.webview.postMessage({
+                type: 'error',
+                message: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理设置为基准库
+     */
+    private async handleSetBaseDatabase(dataSourceName: string): Promise<void> {
+        try {
+            await this.service.setBaseDatabase(dataSourceName);
+            const config = this.service.getConfig();
+            this.panel?.webview.postMessage({
+                type: 'baseDatabaseSet',
+                config
+            });
+        } catch (error: any) {
+            this.panel?.webview.postMessage({
+                type: 'error',
+                message: error.message
+            });
+        }
+    }
+
+    /**
      * 处理删除数据源
      */
     private async handleDeleteDataSource(dataSourceName: string): Promise<void> {
@@ -205,29 +246,43 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
             config
         });
     }
-
+    
     /**
-     * 处理设置开发库
+     * 处理测试数据源连接
      */
-    private async handleSetDesignDatabase(dataSourceName: string): Promise<void> {
-        await this.service.setAsDesignDatabase(dataSourceName);
-        const config = this.service.getConfig();
-        this.panel?.webview.postMessage({
-            type: 'designDatabaseSet',
-            config
-        });
-    }
-
-    /**
-     * 处理设置基准库
-     */
-    private async handleSetBaseDatabase(dataSourceName: string): Promise<void> {
-        await this.service.setBaseDatabase(dataSourceName);
-        const config = this.service.getConfig();
-        this.panel?.webview.postMessage({
-            type: 'baseDatabaseSet',
-            config
-        });
+    private async handleTestDataSourceConnection(dataSourceName: string): Promise<void> {
+        try {
+            // 获取数据源配置
+            const config = this.service.getConfig();
+            const dataSource = config.dataSources?.find(ds => ds.name === dataSourceName);
+            
+            if (!dataSource) {
+                this.panel?.webview.postMessage({
+                    type: 'dataSourceConnectionTested',
+                    success: false,
+                    dataSourceName: dataSourceName,
+                    error: '未找到指定的数据源'
+                });
+                return;
+            }
+            
+            // 测试连接
+            const result = await this.service.testConnection(dataSource);
+            this.panel?.webview.postMessage({
+                type: 'dataSourceConnectionTested',
+                success: result.success,
+                dataSourceName: dataSourceName,
+                message: result.message,
+                error: result.error
+            });
+        } catch (error: any) {
+            this.panel?.webview.postMessage({
+                type: 'dataSourceConnectionTested',
+                success: false,
+                dataSourceName: dataSourceName,
+                error: error.message
+            });
+        }
     }
 
     /**
@@ -565,12 +620,28 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                             <div>主机: \${ds.host}:\${ds.port}</div>
                             <div>数据库: \${ds.databaseName}</div>
                         </div>
+                        <div style="margin-top: 10px;">
+                            <button class="button" onclick="testDataSourceConnection('\${ds.name}')">测试连接</button>
+                        </div>
                     </div>
                 \`;
             });
             html += '</div>';
             
             dataSourceListElement.innerHTML = html;
+        }
+        
+        // 测试数据源连接
+        function testDataSourceConnection(dataSourceName) {
+            vscode.postMessage({
+                type: 'testDataSourceConnection',
+                dataSourceName: dataSourceName
+            });
+        }
+        
+        // 显示测试连接结果
+        function showTestResult(dataSourceName, success, message) {
+            showMessage(\`\${dataSourceName}: \${message}\`, success ? 'success' : 'error');
         }
         
         // 更新配置显示
@@ -608,6 +679,14 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                     } else {
                         showMessage('数据源添加失败: ' + message.error, 'error');
                     }
+                    break;
+                    
+                case 'dataSourceConnectionTested':
+                    showTestResult(
+                        message.dataSourceName, 
+                        message.success, 
+                        message.message || message.error || '连接测试完成'
+                    );
                     break;
             }
         });
