@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, spawnSync, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as iconv from 'iconv-lite';
@@ -185,6 +185,9 @@ export class HomeService {
         this.setStatus(HomeStatus.STARTING);
 
         try {
+            // 确保design数据源配置存在
+            await this.ensureDesignDataSource(config);
+
             // 检查数据源配置
             const dataSourceDir = path.join(config.homePath, 'ierp', 'bin');
             if (fs.existsSync(dataSourceDir)) {
@@ -228,9 +231,12 @@ export class HomeService {
             // 构建JVM参数 (使用与IDEA插件一致的参数)
             const vmParameters = this.buildVMParameters(config);
             
+            // 确定Java可执行文件路径
+            let javaExecutable = this.getJavaExecutable(config);
+            
             // 构建完整命令
             const command = [
-                'java',
+                javaExecutable,
                 ...vmParameters,
                 '-cp',
                 `"${classpath}"`,
@@ -238,32 +244,34 @@ export class HomeService {
             ].join(' ');
 
             this.outputChannel.appendLine('✅ 准备启动NC HOME服务...');
+            this.outputChannel.appendLine(`☕ Java可执行文件: ${javaExecutable}`);
             this.outputChannel.appendLine(`🖥️  主类: ${mainClass}`);
             this.outputChannel.appendLine(`📦 类路径包含 ${classpath.split(path.delimiter).length} 个条目`);
             this.outputChannel.appendLine(`🏠 HOME路径: ${config.homePath}`);
             this.outputChannel.appendLine(`⚙️  JVM参数: ${vmParameters.join(' ')}`);
-            this.outputChannel.appendLine(`🔧 完整启动命令: java ${vmParameters.join(' ')} -cp "[类路径]" ${mainClass}`);
+            this.outputChannel.appendLine(`🔧 完整启动命令: ${javaExecutable} ${vmParameters.join(' ')} -cp "[类路径]" ${mainClass}`);
             this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
 
             // 执行启动命令
             // 注意：这里需要将类路径字符串拆分为数组，因为spawn需要参数数组
             const cpArgs = ['-cp', classpath];
-            this.process = spawn('java', [...vmParameters, ...cpArgs, mainClass], {
+            this.process = spawn(javaExecutable, [...vmParameters, ...cpArgs, mainClass], {
                 cwd: config.homePath,
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: {
+                    // 添加hotwebs环境变量
+                    FIELD_HOTWEBS: path.join(config.homePath, 'hotwebs'),
+                    uap_hotwebs: path.join(config.homePath, 'hotwebs'),
+                    // 添加IDEA插件使用的环境变量
+                    FIELD_NC_HOME: config.homePath,
+                    IDEA_FIELD_NC_HOME: config.homePath,
                     ...process.env,
                     JAVA_TOOL_OPTIONS: '-Dfile.encoding=GBK',
                     LANG: 'zh_CN.GBK',
                     LC_ALL: 'zh_CN.GBK',
                     LC_CTYPE: 'zh_CN.GBK',
                     JAVA_OPTS: '-Dfile.encoding=GBK -Dconsole.encoding=GBK',
-                    // 添加IDEA插件使用的环境变量
-                    FIELD_NC_HOME: config.homePath,
-                    IDEA_FIELD_NC_HOME: config.homePath,
-                    // 添加hotwebs环境变量
-                    FIELD_HOTWEBS: path.join(config.homePath, 'hotwebs'),
-                    uap_hotwebs: path.join(config.homePath, 'hotwebs')
+              
                 }
             });
 
@@ -331,6 +339,7 @@ export class HomeService {
                     this.outputChannel.appendLine('   2. 可能是缺少必要的系统属性配置');
                     this.outputChannel.appendLine('   3. 可能是类路径配置不正确导致关键类无法加载');
                     this.outputChannel.appendLine('   4. 可能是端口绑定失败');
+                    this.outputChannel.appendLine('   5. 可能是Java版本兼容性问题（如使用了不支持的JDK版本）');
                     this.outputChannel.appendLine('💡 建议检查完整的日志输出，特别是STDERR中的错误信息');
                     this.outputChannel.appendLine('💡 尝试在终端中手动运行以下命令来获取更详细的错误信息:');
                     this.outputChannel.appendLine(`   java ${vmParameters.join(' ')} -cp "[类路径]" ${mainClass}`);
@@ -349,10 +358,30 @@ export class HomeService {
             });
 
             // 监听进程错误事件
-            this.process.on('error', (error: any) => {
-                this.outputChannel.appendLine(`❌ 启动服务时发生错误: ${error.message}`);
+            this.process.on('error', (err) => {
+                console.error('进程启动失败:', err);
+                this.outputChannel.appendLine(`❌ 启动服务时发生错误: ${err.message}`);
                 this.setStatus(HomeStatus.ERROR);
                 this.process = null;
+            });
+
+            // 监听进程关闭事件
+            this.process.on('close', (code, signal) => {
+                console.log(`进程关闭，退出码: ${code}, 信号: ${signal}`);
+                this.outputChannel.appendLine(`\nHOME服务进程已关闭，退出码: ${code}${signal ? `, 信号: ${signal}` : ''}`);
+                
+                if (code !== 0 && code !== null) {
+                    this.outputChannel.appendLine('⚠️ 服务异常退出，请检查日志文件或终端手动启动输出！');
+                    if (code === 255) {
+                        this.outputChannel.appendLine('💡 退出码255通常与以下问题有关:');
+                        this.outputChannel.appendLine('   - Java Security Manager配置问题');
+                        this.outputChannel.appendLine('   - JDK版本兼容性问题');
+                        this.outputChannel.appendLine('   - 必要的系统属性未正确设置');
+                    }
+                }
+                
+                this.process = null;
+                this.setStatus(HomeStatus.STOPPED);
             });
 
             // 检查进程是否成功启动
@@ -560,7 +589,27 @@ export class HomeService {
         const uniqueClasspathEntries = [...new Set(classpathEntries)];
         this.outputChannel.appendLine(`类路径构建完成，共包含 ${uniqueClasspathEntries.length} 个条目`);
         
-        return uniqueClasspathEntries.join(path.delimiter);
+        // 确保所有类路径条目都是有效的文件系统路径，而不是URI
+        const validatedClasspathEntries = uniqueClasspathEntries.filter(entry => {
+            try {
+                // 检查是否为有效的文件系统路径
+                if (fs.existsSync(entry)) {
+                    return true;
+                }
+                // 检查是否为有效的目录或文件路径（即使当前不存在）
+                // 但排除看起来像jar中资源的URI
+                if (entry.includes("!/")) {
+                    this.outputChannel.appendLine(`⚠️ 跳过无效类路径条目(可能是jar中资源): ${entry}`);
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                this.outputChannel.appendLine(`⚠️ 检查类路径条目时出错: ${entry}, 错误: ${error}`);
+                return false;
+            }
+        });
+        
+        return validatedClasspathEntries.join(path.delimiter);
     }
 
     /**
@@ -668,7 +717,7 @@ export class HomeService {
         
         // 添加IDEA插件中的默认VM参数 (与IDEA插件保持一致)
         vmParameters.push('-Dnc.exclude.modules=' + (config.exModules || ''));
-        //vmParameters.push('-Dnc.runMode=develop');
+        vmParameters.push('-Dnc.runMode=develop');
         vmParameters.push('-Dnc.server.location=' + config.homePath);
         vmParameters.push('-DEJBConfigDir=' + path.join(config.homePath, 'ejbXMLs'));
         vmParameters.push('-Dorg.owasp.esapi.resources=' + path.join(config.homePath, 'ierp', 'bin', 'esapi'));
@@ -678,6 +727,10 @@ export class HomeService {
         vmParameters.push('-Xmx1024m');
         vmParameters.push('-Dfile.encoding=UTF-8');
         vmParameters.push('-Duser.timezone=GMT+8');
+        vmParameters.push('-Dnc.log.console=true');      // 强制输出日志到控制台
+        vmParameters.push('-Dnc.debug=true');            // 开启调试模式
+        vmParameters.push('-Dnc.log.level=DEBUG');       // 设置日志级别为 DEBUG
+        vmParameters.push('-Dnc.startup.trace=true');    // 启动跟踪
         
         // 添加数据源配置目录参数 - 与IDEA插件保持一致
         vmParameters.push('-Dnc.prop.dir=' + path.join(config.homePath, 'ierp', 'bin'));
@@ -792,6 +845,132 @@ export class HomeService {
         }
         
         return vmParameters;
+    }
+
+    /**
+     * 获取Java可执行文件路径
+     */
+    private getJavaExecutable(config: any): string {
+        // 首先尝试使用配置的Java路径
+        if (config.javaHome) {
+            const javaPath = path.join(config.javaHome, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+            if (fs.existsSync(javaPath)) {
+                this.outputChannel.appendLine(`✅ 使用配置的Java路径: ${javaPath}`);
+                return javaPath;
+            }
+        }
+
+        // 尝试从VS Code的java.configuration.runtimes配置中获取Java路径
+        try {
+            const javaConfig = vscode.workspace.getConfiguration('java.configuration');
+            const runtimes = javaConfig.get<any[]>('runtimes', []);
+            
+            // 查找默认的Java运行时
+            const defaultRuntime = runtimes.find(runtime => runtime.default === true);
+            if (defaultRuntime && defaultRuntime.path) {
+                const javaPath = path.join(defaultRuntime.path, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+                if (fs.existsSync(javaPath)) {
+                    this.outputChannel.appendLine(`✅ 使用VS Code配置的默认Java运行时: ${javaPath}`);
+                    return javaPath;
+                }
+            }
+            
+            // 如果没有默认运行时，尝试使用第一个配置的运行时
+            if (runtimes.length > 0 && runtimes[0].path) {
+                const javaPath = path.join(runtimes[0].path, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+                if (fs.existsSync(javaPath)) {
+                    this.outputChannel.appendLine(`✅ 使用VS Code配置的第一个Java运行时: ${javaPath}`);
+                    return javaPath;
+                }
+            }
+        } catch (error) {
+            this.outputChannel.appendLine(`⚠️ 读取VS Code Java配置时出错: ${error}`);
+        }
+
+        // 回退到内置的ufjdk
+        const ufjdkPath = path.join(config.homePath, 'ufjdk');
+        const ufjdkBinPath = path.join(ufjdkPath, 'bin');
+        
+        // 根据操作系统确定可执行文件名
+        const javaExeName = process.platform === 'win32' ? 'java.exe' : 'java';
+        const javaBinPath = path.join(ufjdkBinPath, javaExeName);
+        
+        // 检查是否存在且可执行
+        if (fs.existsSync(javaBinPath)) {
+            try {
+                // 在Unix系统上检查可执行权限
+                if (process.platform !== 'win32') {
+                    fs.accessSync(javaBinPath, fs.constants.X_OK);
+                }
+                
+                // 验证这是一个有效的Java可执行文件
+                const versionResult = spawnSync(javaBinPath, ['-version'], { 
+                    encoding: 'utf8',
+                    timeout: 5000 
+                });
+                
+                if (versionResult.status === 0) {
+                    this.outputChannel.appendLine(`✅ 使用NC内置JDK: ${javaBinPath}`);
+                    return javaBinPath;
+                } else {
+                    this.outputChannel.appendLine(`⚠️  NC内置JDK验证失败，使用系统Java`);
+                }
+            } catch (error) {
+                this.outputChannel.appendLine(`⚠️  NC内置JDK不可用: ${error}`);
+            }
+        } else {
+            this.outputChannel.appendLine(`⚠️  未找到NC内置JDK: ${javaBinPath}`);
+        }
+        
+        // 检查是否为Windows JDK在macOS/Linux上
+        const wrongPlatformJava = path.join(ufjdkBinPath, process.platform === 'win32' ? 'java' : 'java.exe');
+        if (fs.existsSync(wrongPlatformJava)) {
+            this.outputChannel.appendLine(`⚠️  检测到不匹配的JDK平台，使用系统Java`);
+        }
+        
+        // 使用系统Java
+        try {
+            const systemJavaResult = spawnSync('java', ['-version'], { 
+                encoding: 'utf8',
+                timeout: 5000 
+            });
+            
+            if (systemJavaResult.status === 0) {
+                this.outputChannel.appendLine(`✅ 使用系统Java: java`);
+                return 'java';
+            }
+        } catch (error) {
+            // 继续尝试其他路径
+        }
+        
+        // 尝试常见Java路径
+        const commonJavaPaths = [
+            '/usr/bin/java',
+            '/usr/local/bin/java',
+            '/opt/homebrew/bin/java'
+        ];
+        
+        for (const javaPath of commonJavaPaths) {
+            if (fs.existsSync(javaPath)) {
+                try {
+                    const result = spawnSync(javaPath, ['-version'], { 
+                        encoding: 'utf8',
+                        timeout: 5000 
+                    });
+                    
+                    if (result.status === 0) {
+                        this.outputChannel.appendLine(`✅ 使用系统Java: ${javaPath}`);
+                        return javaPath;
+                    }
+                } catch (error) {
+                    continue;
+                }
+            }
+        }
+        
+        // 最后的回退方案
+        this.outputChannel.appendLine(`❌ 未找到可用的Java可执行文件，使用默认java命令`);
+        return 'java';
     }
 
     /**
@@ -963,5 +1142,125 @@ export class HomeService {
         }
         
         this.outputChannel.dispose();
+    }
+
+    /**
+     * 确保design数据源配置存在
+     * 如果不存在，则根据配置创建一个默认的design数据源
+     */
+    private async ensureDesignDataSource(config: any): Promise<void> {
+        const binDir = path.join(config.homePath, 'ierp', 'bin');
+        const dataSourceIniPath = path.join(binDir, 'datasource.ini');
+        const dataSourcePropertiesPath = path.join(binDir, 'datasource.properties');
+        
+        // 检查是否已存在数据源配置文件
+        if (fs.existsSync(dataSourceIniPath) || fs.existsSync(dataSourcePropertiesPath)) {
+            this.outputChannel.appendLine('✅ 数据源配置已存在');
+            return;
+        }
+        
+        // 确保目录存在
+        if (!fs.existsSync(binDir)) {
+            fs.mkdirSync(binDir, { recursive: true });
+        }
+        
+        // 如果配置中有数据源信息，则创建design数据源配置
+        if (config.dataSources && config.dataSources.length > 0) {
+            // 查找被标记为design的数据源
+            let designDataSource = config.dataSources.find((ds: any) => ds.name === config.selectedDataSource);
+            
+            // 如果没有找到明确指定的design数据源，则使用第一个数据源
+            if (!designDataSource && config.dataSources.length > 0) {
+                designDataSource = config.dataSources[0];
+                this.outputChannel.appendLine(`⚠️ 未找到明确指定的design数据源，使用第一个数据源: ${designDataSource.name}`);
+            }
+            
+            if (designDataSource) {
+                this.outputChannel.appendLine(`🔧 创建design数据源配置: ${designDataSource.name}`);
+                
+                // 构建数据源配置内容
+                const dataSourceContent = this.buildDataSourceConfig(designDataSource);
+                
+                // 写入配置文件
+                fs.writeFileSync(dataSourceIniPath, dataSourceContent, 'utf-8');
+                this.outputChannel.appendLine(`✅ 已创建数据源配置文件: ${dataSourceIniPath}`);
+                return;
+            }
+        }
+        
+        // 如果没有配置数据源，则创建一个默认的MySQL数据源配置
+        this.outputChannel.appendLine('⚠️ 未配置数据源，创建默认的MySQL design数据源配置');
+        const defaultDataSourceContent = `<?xml version="1.0" encoding="UTF-8"?>
+<DataSourceMeta>
+    <dataSourceName>design</dataSourceName>
+    <databaseType>MySQL</databaseType>
+    <driverClassName>com.mysql.cj.jdbc.Driver</driverClassName>
+    <databaseUrl>jdbc:mysql://localhost:3306/nc6x?useSSL=false&amp;serverTimezone=UTC</databaseUrl>
+    <user>root</user>
+    <password>root</password>
+    <maxCon>20</maxCon>
+    <minCon>5</minCon>
+</DataSourceMeta>`;
+        
+        fs.writeFileSync(dataSourceIniPath, defaultDataSourceContent, 'utf-8');
+        this.outputChannel.appendLine(`✅ 已创建默认数据源配置文件: ${dataSourceIniPath}`);
+    }
+
+    /**
+     * 构建数据源配置内容
+     * @param dataSource 数据源配置信息
+     */
+    private buildDataSourceConfig(dataSource: any): string {
+        // 根据数据库类型生成URL
+        let databaseUrl = dataSource.url;
+        if (!databaseUrl) {
+            switch (dataSource.databaseType.toLowerCase()) {
+                case 'mysql':
+                    databaseUrl = `jdbc:mysql://${dataSource.host}:${dataSource.port}/${dataSource.databaseName}?useSSL=false&serverTimezone=UTC`;
+                    break;
+                case 'oracle':
+                    databaseUrl = `jdbc:oracle:thin:@${dataSource.host}:${dataSource.port}:${dataSource.databaseName}`;
+                    break;
+                case 'sqlserver':
+                    databaseUrl = `jdbc:sqlserver://${dataSource.host}:${dataSource.port};database=${dataSource.databaseName}`;
+                    break;
+                case 'postgresql':
+                    databaseUrl = `jdbc:postgresql://${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
+                    break;
+                default:
+                    databaseUrl = `jdbc:${dataSource.databaseType.toLowerCase()}://${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
+            }
+        }
+        
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<DataSourceMeta>
+    <dataSourceName>design</dataSourceName>
+    <databaseType>${dataSource.databaseType}</databaseType>
+    <driverClassName>${dataSource.driverClassName || this.getDriverClassName(dataSource.databaseType)}</driverClassName>
+    <databaseUrl>${databaseUrl}</databaseUrl>
+    <user>${dataSource.username}</user>
+    <password>${dataSource.password}</password>
+    <maxCon>20</maxCon>
+    <minCon>5</minCon>
+</DataSourceMeta>`;
+    }
+
+    /**
+     * 根据数据库类型获取驱动类名
+     * @param databaseType 数据库类型
+     */
+    private getDriverClassName(databaseType: string): string {
+        switch (databaseType.toLowerCase()) {
+            case 'mysql':
+                return 'com.mysql.cj.jdbc.Driver';
+            case 'oracle':
+                return 'oracle.jdbc.OracleDriver';
+            case 'sqlserver':
+                return 'com.microsoft.sqlserver.jdbc.SQLServerDriver';
+            case 'postgresql':
+                return 'org.postgresql.Driver';
+            default:
+                return 'com.mysql.cj.jdbc.Driver';
+        }
     }
 }
