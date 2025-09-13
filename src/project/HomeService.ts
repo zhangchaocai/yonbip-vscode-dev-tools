@@ -234,28 +234,27 @@ export class HomeService {
             // 确定Java可执行文件路径
             let javaExecutable = this.getJavaExecutable(config);
             
-            // 构建完整命令
-            const command = [
-                javaExecutable,
-                ...vmParameters,
-                '-cp',
-                `"${classpath}"`,
-                mainClass
-            ].join(' ');
-
             this.outputChannel.appendLine('✅ 准备启动NC HOME服务...');
             this.outputChannel.appendLine(`☕ Java可执行文件: ${javaExecutable}`);
             this.outputChannel.appendLine(`🖥️  主类: ${mainClass}`);
             this.outputChannel.appendLine(`📦 类路径包含 ${classpath.split(path.delimiter).length} 个条目`);
             this.outputChannel.appendLine(`🏠 HOME路径: ${config.homePath}`);
             this.outputChannel.appendLine(`⚙️  JVM参数: ${vmParameters.join(' ')}`);
-            this.outputChannel.appendLine(`🔧 完整启动命令: ${javaExecutable} ${vmParameters.join(' ')} -cp "[类路径]" ${mainClass}`);
+            
+            // 构建Java命令参数
+            const javaArgs = [
+                ...vmParameters,
+                '-cp',
+                classpath,
+                mainClass
+            ];
+            
+            this.outputChannel.appendLine('🚀 启动命令:');
+            this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
             this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
 
             // 执行启动命令
-            // 注意：这里需要将类路径字符串拆分为数组，因为spawn需要参数数组
-            const cpArgs = ['-cp', classpath];
-            this.process = spawn(javaExecutable, [...vmParameters, ...cpArgs, mainClass], {
+            this.process = spawn(javaExecutable, javaArgs, {
                 cwd: config.homePath,
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: {
@@ -828,6 +827,9 @@ export class HomeService {
             vmParameters.push('--add-opens=java.desktop/java.awt.color=ALL-UNNAMED');
         }
         
+        // 添加对java.lang包的开放访问权限，解决InaccessibleObjectException问题
+        vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
+        
         // macOS参数
         if (process.platform === 'darwin') {
             vmParameters.push('-Dapple.awt.UIElement=true');
@@ -839,6 +841,11 @@ export class HomeService {
             vmParameters.push('-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8888');
         }
         
+        // 添加project.dir作为系统属性
+        if (config.projectDir) {
+            vmParameters.push('-Dproject.dir=' + config.projectDir);
+        }
+
         // 自定义JVM参数
         if (config.vmParameters && config.vmParameters.length > 0) {
             vmParameters.push(...config.vmParameters);
