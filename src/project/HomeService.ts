@@ -215,43 +215,13 @@ export class HomeService {
             return;
         }
 
-        this.outputChannel.show();
-        this.outputChannel.appendLine('🚀 开始启动NC HOME服务...');
-
-        // 检查系统配置文件
-        const sysConfigCheck = this.configService.checkSystemConfig();
-        if (!sysConfigCheck.valid) {
-            this.outputChannel.appendLine(`❌ 系统配置检查失败: ${sysConfigCheck.message}`);
-            vscode.window.showErrorMessage(`系统配置检查失败: ${sysConfigCheck.message}`);
-            return;
-        } else {
-            this.outputChannel.appendLine(`✅ ${sysConfigCheck.message}`);
-        }
-
-        this.outputChannel.appendLine(`📂 NC HOME路径: ${config.homePath}`);
-        this.setStatus(HomeStatus.STARTING);
-
         try {
-            // 确保design数据源配置存在
-            await this.ensureDesignDataSource(config);
+            this.setStatus(HomeStatus.STARTING);
+            this.outputChannel.clear();
+            this.outputChannel.appendLine('正在启动NC HOME服务...');
 
-            // 检查数据源配置
-            const dataSourceDir = path.join(config.homePath, 'ierp', 'bin');
-            if (fs.existsSync(dataSourceDir)) {
-                const dataSourceFiles = fs.readdirSync(dataSourceDir);
-                const dsConfigs = dataSourceFiles.filter(file => 
-                    file.startsWith('datasource') && (file.endsWith('.ini') || file.endsWith('.properties')));
-                if (dsConfigs.length > 0) {
-                    this.outputChannel.appendLine(`✅ 找到 ${dsConfigs.length} 个数据源配置文件`);
-                    dsConfigs.forEach(file => {
-                        this.outputChannel.appendLine(`   - ${file}`);
-                    });
-                } else {
-                    this.outputChannel.appendLine('⚠️ 未找到数据源配置文件，可能导致启动失败');
-                }
-            } else {
-                this.outputChannel.appendLine('⚠️ 未找到数据源配置目录，可能导致启动失败');
-            }
+            // 确保必要的配置文件存在
+            await this.ensureDesignDataSource(config);
             
             // 检查并确定core.jar路径
             const coreJarPath = this.getCoreJarPath(config.homePath);
@@ -291,7 +261,7 @@ export class HomeService {
                 // 检查是否有数据源配置
                 try {
                     const propContent = fs.readFileSync(propFile, 'utf-8');
-                    if (propContent.includes('datasource')) {
+                    if (propContent.includes('<dataSource>') || propContent.includes('<dataSources>')) {
                         this.outputChannel.appendLine('✅ 配置文件中包含数据源配置');
                     } else {
                         this.outputChannel.appendLine('⚠️ 配置文件中未找到数据源配置');
@@ -299,6 +269,24 @@ export class HomeService {
                 } catch (error: any) {
                     this.outputChannel.appendLine(`⚠️ 无法读取配置文件: ${error.message}`);
                 }
+            }
+            
+            // 检查数据源配置
+            const dataSourceDir = path.join(config.homePath, 'ierp', 'bin');
+            if (fs.existsSync(dataSourceDir)) {
+                const dataSourceFiles = fs.readdirSync(dataSourceDir);
+                const dsConfigs = dataSourceFiles.filter(file => 
+                    file.startsWith('datasource') && (file.endsWith('.ini') || file.endsWith('.properties')));
+                if (dsConfigs.length > 0) {
+                    this.outputChannel.appendLine(`✅ 找到 ${dsConfigs.length} 个数据源配置文件`);
+                    dsConfigs.forEach(file => {
+                        this.outputChannel.appendLine(`   - ${file}`);
+                    });
+                } else {
+                    this.outputChannel.appendLine('⚠️ 未找到数据源配置文件，可能导致启动失败');
+                }
+            } else {
+                this.outputChannel.appendLine('⚠️ 未找到数据源配置目录，可能导致启动失败');
             }
             
             // 构建环境变量
@@ -325,10 +313,10 @@ export class HomeService {
                 mainClass
             ];
             
-            //this.outputChannel.appendLine('🚀 启动命令:');
-            //this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
-            //this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
-
+            this.outputChannel.appendLine('🚀 启动命令:');
+            this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
+            this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
+            
             // 执行启动命令
             this.process = spawn(javaExecutable, javaArgs, {
                 cwd: config.homePath,
@@ -364,7 +352,14 @@ export class HomeService {
                 output = output.replace(/\u001b\[.*?m/g, '');
                 // 移除其他控制字符
                 output = output.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+                
                 this.outputChannel.appendLine(`[STDOUT] ${output}`);
+                
+                // 检查是否启动成功
+                if (output.includes('Server startup in') || output.includes('服务启动成功')) {
+                    this.setStatus(HomeStatus.RUNNING);
+                    vscode.window.showInformationMessage('NC HOME服务启动成功!');
+                }
             });
 
             // 监听标准错误输出
@@ -389,6 +384,11 @@ export class HomeService {
                 // 移除其他控制字符
                 stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
                 this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
+                
+                // 检查错误信息
+                if (stderrOutput.includes('ERROR') || stderrOutput.includes('Exception')) {
+                    this.outputChannel.appendLine('❌ 检测到错误信息');
+                }
                 
                 // 即使没有明显的错误标识，也要提醒用户关注stderr信息
                 if (!stderrOutput.includes('Exception') && 
@@ -452,26 +452,25 @@ export class HomeService {
                 this.setStatus(HomeStatus.STOPPED);
             });
 
-            // 检查进程是否成功启动
-            if (!this.process.pid) {
-                this.outputChannel.appendLine('❌ 无法启动NC HOME服务进程');
-                this.setStatus(HomeStatus.ERROR);
-                this.process = null;
-                return;
-            }
-            
-            this.outputChannel.appendLine(`NC HOME服务进程已创建，PID: ${this.process.pid}`);
-            this.setStatus(HomeStatus.RUNNING);
-
-            // 启动后检查服务是否正常运行
+            // 启动检查定时器
             this.startupCheckTimer = setTimeout(() => {
-                this.checkServiceStatus(config);
-            }, 5000); // 5秒后检查
+                if (this.status === HomeStatus.STARTING) {
+                    this.outputChannel.appendLine('⚠️ 服务启动可能需要更长时间，请耐心等待...');
+                    // 延长检查时间
+                    this.startupCheckTimer = setTimeout(() => {
+                        if (this.status === HomeStatus.STARTING) {
+                            this.outputChannel.appendLine('❌ 服务启动超时，请检查日志');
+                            this.setStatus(HomeStatus.ERROR);
+                        }
+                    }, 120000); // 再等待2分钟
+                }
+            }, 60000); // 等待1分钟
 
         } catch (error: any) {
-            this.outputChannel.appendLine(`❌ 启动NC HOME服务失败: ${error.message}`);
+            this.outputChannel.appendLine(`❌ 启动过程中出现异常: ${error.message}`);
+            this.outputChannel.appendLine(error.stack);
             this.setStatus(HomeStatus.ERROR);
-            vscode.window.showErrorMessage(`启动NC HOME服务失败: ${error.message}`);
+            vscode.window.showErrorMessage(`启动NC HOME服务时出现异常: ${error.message}`);
         }
     }
 
@@ -1268,45 +1267,42 @@ export class HomeService {
         const binDir = path.join(config.homePath, 'ierp', 'bin');
         const dataSourceIniPath = path.join(binDir, 'datasource.ini');
         const dataSourcePropertiesPath = path.join(binDir, 'datasource.properties');
-        
-        // 检查是否已存在数据源配置文件
-        if (fs.existsSync(dataSourceIniPath) || fs.existsSync(dataSourcePropertiesPath)) {
-            this.outputChannel.appendLine('✅ 数据源配置已存在');
-            return;
-        }
+        const propXmlPath = path.join(binDir, 'prop.xml');
         
         // 确保目录存在
         if (!fs.existsSync(binDir)) {
             fs.mkdirSync(binDir, { recursive: true });
         }
         
-        // 如果配置中有数据源信息，则创建design数据源配置
-        if (config.dataSources && config.dataSources.length > 0) {
-            // 查找被标记为design的数据源
-            let designDataSource = config.dataSources.find((ds: any) => ds.name === config.selectedDataSource);
-            
-            // 如果没有找到明确指定的design数据源，则使用第一个数据源
-            if (!designDataSource && config.dataSources.length > 0) {
-                designDataSource = config.dataSources[0];
-                this.outputChannel.appendLine(`⚠️ 未找到明确指定的design数据源，使用第一个数据源: ${designDataSource.name}`);
-            }
-            
-            if (designDataSource) {
-                this.outputChannel.appendLine(`🔧 创建design数据源配置: ${designDataSource.name}`);
+        // 检查是否已存在数据源配置文件
+        if (fs.existsSync(dataSourceIniPath) || fs.existsSync(dataSourcePropertiesPath)) {
+            this.outputChannel.appendLine('✅ 数据源配置已存在');
+        } else {
+            // 如果配置中有数据源信息，则创建design数据源配置
+            if (config.dataSources && config.dataSources.length > 0) {
+                // 查找被标记为design的数据源
+                let designDataSource = config.dataSources.find((ds: any) => ds.name === config.selectedDataSource);
                 
-                // 构建数据源配置内容
-                const dataSourceContent = this.buildDataSourceConfig(designDataSource);
+                // 如果没有找到明确指定的design数据源，则使用第一个数据源
+                if (!designDataSource && config.dataSources.length > 0) {
+                    designDataSource = config.dataSources[0];
+                    this.outputChannel.appendLine(`⚠️ 未找到明确指定的design数据源，使用第一个数据源: ${designDataSource.name}`);
+                }
                 
-                // 写入配置文件
-                fs.writeFileSync(dataSourceIniPath, dataSourceContent, 'utf-8');
-                this.outputChannel.appendLine(`✅ 已创建数据源配置文件: ${dataSourceIniPath}`);
-                return;
-            }
-        }
-        
-        // 如果没有配置数据源，则创建一个默认的MySQL数据源配置
-        this.outputChannel.appendLine('⚠️ 未配置数据源，创建默认的MySQL design数据源配置');
-        const defaultDataSourceContent = `<?xml version="1.0" encoding="UTF-8"?>
+                if (designDataSource) {
+                    this.outputChannel.appendLine(`🔧 创建design数据源配置: ${designDataSource.name}`);
+                    
+                    // 构建数据源配置内容
+                    const dataSourceContent = this.buildDataSourceConfig(designDataSource);
+                    
+                    // 写入配置文件
+                    fs.writeFileSync(dataSourceIniPath, dataSourceContent, 'utf-8');
+                    this.outputChannel.appendLine(`✅ 已创建数据源配置文件: ${dataSourceIniPath}`);
+                }
+            } else {
+                // 如果没有配置数据源，则创建一个默认的MySQL数据源配置
+                this.outputChannel.appendLine('⚠️ 未配置数据源，创建默认的MySQL design数据源配置');
+                const defaultDataSourceContent = `<?xml version="1.0" encoding="UTF-8"?>
 <DataSourceMeta>
     <dataSourceName>design</dataSourceName>
     <databaseType>MySQL</databaseType>
@@ -1317,9 +1313,53 @@ export class HomeService {
     <maxCon>20</maxCon>
     <minCon>5</minCon>
 </DataSourceMeta>`;
+                
+                fs.writeFileSync(dataSourceIniPath, defaultDataSourceContent, 'utf-8');
+                this.outputChannel.appendLine(`✅ 已创建默认数据源配置文件: ${dataSourceIniPath}`);
+            }
+        }
         
-        fs.writeFileSync(dataSourceIniPath, defaultDataSourceContent, 'utf-8');
-        this.outputChannel.appendLine(`✅ 已创建默认数据源配置文件: ${dataSourceIniPath}`);
+        // 如果prop.xml不存在，也创建一个基础的prop.xml文件
+        if (!fs.existsSync(propXmlPath)) {
+            this.createBasicPropXml(config, null, propXmlPath);
+        }
+    }
+
+    /**
+     * 创建基础的prop.xml文件
+     * @param config 配置信息
+     * @param dataSource 数据源信息
+     * @param propXmlPath prop.xml文件路径
+     */
+    private createBasicPropXml(config: any, dataSource: any, propXmlPath: string): void {
+        // 确保配置目录存在
+        const propDir = path.dirname(propXmlPath);
+        if (!fs.existsSync(propDir)) {
+            fs.mkdirSync(propDir, { recursive: true });
+        }
+        
+        const propXmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <domain>
+        <name>develop</name>
+    </domain>
+    <isEncode>false</isEncode>
+    <enableHotDeploy>true</enableHotDeploy>
+    <securityDataSource>design</securityDataSource>
+    <dataSource>
+        <dataSourceName>design</dataSourceName>
+        <databaseType>MySQL</databaseType>
+        <driverClassName>com.mysql.cj.jdbc.Driver</driverClassName>
+        <databaseUrl>jdbc:mysql://localhost:3306/nc6x?useSSL=false&amp;serverTimezone=UTC</databaseUrl>
+        <user>root</user>
+        <password>root</password>
+        <maxCon>20</maxCon>
+        <minCon>5</minCon>
+    </dataSource>
+</config>`;
+        
+        fs.writeFileSync(propXmlPath, propXmlContent, 'utf-8');
+        this.outputChannel.appendLine(`✅ 已创建基础prop.xml配置文件: ${propXmlPath}`);
     }
 
     /**
@@ -1366,16 +1406,34 @@ export class HomeService {
      * @param databaseType 数据库类型
      */
     private getDriverClassName(databaseType: string): string {
-        switch (databaseType.toLowerCase()) {
+        // 处理空值或未定义的情况
+        if (!databaseType) {
+            this.outputChannel.appendLine('⚠️ 数据库类型未指定，使用默认MySQL驱动');
+            return 'com.mysql.cj.jdbc.Driver';
+        }
+        
+        switch (databaseType.toLowerCase().trim()) {
             case 'mysql':
+            case 'mysql5':
+            case 'mysql8':
                 return 'com.mysql.cj.jdbc.Driver';
             case 'oracle':
+            case 'oracle11g':
+            case 'oracle12c':
                 return 'oracle.jdbc.OracleDriver';
             case 'sqlserver':
+            case 'mssql':
+            case 'microsoft sql server':
                 return 'com.microsoft.sqlserver.jdbc.SQLServerDriver';
             case 'postgresql':
+            case 'pg':
                 return 'org.postgresql.Driver';
+            case 'db2':
+                return 'com.ibm.db2.jcc.DB2Driver';
+            case 'sybase':
+                return 'com.sybase.jdbc4.jdbc.SybDriver';
             default:
+                this.outputChannel.appendLine(`⚠️ 未知数据库类型: ${databaseType}，使用默认MySQL驱动`);
                 return 'com.mysql.cj.jdbc.Driver';
         }
     }
