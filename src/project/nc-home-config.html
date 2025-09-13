@@ -160,7 +160,10 @@
                 <div class="form-group">
                     <button onclick="openHomeDirectory()">打开Home目录</button>
                     <button class="secondary" onclick="openSysConfig()">启动SysConfig</button>
+                    <button class="secondary" onclick="startHomeService()">🚀 启动HOME服务</button>
+                    <button class="secondary" onclick="checkSystemConfig()" id="checkConfigBtn">🔍 检查系统配置</button>
                     <button class="secondary" onclick="showOutput()">查看日志</button>
+                    <div id="configCheckResult" style="margin-top: 10px; display: none;"></div>
                 </div>
             </div>
         </div>
@@ -255,6 +258,34 @@
         function showOutput() {
             // 这里可以显示日志输出
             showMessage('日志输出功能正在开发中', 'info');
+        }
+        
+        // 检查系统配置
+        function checkSystemConfig() {
+            const checkBtn = document.getElementById('checkConfigBtn');
+            checkBtn.disabled = true;
+            checkBtn.textContent = '检查中...';
+            
+            const resultDiv = document.getElementById('configCheckResult');
+            resultDiv.style.display = 'none';
+            
+            vscode.postMessage({ type: 'checkSystemConfig' });
+        }
+        
+        // 处理系统配置检查结果
+        function handleSystemConfigCheckResult(result) {
+            const checkBtn = document.getElementById('checkConfigBtn');
+            checkBtn.disabled = false;
+            checkBtn.textContent = '🔍 检查系统配置';
+            
+            const resultDiv = document.getElementById('configCheckResult');
+            resultDiv.style.display = 'block';
+            
+            if (result.valid) {
+                resultDiv.innerHTML = `<span style="color: #4CAF50;">✓ ${result.message}</span>`;
+            } else {
+                resultDiv.innerHTML = `<span style="color: #F44336;">✗ ${result.message}</span>`;
+            }
         }
         
         // 显示添加数据源表单
@@ -526,6 +557,26 @@
                     }
                     break;
                     
+                case 'homeServiceStarted':
+                    if (message.success) {
+                        showMessage('HOME服务启动命令已发送', 'success');
+                    } else {
+                        showMessage('启动HOME服务失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
+                case 'homeServiceDebugged':
+                    if (message.success) {
+                        showMessage('HOME服务调试启动命令已发送', 'success');
+                    } else {
+                        showMessage('调试启动HOME服务失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
+                case 'systemConfigCheckResult':
+                    handleSystemConfigCheckResult(message.result);
+                    break;
+                    
                 case 'dataSourceAdded':
                     if (message.success) {
                         showMessage('数据源添加成功', 'success');
@@ -542,6 +593,18 @@
         
         // 页面加载完成后加载配置
         vscode.postMessage({ type: 'loadConfig' });
+        
+        // 添加启动HOME服务的函数
+        // 启动HOME服务
+        function startHomeService() {
+            vscode.postMessage({ type: 'startHomeService' });
+        }
+        
+        // 打开SysConfig
+        function openSysConfig() {
+            vscode.postMessage({ type: 'openSysConfig' });
+        }
+        
     </script>
 </body>
 </html>

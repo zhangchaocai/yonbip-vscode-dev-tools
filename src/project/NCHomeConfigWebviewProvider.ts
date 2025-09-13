@@ -63,51 +63,46 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
 
         this.panel.webview.onDidReceiveMessage(async (message) => {
             try {
+                // 处理消息
                 switch (message.type) {
                     case 'getConfig':
-                        await this.handleGetConfig();
+                        this.handleGetConfig();
                         break;
                     case 'saveConfig':
-                        await this.handleSaveConfig(message.config);
+                        this.handleSaveConfig(message.config);
                         break;
                     case 'selectHomeDirectory':
-                        await this.handleSelectHomeDirectory();
+                        this.handleSelectHomeDirectory();
                         break;
                     case 'openHomeDirectory':
-                        await this.service.openHomeDirectory();
+                        this.handleOpenHomeDirectory();
                         break;
                     case 'openSysConfig':
-                        await this.service.openSysConfig();
+                        this.handleOpenSysConfig();
                         break;
                     case 'testConnection':
-                        await this.handleTestConnection(message.dataSource);
+                        this.handleTestConnection(message.dataSource);
                         break;
                     case 'parseConnectionString':
-                        await this.handleParseConnectionString(message.connectionString);
+                        this.handleParseConnectionString(message.connectionString);
                         break;
                     case 'addDataSource':
-                        await this.handleAddDataSource(message.dataSource);
+                        this.handleAddDataSource(message.dataSource);
                         break;
                     case 'updateDataSource':
-                        await this.handleUpdateDataSource(message.dataSource);
+                        this.handleUpdateDataSource(message.dataSource);
                         break;
                     case 'deleteDataSource':
-                        await this.handleDeleteDataSource(message.dataSourceName);
+                        this.handleDeleteDataSource(message.dataSourceName);
                         break;
                     case 'setDesignDatabase':
-                        await this.handleSetDesignDatabase(message.dataSourceName);
+                        this.handleSetDesignDatabase(message.dataSourceName);
                         break;
                     case 'setBaseDatabase':
-                        await this.handleSetBaseDatabase(message.dataSourceName);
+                        this.handleSetBaseDatabase(message.dataSourceName);
                         break;
-                    case 'testDataSourceConnection':
-                        await this.handleTestDataSourceConnection(message.dataSourceName);
-                        break;
-                    case 'getDatabaseTypes':
-                        await this.handleGetDatabaseTypes();
-                        break;
-                    case 'getDrivers':
-                        await this.handleGetDrivers(message.databaseType);
+                    case 'checkSystemConfig':
+                        this.handleCheckSystemConfig();
                         break;
                 }
             } catch (error: any) {
@@ -149,6 +144,20 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
             type: 'homeDirectorySelected',
             homePath
         });
+    }
+
+    /**
+     * 处理打开Home目录
+     */
+    private async handleOpenHomeDirectory(): Promise<void> {
+        await this.service.openHomeDirectory();
+    }
+
+    /**
+     * 处理打开SysConfig
+     */
+    private async handleOpenSysConfig(): Promise<void> {
+        await this.service.openSysConfig();
     }
 
     /**
@@ -305,6 +314,27 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
             type: 'driversLoaded',
             drivers
         });
+    }
+
+    /**
+     * 处理系统配置检查
+     */
+    private async handleCheckSystemConfig(): Promise<void> {
+        try {
+            const result = this.service.checkSystemConfig();
+            this.panel?.webview.postMessage({
+                type: 'systemConfigCheckResult',
+                result
+            });
+        } catch (error: any) {
+            this.panel?.webview.postMessage({
+                type: 'systemConfigCheckResult',
+                result: {
+                    valid: false,
+                    message: `检查系统配置失败: ${error.message}`
+                }
+            });
+        }
     }
 
     /**

@@ -134,9 +134,45 @@ export class HomeService {
                 return;
             }
             
+            // 检查是否是标准Java项目（存在src目录且包含Java文件）
+            if (fs.existsSync(srcPath)) {
+                const hasJavaFiles = this.hasJavaFiles(srcPath);
+                if (hasJavaFiles) {
+                    this.outputChannel.appendLine('🔨 检测到标准Java项目，正在编译...');
+                    this.outputChannel.appendLine('🔧 请确保项目已正确配置编译环境');
+                    // 对于标准Java项目，我们不执行编译，因为可能没有Maven或Gradle配置
+                    resolve(true);
+                    return;
+                }
+            }
+            
             this.outputChannel.appendLine('⚠️ 未识别的项目类型，跳过编译步骤');
             resolve(true);
         });
+    }
+    
+    /**
+     * 检查目录中是否包含Java文件
+     */
+    private hasJavaFiles(dirPath: string): boolean {
+        try {
+            const items = fs.readdirSync(dirPath);
+            for (const item of items) {
+                const itemPath = path.join(dirPath, item);
+                const stat = fs.statSync(itemPath);
+                
+                if (stat.isDirectory()) {
+                    if (this.hasJavaFiles(itemPath)) {
+                        return true;
+                    }
+                } else if (item.endsWith('.java')) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            return false;
+        }
     }
 
     /**
@@ -181,6 +217,17 @@ export class HomeService {
 
         this.outputChannel.show();
         this.outputChannel.appendLine('🚀 开始启动NC HOME服务...');
+
+        // 检查系统配置文件
+        const sysConfigCheck = this.configService.checkSystemConfig();
+        if (!sysConfigCheck.valid) {
+            this.outputChannel.appendLine(`❌ 系统配置检查失败: ${sysConfigCheck.message}`);
+            vscode.window.showErrorMessage(`系统配置检查失败: ${sysConfigCheck.message}`);
+            return;
+        } else {
+            this.outputChannel.appendLine(`✅ ${sysConfigCheck.message}`);
+        }
+
         this.outputChannel.appendLine(`📂 NC HOME路径: ${config.homePath}`);
         this.setStatus(HomeStatus.STARTING);
 
@@ -228,6 +275,35 @@ export class HomeService {
             // 构建类路径
             const classpath = this.buildClasspath(config, coreJarPath, workspaceFolder);
             
+            // 检查必要的配置文件
+            const propDir = path.join(config.homePath, 'ierp', 'bin');
+            const propFile = path.join(propDir, 'prop.xml');
+            
+            if (!fs.existsSync(propFile)) {
+                this.outputChannel.appendLine(`❌ 严重错误: 系统配置文件不存在: ${propFile}`);
+                this.outputChannel.appendLine('请确保正确配置了NC HOME目录，并且包含必要的配置文件');
+                this.setStatus(HomeStatus.ERROR);
+                vscode.window.showErrorMessage(`系统配置文件不存在: ${propFile}，请检查NC HOME配置`);
+                return;
+            } else {
+                this.outputChannel.appendLine(`✅ 系统配置文件存在: ${propFile}`);
+                
+                // 检查是否有数据源配置
+                try {
+                    const propContent = fs.readFileSync(propFile, 'utf-8');
+                    if (propContent.includes('datasource')) {
+                        this.outputChannel.appendLine('✅ 配置文件中包含数据源配置');
+                    } else {
+                        this.outputChannel.appendLine('⚠️ 配置文件中未找到数据源配置');
+                    }
+                } catch (error: any) {
+                    this.outputChannel.appendLine(`⚠️ 无法读取配置文件: ${error.message}`);
+                }
+            }
+            
+            // 构建环境变量
+            const env = this.buildEnvironment(config);
+            
             // 构建JVM参数 (使用与IDEA插件一致的参数)
             const vmParameters = this.buildVMParameters(config);
             
@@ -249,28 +325,21 @@ export class HomeService {
                 mainClass
             ];
             
-            this.outputChannel.appendLine('🚀 启动命令:');
-            this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
-            this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
+            //this.outputChannel.appendLine('🚀 启动命令:');
+            //this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
+            //this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
 
             // 执行启动命令
             this.process = spawn(javaExecutable, javaArgs, {
                 cwd: config.homePath,
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: {
-                    // 添加hotwebs环境变量
-                    FIELD_HOTWEBS: path.join(config.homePath, 'hotwebs'),
-                    uap_hotwebs: path.join(config.homePath, 'hotwebs'),
-                    // 添加IDEA插件使用的环境变量
-                    FIELD_NC_HOME: config.homePath,
-                    IDEA_FIELD_NC_HOME: config.homePath,
-                    ...process.env,
+                    ...env,
                     JAVA_TOOL_OPTIONS: '-Dfile.encoding=GBK',
                     LANG: 'zh_CN.GBK',
                     LC_ALL: 'zh_CN.GBK',
                     LC_CTYPE: 'zh_CN.GBK',
                     JAVA_OPTS: '-Dfile.encoding=GBK -Dconsole.encoding=GBK',
-              
                 }
             });
 
@@ -709,18 +778,47 @@ export class HomeService {
     }
 
     /**
+     * 构建环境变量 (与IDEA插件保持一致)
+     */
+    private buildEnvironment(config: any): NodeJS.ProcessEnv {
+        const env = { ...process.env };
+        
+        // 设置与IDEA插件一致的环境变量
+        env.FIELD_NC_HOME = config.homePath;
+        env.FIELD_HOTWEBS = config.hotwebs || 'nccloud,fs,yonbip';
+        env.FIELD_EX_MODULES = config.exModules || '';
+        
+        // 兼容IDEA插件的变量命名
+        env.IDEA_FIELD_NC_HOME = config.homePath;
+        env.IDEA_FIELD_HOTWEBS = config.hotwebs || 'nccloud,fs,yonbip';
+        env.IDEA_FIELD_EX_MODULES = config.exModules || '';
+        
+        // 添加数据源配置目录到环境变量
+        const propDir = path.join(config.homePath, 'ierp', 'bin');
+        env.NC_PROP_DIR = propDir;
+        env.PROP_DIR = propDir;
+        
+        this.outputChannel.appendLine(`设置环境变量: FIELD_NC_HOME=${env.FIELD_NC_HOME}`);
+        this.outputChannel.appendLine(`设置环境变量: FIELD_HOTWEBS=${env.FIELD_HOTWEBS}`);
+        this.outputChannel.appendLine(`设置环境变量: NC_PROP_DIR=${env.NC_PROP_DIR}`);
+        
+        return env;
+    }
+
+    /**
      * 构建JVM参数 (与IDEA插件保持一致)
      */
     private buildVMParameters(config: any): string[] {
         const vmParameters: string[] = [];
         
         // 添加IDEA插件中的默认VM参数 (与IDEA插件保持一致)
+        // 使用path.resolve确保所有路径都是绝对路径，避免URI格式问题
         vmParameters.push('-Dnc.exclude.modules=' + (config.exModules || ''));
         vmParameters.push('-Dnc.runMode=develop');
-        vmParameters.push('-Dnc.server.location=' + config.homePath);
-        vmParameters.push('-DEJBConfigDir=' + path.join(config.homePath, 'ejbXMLs'));
-        vmParameters.push('-Dorg.owasp.esapi.resources=' + path.join(config.homePath, 'ierp', 'bin', 'esapi'));
-        vmParameters.push('-DExtServiceConfigDir=' + path.join(config.homePath, 'ejbXMLs'));
+        vmParameters.push('-Dnc.server.location=' + path.resolve(config.homePath));
+        vmParameters.push('-DEJBConfigDir=' + path.resolve(config.homePath, 'ejbXMLs'));
+        vmParameters.push('-Dorg.owasp.esapi.resources=' + path.resolve(config.homePath, 'ierp', 'bin', 'esapi'));
+        vmParameters.push('-DExtServiceConfigDir=' + path.resolve(config.homePath, 'ejbXMLs'));
         vmParameters.push('-Duap.hotwebs=' + (config.hotwebs || 'nccloud,fs,yonbip'));
         vmParameters.push('-Duap.disable.codescan=false');
         vmParameters.push('-Xmx1024m');
@@ -732,8 +830,17 @@ export class HomeService {
         vmParameters.push('-Dnc.startup.trace=true');    // 启动跟踪
         
         // 添加数据源配置目录参数 - 与IDEA插件保持一致
-        vmParameters.push('-Dnc.prop.dir=' + path.join(config.homePath, 'ierp', 'bin'));
-        vmParameters.push('-Dprop.dir=' + path.join(config.homePath, 'ierp', 'bin'));
+        const propDir = path.resolve(config.homePath, 'ierp', 'bin');
+        vmParameters.push('-Dnc.prop.dir=' + propDir);
+        vmParameters.push('-Dprop.dir=' + propDir);
+        
+        // 检查prop.xml文件是否存在
+        const propFile = path.join(propDir, 'prop.xml');
+        if (fs.existsSync(propFile)) {
+            this.outputChannel.appendLine(`✅ 找到系统配置文件: ${propFile}`);
+        } else {
+            this.outputChannel.appendLine(`❌ 未找到系统配置文件: ${propFile}`);
+        }
         
         // 添加默认数据源配置参数
         if (config.selectedDataSource) {
@@ -768,11 +875,11 @@ export class HomeService {
         }
         
         vmParameters.push('-XX:+HeapDumpOnOutOfMemoryError');
-        vmParameters.push('-XX:HeapDumpPath=${HOME}/nc_heapdump.hprof');
+        vmParameters.push('-XX:HeapDumpPath=' + path.join(config.homePath, 'logs', 'nc_heapdump.hprof'));
         
         // 添加系统属性
-        vmParameters.push('-Dnc.server.home=' + config.homePath);
-        vmParameters.push('-Dnc.home=' + config.homePath);
+        vmParameters.push('-Dnc.server.home=' + path.resolve(config.homePath));
+        vmParameters.push('-Dnc.home=' + path.resolve(config.homePath));
         vmParameters.push('-Dnc.idesupport=true');
         vmParameters.push('-Dnc.scan=true');
         vmParameters.push('-Dnc.server.port=' + (config.port || 9999));
@@ -780,7 +887,6 @@ export class HomeService {
         // 特别添加与web服务相关的系统属性
         vmParameters.push('-Dws.server=true');
         vmParameters.push('-Dws.port=' + (config.wsPort || 8080));
-        vmParameters.push('-Dws.context.path=/uapws');
         
         // 添加编码参数
         vmParameters.push('-Dfile.encoding=GBK');
@@ -791,18 +897,21 @@ export class HomeService {
         vmParameters.push('-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl');
         vmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
         
-        // Java 17兼容参数
+        // 添加Java 17兼容性参数 (如果Java版本 >= 17)
         if (javaVersion >= 17) {
             vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.io=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.util=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.util.concurrent=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/jdk.internal.reflect=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.lang.invoke=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.io=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.nio.charset=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.base/java.net=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.util.concurrent=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.base/java.util=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.xml/javax.xml=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.xml/javax.xml.stream=ALL-UNNAMED');
+            vmParameters.push('--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.naming/javax.naming=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.management/javax.management=ALL-UNNAMED');

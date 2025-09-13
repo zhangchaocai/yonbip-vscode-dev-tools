@@ -64,6 +64,10 @@ export interface NCHomeConfig {
     autoChangeJdk?: boolean;
     standardMode?: boolean;
     
+    // 模块配置
+    hotwebs?: string;
+    exModules?: string;
+    
     // 数据源配置
     dataSources?: DataSourceMeta[];
     selectedDataSource?: string;

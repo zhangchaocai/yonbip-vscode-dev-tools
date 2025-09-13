@@ -50,6 +50,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'openSysConfig':
                     await this.handleOpenSysConfig();
                     break;
+                case 'startHomeService':
+                    await this.handleStartHomeService();
+                    break;
                 case 'testConnection':
                     await this.handleTestConnection(data.dataSource);
                     break;
@@ -68,16 +71,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'setBaseDatabase':
                     await this.handleSetBaseDatabase(data.dataSourceName);
                     break;
-                case 'parseConnectionString':
-                    await this.handleParseConnectionString(data.connectionString);
-                    break;
-                case 'startHomeService':
-                    await this.handleStartHomeService();
+                case 'checkSystemConfig':
+                    await this.handleCheckSystemConfig();
                     break;
                 case 'debugHomeService':
                     await this.handleDebugHomeService();
                     break;
-
             }
         });
 
@@ -172,6 +171,26 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         } catch (error: any) {
             this._view?.webview.postMessage({
                 type: 'sysConfigOpened',
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理启动HOME服务
+     */
+    private async handleStartHomeService() {
+        try {
+            // 执行启动HOME服务的命令
+            await vscode.commands.executeCommand('yonbip.home.start');
+            this._view?.webview.postMessage({
+                type: 'homeServiceStarted',
+                success: true
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'homeServiceStarted',
                 success: false,
                 error: error.message
             });
@@ -341,26 +360,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     valid: false,
                     error: error.message
                 }
-            });
-        }
-    }
-
-    /**
-     * 处理启动HOME服务
-     */
-    private async handleStartHomeService() {
-        try {
-            // 执行启动HOME服务的命令
-            await vscode.commands.executeCommand('yonbip.home.start');
-            this._view?.webview.postMessage({
-                type: 'homeServiceStarted',
-                success: true
-            });
-        } catch (error: any) {
-            this._view?.webview.postMessage({
-                type: 'homeServiceStarted',
-                success: false,
-                error: error.message
             });
         }
     }
@@ -1120,5 +1119,26 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     </script>
 </body>
 </html>`;
+    }
+
+    /**
+     * 处理系统配置检查
+     */
+    private async handleCheckSystemConfig() {
+        try {
+            const result = this.configService.checkSystemConfig();
+            this._view?.webview.postMessage({
+                type: 'systemConfigCheckResult',
+                result
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'systemConfigCheckResult',
+                result: {
+                    valid: false,
+                    message: `检查系统配置失败: ${error.message}`
+                }
+            });
+        }
     }
 }

@@ -80,9 +80,22 @@ export class NCHomeConfigService {
         } catch (error: any) {
             this.outputChannel.appendLine(`加载配置失败: ${error.message}`);
         }
-
+        
         // 返回默认配置
-        return this.getDefaultConfig();
+        return {
+            homePath: '',
+            dataSources: [],
+            hotwebs: 'nccloud,fs,yonbip',
+            exModules: '',
+            exportPatchPath: './patches',
+            standardMode: false,
+            asyncTask: true,
+            autoClient: true,
+            exportAllsql: true,
+            customTableCheck: false,
+            showLocalDatadict: false,
+            autoChangeJdk: false
+        };
     }
 
     /**
@@ -107,15 +120,19 @@ export class NCHomeConfigService {
      * 保存到工作区配置
      */
     private async saveToWorkspaceConfig(): Promise<void> {
-        const workspaceConfig = vscode.workspace.getConfiguration('yonbip');
-        
-        if (this.config.homePath) {
-            await workspaceConfig.update('homePath', this.config.homePath, vscode.ConfigurationTarget.Workspace);
-        }
-        
-        // 修复：正确保存exportPatchPath到yonbip.patchOutputDir配置项
-        if (this.config.exportPatchPath) {
-            await workspaceConfig.update('patchOutputDir', this.config.exportPatchPath, vscode.ConfigurationTarget.Workspace);
+        try {
+            const config = vscode.workspace.getConfiguration('yonbip');
+            
+            // 保存NC HOME路径到工作区配置
+            if (this.config.homePath) {
+                await config.update('homePath', this.config.homePath, vscode.ConfigurationTarget.Global);
+            }
+            
+            // 保存其他配置到工作区
+            await config.update('hotwebs', this.config.hotwebs, vscode.ConfigurationTarget.Global);
+            await config.update('exModules', this.config.exModules, vscode.ConfigurationTarget.Global);
+        } catch (error: any) {
+            this.outputChannel.appendLine(`保存到工作区配置失败: ${error.message}`);
         }
     }
 
@@ -884,6 +901,51 @@ export class NCHomeConfigService {
      */
     public showOutput(): void {
         this.outputChannel.show();
+    }
+
+    /**
+     * 检查系统配置文件
+     */
+    public checkSystemConfig(): { valid: boolean; message: string } {
+        if (!this.config.homePath) {
+            return { valid: false, message: 'NC HOME路径未配置' };
+        }
+
+        if (!fs.existsSync(this.config.homePath)) {
+            return { valid: false, message: `NC HOME路径不存在: ${this.config.homePath}` };
+        }
+
+        const propDir = path.join(this.config.homePath, 'ierp', 'bin');
+        const propFile = path.join(propDir, 'prop.xml');
+        
+        if (!fs.existsSync(propDir)) {
+            return { valid: false, message: `配置目录不存在: ${propDir}` };
+        }
+        
+        if (!fs.existsSync(propFile)) {
+            return { valid: false, message: `系统配置文件不存在: ${propFile}` };
+        }
+        
+        // 检查配置文件是否包含基本配置
+        try {
+            const content = fs.readFileSync(propFile, 'utf-8');
+            // 支持多种配置文件格式
+            // 标准格式包含<config>标签
+            // 简化格式可能只包含<dataSources>标签
+            if ((content.includes('<config>') && content.includes('</config>')) || 
+                (content.includes('<dataSources>') && content.includes('</dataSources>'))) {
+                return { valid: true, message: '系统配置文件检查通过' };
+            }
+            
+            // 检查是否是有效的XML格式
+            if (content.trim().startsWith('<?xml') && content.includes('<')) {
+                return { valid: true, message: '系统配置文件检查通过' };
+            }
+            
+            return { valid: false, message: '系统配置文件格式不正确' };
+        } catch (error: any) {
+            return { valid: false, message: `读取配置文件失败: ${error.message}` };
+        }
     }
 
     /**
