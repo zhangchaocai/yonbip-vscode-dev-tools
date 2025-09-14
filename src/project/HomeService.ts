@@ -174,6 +174,7 @@ export class HomeService {
             return false;
         }
     }
+   
 
     /**
      * 启动NC HOME服务 (对应IDEA插件中的ServerDebugAction)
@@ -184,6 +185,9 @@ export class HomeService {
             vscode.window.showWarningMessage('NC HOME服务已在运行中');
             return;
         }
+
+        // 提前获取配置以避免变量作用域问题
+        const config = this.configService.getConfig();
 
         // 获取当前工作区根目录
         let workspaceFolder = '';
@@ -197,12 +201,11 @@ export class HomeService {
                 vscode.window.showErrorMessage('项目编译失败，请检查代码错误');
                 return;
             }
+            
         } else {
-            this.outputChannel.appendLine('⚠️ 未检测到工作区，跳过项目编译步骤');
+            this.outputChannel.appendLine('⚠️ 未检测到工作区，跳过项目编译和resources目录复制步骤');
         }
 
-        const config = this.configService.getConfig();
-        
         // 检查是否配置了HOME路径
         if (!config.homePath) {
             vscode.window.showErrorMessage('请先配置NC HOME路径');
@@ -219,6 +222,13 @@ export class HomeService {
             this.setStatus(HomeStatus.STARTING);
             this.outputChannel.clear();
             this.outputChannel.appendLine('正在启动NC HOME服务...');
+
+            // 检查端口占用情况
+            const serverPort = config.port || 8077;
+            const wsPort = config.wsPort || 8080;
+            
+            this.outputChannel.appendLine(`🔍 检查端口占用情况...`);
+            await this.checkAndKillPortProcesses(serverPort, wsPort);
 
             // 确保必要的配置文件存在
             await this.ensureDesignDataSource(config);
@@ -313,9 +323,9 @@ export class HomeService {
                 mainClass
             ];
             
-            this.outputChannel.appendLine('🚀 启动命令:');
-            this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
-            this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
+            // this.outputChannel.appendLine('🚀 启动命令:');
+            // this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
+            // this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
             
             // 执行启动命令
             this.process = spawn(javaExecutable, javaArgs, {
@@ -462,9 +472,9 @@ export class HomeService {
                             this.outputChannel.appendLine('❌ 服务启动超时，请检查日志');
                             this.setStatus(HomeStatus.ERROR);
                         }
-                    }, 120000); // 再等待2分钟
+                    }, 300000); // 增加到5分钟等待时间
                 }
-            }, 60000); // 等待1分钟
+            }, 180000); // 增加到3分钟等待时间
 
         } catch (error: any) {
             this.outputChannel.appendLine(`❌ 启动过程中出现异常: ${error.message}`);
@@ -568,6 +578,34 @@ export class HomeService {
             this.outputChannel.appendLine(`📁 添加预处理后的external/classes目录`);
         }
         
+        // 添加resources目录及其子目录
+        // const resourcesDir = path.join(config.homePath, 'resources');
+        // if (fs.existsSync(resourcesDir)) {
+        //     classpathEntries.push(resourcesDir);
+        //     this.outputChannel.appendLine(`📁 添加resources目录: ${resourcesDir}`);
+            
+        //     // 递归添加resources目录下的所有子目录
+        //     const addResourcesSubDirs = (currentDir: string) => {
+        //         try {
+        //             const items = fs.readdirSync(currentDir);
+        //             for (const item of items) {
+        //                 const itemPath = path.join(currentDir, item);
+        //                 if (fs.statSync(itemPath).isDirectory()) {
+        //                     classpathEntries.push(itemPath);
+        //                     //this.outputChannel.appendLine(`📁 添加resources子目录: ${itemPath}`);
+        //                     // 递归处理子目录
+        //                     addResourcesSubDirs(itemPath);
+        //                 }
+        //             }
+        //         } catch (err: any) {
+        //             this.outputChannel.appendLine(`⚠️ 读取resources子目录失败: ${currentDir}, 错误: ${err}`);
+        //         }
+        //     };
+            
+        //     // 添加resources下的所有子目录
+        //     addResourcesSubDirs(resourcesDir);
+        // }
+        
         // 需要扫描的目录列表 (基于IDEA插件的实现，并扩展)
         const libDirs = [
             path.join(config.homePath, 'middleware'),
@@ -577,6 +615,7 @@ export class HomeService {
             path.join(config.homePath, 'license'), // 添加许可证目录
             path.join(config.homePath, 'modules'), // 添加modules目录
             path.join(config.homePath, 'resources'), // 添加resources目录
+            path.join(config.homePath, 'resources','conf'), // 添加resources/conf目录
             path.join(config.homePath, 'webapps'), // 添加webapps目录
             path.join(config.homePath, 'webapps', 'nccloud', 'WEB-INF', 'lib'), // 添加nccloud webapp lib目录
             path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'lib'), // 添加uapws webapp lib目录
@@ -1437,4 +1476,159 @@ export class HomeService {
                 return 'com.mysql.cj.jdbc.Driver';
         }
     }
+
+    /**
+     * 检查端口占用并终止占用进程
+     * @param serverPort 服务端口
+     * @param wsPort WebService端口
+     */
+    private async checkAndKillPortProcesses(serverPort: number, wsPort: number): Promise<void> {
+        return new Promise((resolve) => {
+            this.outputChannel.appendLine(`🔍 检查端口 ${serverPort} 和 ${wsPort} 是否被占用...`);
+            
+            // 根据不同平台使用不同命令
+            let command: string;
+            let args: string[];
+            
+            if (process.platform === 'win32') {
+                // Windows平台使用netstat命令
+                command = 'netstat';
+                args = ['-a', '-n', '-o'];
+            } else {
+                // Unix-like平台使用lsof命令
+                command = 'lsof';
+                args = ['-i', `:${serverPort}`, '-t'];
+            }
+            
+            const processList = spawn(command, args);
+            let output = '';
+            let errorOutput = '';
+            
+            processList.stdout?.on('data', (data) => {
+                output += data.toString();
+            });
+            
+            processList.stderr?.on('data', (data) => {
+                errorOutput += data.toString();
+            });
+            
+            processList.on('close', async (code) => {
+                if (code !== 0 && errorOutput) {
+                    this.outputChannel.appendLine(`⚠️ 检查端口时出现错误: ${errorOutput}`);
+                    resolve();
+                    return;
+                }
+                
+                const processesToKill: number[] = [];
+                
+                if (process.platform === 'win32') {
+                    // Windows平台处理
+                    const lines = output.split('\n');
+                    for (const line of lines) {
+                        // 查找TCP连接中包含指定端口且状态为LISTENING的行
+                        const serverPortRegex = new RegExp(`TCP\\s+[^:]+:${serverPort}\\s+[^:]+:\\d+\\s+LISTENING\\s+(\\d+)`);
+                        const wsPortRegex = new RegExp(`TCP\\s+[^:]+:${wsPort}\\s+[^:]+:\\d+\\s+LISTENING\\s+(\\d+)`);
+                        
+                        const serverMatch = line.match(serverPortRegex);
+                        const wsMatch = line.match(wsPortRegex);
+                        
+                        if (serverMatch) {
+                            const pid = parseInt(serverMatch[1]);
+                            if (!isNaN(pid) && !processesToKill.includes(pid)) {
+                                processesToKill.push(pid);
+                                this.outputChannel.appendLine(`🔍 发现端口 ${serverPort} 被进程 ${pid} 占用`);
+                            }
+                        }
+                        
+                        if (wsMatch) {
+                            const pid = parseInt(wsMatch[1]);
+                            if (!isNaN(pid) && !processesToKill.includes(pid)) {
+                                processesToKill.push(pid);
+                                this.outputChannel.appendLine(`🔍 发现端口 ${wsPort} 被进程 ${pid} 占用`);
+                            }
+                        }
+                    }
+                } else {
+                    // Unix-like平台处理
+                    const lines = output.split('\n').filter(line => line.trim() !== '');
+                    if (lines.length > 0) {
+                        for (const line of lines) {
+                            const pid = parseInt(line.trim());
+                            if (!isNaN(pid) && !processesToKill.includes(pid)) {
+                                processesToKill.push(pid);
+                                this.outputChannel.appendLine(`🔍 发现端口 ${serverPort} 被进程 ${pid} 占用`);
+                            }
+                        }
+                        
+                        // 检查wsPort
+                        try {
+                            const wsProcessList = spawn('lsof', ['-i', `:${wsPort}`, '-t']);
+                            let wsOutput = '';
+                            
+                            wsProcessList.stdout?.on('data', (data) => {
+                                wsOutput += data.toString();
+                            });
+                            
+                            wsProcessList.on('close', (wsCode) => {
+                                if (wsCode === 0) {
+                                    const wsLines = wsOutput.split('\n').filter(line => line.trim() !== '');
+                                    for (const line of wsLines) {
+                                        const pid = parseInt(line.trim());
+                                        if (!isNaN(pid) && !processesToKill.includes(pid)) {
+                                            processesToKill.push(pid);
+                                            this.outputChannel.appendLine(`🔍 发现端口 ${wsPort} 被进程 ${pid} 占用`);
+                                        }
+                                    }
+                                }
+                            });
+                        } catch (error) {
+                            this.outputChannel.appendLine(`⚠️ 检查ws端口时出现错误: ${error}`);
+                        }
+                    }
+                }
+                
+                // 终止占用端口的进程
+                if (processesToKill.length > 0) {
+                    this.outputChannel.appendLine(`🚫 发现 ${processesToKill.length} 个进程占用端口，准备终止...`);
+                    
+                    for (const pid of processesToKill) {
+                        try {
+                            this.outputChannel.appendLine(`⏳ 正在终止进程 ${pid}...`);
+                            process.kill(pid, 'SIGTERM');
+                            
+                            // 等待一段时间让进程正常退出
+                            await new Promise(r => setTimeout(r, 1000));
+                            
+                            // 检查进程是否仍然存在，如果存在则强制杀死
+                            try {
+                                process.kill(pid, 0); // 检查进程是否存在
+                                this.outputChannel.appendLine(`⚠️ 进程 ${pid} 未正常退出，强制终止...`);
+                                process.kill(pid, 'SIGKILL');
+                            } catch (error) {
+                                // 进程已经退出
+                                this.outputChannel.appendLine(`✅ 进程 ${pid} 已终止`);
+                            }
+                        } catch (error: any) {
+                            if (error.code === 'ESRCH') {
+                                this.outputChannel.appendLine(`✅ 进程 ${pid} 已经退出`);
+                            } else {
+                                this.outputChannel.appendLine(`❌ 终止进程 ${pid} 失败: ${error.message}`);
+                                vscode.window.showErrorMessage(`终止进程 ${pid} 失败: ${error.message}`);
+                            }
+                        }
+                    }
+                    
+                    // 等待一段时间确保端口已释放
+                    this.outputChannel.appendLine('⏳ 等待端口释放...');
+                    await new Promise(r => setTimeout(r, 2000));
+                } else {
+                    this.outputChannel.appendLine('✅ 未发现端口冲突');
+                }
+                
+                resolve();
+            });
+        });
+    }
+
+
 }

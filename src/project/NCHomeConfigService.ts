@@ -94,7 +94,9 @@ export class NCHomeConfigService {
             exportAllsql: true,
             customTableCheck: false,
             showLocalDatadict: false,
-            autoChangeJdk: false
+            autoChangeJdk: false,
+            port: 9999,
+            wsPort: 8080
         };
     }
 
@@ -112,7 +114,9 @@ export class NCHomeConfigService {
             autoChangeJdk: false,
             standardMode: true,
             dataSources: [],
-            exportPatchPath: './patches'
+            exportPatchPath: './patches',
+            port: 9999,
+            wsPort: 8080
         };
     }
 

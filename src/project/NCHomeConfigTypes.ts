@@ -39,6 +39,10 @@ export interface NCHomeConfig {
     // MCP配置
     mcpPort?: string;
     
+    // 服务器端口配置
+    port?: number;
+    wsPort?: number;
+    
     // 补丁信息
     exportPatchPath?: string;
     provider?: string;
