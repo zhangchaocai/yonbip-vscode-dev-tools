@@ -50,8 +50,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'openSysConfig':
                     await this.handleOpenSysConfig();
                     break;
-                case 'startHomeService':
-                    await this.handleStartHomeService();
+                // case 'startHomeService':
+                //     await this.handleStartHomeService();
+                //     break;
+                case 'stopHomeService':
+                    await this.handleStopHomeService();
                     break;
                 case 'testConnection':
                     await this.handleTestConnection(data.dataSource);
@@ -180,19 +183,41 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     /**
      * 处理启动HOME服务
      */
-    private async handleStartHomeService() {
+    // private async handleStartHomeService() {
+    //     try {
+    //         // 执行启动HOME服务的命令
+    //         await vscode.commands.executeCommand('yonbip.home.start');
+    //         this._view?.webview.postMessage({
+    //             type: 'homeServiceStarted',
+    //             success: true
+    //         });
+    //     } catch (error: any) {
+    //         this._view?.webview.postMessage({
+    //             type: 'homeServiceStarted',
+    //             success: false,
+    //             error: error.message
+    //         });
+    //     }
+    // }
+
+    /**
+     * 处理停止HOME服务
+     */
+    private async handleStopHomeService() {
         try {
-            // 执行启动HOME服务的命令
-            await vscode.commands.executeCommand('yonbip.home.start');
+            // 执行停止HOME服务的命令
+            const result = await vscode.commands.executeCommand('yonbip.home.stop');
             this._view?.webview.postMessage({
-                type: 'homeServiceStarted',
-                success: true
+                type: 'homeServiceStopped',
+                success: true,
+                result: result
             });
         } catch (error: any) {
+            const errorMessage = error.message || error.toString() || '未知错误';
             this._view?.webview.postMessage({
-                type: 'homeServiceStarted',
+                type: 'homeServiceStopped',
                 success: false,
-                error: error.message
+                error: errorMessage
             });
         }
     }
@@ -592,7 +617,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 <div class="form-group">
                     <button onclick="openHomeDirectory()">📂 打开Home目录</button>
                     <button class="secondary" onclick="openSysConfig()">🔧 启动SysConfig</button>
-                    <button class="secondary" onclick="startHomeService()">🚀 启动HOME服务</button>
+                    <button class="secondary" onclick="stopHomeService()">✋ 停止HOME服务</button>
                     <button class="secondary" onclick="debugHomeService()">🐞 调试启动HOME服务</button>
                     <button class="secondary" onclick="showOutput()">📝 查看日志</button>
                 </div>
@@ -700,13 +725,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         // 启动HOME服务
-        function startHomeService() {
-            vscode.postMessage({ type: 'startHomeService' });
-        }
+        // function startHomeService() {
+        //     vscode.postMessage({ type: 'startHomeService' });
+        // }
         
         // 调试启动HOME服务
         function debugHomeService() {
             vscode.postMessage({ type: 'debugHomeService' });
+        }
+
+        // 停止HOME服务
+        function stopHomeService() {
+            vscode.postMessage({ type: 'stopHomeService' });
         }
 
         // 显示输出
@@ -1058,6 +1088,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         showMessage('HOME服务启动成功', 'success');
                     } else {
                         showMessage('启动HOME服务失败: ' + message.error, 'error');
+                    }
+                    break;
+                case 'homeServiceStopped':
+                    if (message.success) {
+                        showMessage('HOME服务停止成功', 'success');
+                    } else {
+                        showMessage('停止HOME服务失败: ' + message.error, 'error');
                     }
                     break;
                 case 'homeServiceDebugged':

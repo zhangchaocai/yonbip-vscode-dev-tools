@@ -35,6 +35,97 @@ export class HomeService {
     }
 
     /**
+     * 检测字符串是否包含乱码字符
+     * @param str 待检测的字符串
+     * @returns 如果包含乱码返回true，否则返回false
+     */
+    private containsGarbledCharacters(str: string): boolean {
+        // 检查是否包含典型的乱码字符模式
+        const garbledPatterns = [
+            '??',           // 问号替代字符
+            '? ?',          // 间隔问号
+            'Warning: setSecurityManager',
+            '9',          // 月份乱码
+            '',          // 其他乱码字符
+            ''         // 多字符乱码
+        ];
+        
+        // 检查是否包含中文字符（正常中文应该能正确显示）
+        const hasChinese = /[\u4e00-\u9fa5]/.test(str);
+        
+        // 检查是否包含大量乱码字符
+        const hasManyUnknownChars = (str.match(/[^\x00-\x7F]/g) || []).length > str.length * 0.3;
+        
+        // 检查是否有乱码字符
+        const hasGarbledPattern = garbledPatterns.some(pattern => {
+            return str.includes(pattern);
+        });
+        
+        // 如果包含中文但也有乱码特征，则认为有乱码
+        if (hasChinese && hasGarbledPattern) {
+            return true;
+        }
+        
+        // 如果不包含中文，但包含大量非ASCII字符或有乱码模式，可能有乱码
+        if (!hasChinese && (hasManyUnknownChars || hasGarbledPattern)) {
+            return true;
+        }
+        
+        // 特殊处理：如果包含月份乱码，则认为有乱码
+        if (str.includes('9') && !str.includes('9月')) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 尝试多种编码方式解码数据
+     * @param data 原始数据
+     * @returns 解码后的字符串
+     */
+    private decodeDataWithMultipleEncodings(data: Buffer): string {
+        // 尝试的编码列表，按优先级排序
+        const encodings = ['utf-8', 'gbk', 'gb2312'];
+        
+        // 保存原始字符串用于比较
+        const originalString = data.toString();
+        
+        for (const encoding of encodings) {
+            try {
+                const decoded = iconv.decode(data, encoding);
+                // 检查解码后是否还有乱码
+                if (!this.containsGarbledCharacters(decoded)) {
+                    return decoded;
+                }
+                // 特殊处理：如果原始字符串包含大量问号，但当前编码解码后没有问号，可能是正确编码
+                if (originalString.includes('???') && !decoded.includes('???')) {
+                    return decoded;
+                }
+                // 特殊处理：如果原始字符串包含月份乱码，但当前编码解码后是正常月份，可能是正确编码
+                if ((originalString.includes('9') || originalString.includes('')) && decoded.includes('9月')) {
+                    return decoded;
+                }
+                // 特殊处理：如果原始字符串包含"应用工厂"乱码，但当前编码解码后是正常中文，可能是正确编码
+                if (originalString.includes('') && decoded.includes('应用工厂')) {
+                    return decoded;
+                }
+            } catch (e) {
+                // 继续尝试下一个编码
+                continue;
+            }
+        }
+        
+        // 最后尝试使用gbk解码（因为这是最可能的中文编码）
+        try {
+            return iconv.decode(data, 'gbk');
+        } catch (e) {
+            // 最后回退到原始字符串
+            return originalString;
+        }
+    }
+    
+    /**
      * 编译项目源代码
      */
     private async compileProject(workspaceFolder: string): Promise<boolean> {
@@ -223,6 +314,9 @@ export class HomeService {
             this.outputChannel.clear();
             this.outputChannel.appendLine('正在启动NC HOME服务...');
 
+            // 添加控制台乱码补丁逻辑
+            await this.applyConsoleEncodingPatch(config.homePath);
+
             // 检查端口占用情况
             const serverPort = config.port || 8077;
             const wsPort = config.wsPort || 8080;
@@ -333,30 +427,19 @@ export class HomeService {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: {
                     ...env,
-                    JAVA_TOOL_OPTIONS: '-Dfile.encoding=GBK',
-                    LANG: 'zh_CN.GBK',
-                    LC_ALL: 'zh_CN.GBK',
-                    LC_CTYPE: 'zh_CN.GBK',
-                    JAVA_OPTS: '-Dfile.encoding=GBK -Dconsole.encoding=GBK',
+                    JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8',
+                    LANG: 'en_US.UTF-8',
+                    LC_ALL: 'en_US.UTF-8',
+                    LC_CTYPE: 'en_US.UTF-8',
                 }
             });
 
             // 监听标准输出
-            this.process.stdout?.on('data', (data: any) => {
+            this.process.stdout?.on('data', (data: Buffer) => {
                 let output = data.toString();
-                // 尝试处理可能的编码问题
-                if (output.includes('') || output.includes('?')) {
-                    try {
-                        // 如果包含乱码字符，尝试用iconv-lite进行GBK解码
-                        output = iconv.decode(data, 'gbk');
-                    } catch (e) {
-                        // 如果转换失败，尝试使用gb2312
-                        try {
-                            output = iconv.decode(data, 'gb2312');
-                        } catch (e2) {
-                            // 如果还是失败，保留原始输出
-                        }
-                    }
+                // 检测并处理可能的编码问题
+                if (this.containsGarbledCharacters(output)) {
+                    output = this.decodeDataWithMultipleEncodings(data);
                 }
                 // 移除ANSI转义序列
                 output = output.replace(/\u001b\[.*?m/g, '');
@@ -373,24 +456,19 @@ export class HomeService {
             });
 
             // 监听标准错误输出
-            this.process.stderr?.on('data', (data: any) => {
+            this.process.stderr?.on('data', (data: Buffer) => {
                 let stderrOutput = data.toString();
-                // 尝试处理可能的编码问题
-                if (stderrOutput.includes('') || stderrOutput.includes('?')) {
-                    try {
-                        // 如果包含乱码字符，尝试用iconv-lite进行GBK解码
-                        stderrOutput = iconv.decode(data, 'gbk');
-                    } catch (e) {
-                        // 如果转换失败，尝试使用gb2312
-                        try {
-                            stderrOutput = iconv.decode(data, 'gb2312');
-                        } catch (e2) {
-                            // 如果还是失败，保留原始输出
-                        }
-                    }
+                // 检测并处理可能的编码问题
+                if (this.containsGarbledCharacters(stderrOutput)) {
+                    stderrOutput = this.decodeDataWithMultipleEncodings(data);
                 }
                 // 移除ANSI转义序列
                 stderrOutput = stderrOutput.replace(/\u001b\[.*?m/g, '');
+                // 移除其他控制字符
+                stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+                this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
+                
+                // 检查错误信息
                 // 移除其他控制字符
                 stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
                 this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
@@ -925,8 +1003,8 @@ export class HomeService {
         vmParameters.push('-Dws.port=' + (config.wsPort || 8080));
         
         // 添加编码参数
-        vmParameters.push('-Dfile.encoding=GBK');
-        vmParameters.push('-Dconsole.encoding=GBK');
+        vmParameters.push('-Dfile.encoding=UTF-8');
+        vmParameters.push('-Dconsole.encoding=UTF-8');
         
         // 添加XML解析器配置
         vmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
@@ -1147,6 +1225,7 @@ export class HomeService {
             this.setStatus(HomeStatus.STOPPING);
             this.isManualStop = true;
             this.outputChannel.appendLine('正在停止NC HOME服务...');
+            this.outputChannel.show();
 
             const config = this.configService.getConfig();
             
@@ -1179,6 +1258,11 @@ export class HomeService {
 
                 stopProcess.on('close', (code: any) => {
                     this.outputChannel.appendLine(`停止脚本执行完成，退出码: ${code}`);
+                    if (code === 0) {
+                        this.outputChannel.appendLine('✅ HOME服务已成功停止');
+                    } else {
+                        this.outputChannel.appendLine(`⚠️ 停止脚本执行完成，但退出码为: ${code}`);
+                    }
                 });
 
                 stopProcess.on('error', (error: any) => {
@@ -1198,7 +1282,7 @@ export class HomeService {
                     this.outputChannel.appendLine('停止服务超时，强制终止进程');
                     this.killProcess();
                 }
-            }, 10000); // 10秒超时
+            }, 15000); // 15秒超时
 
         } catch (error: any) {
             this.outputChannel.appendLine(`停止NC HOME服务失败: ${error.message}`);
@@ -1214,21 +1298,29 @@ export class HomeService {
     private killProcess(): void {
         if (this.process && !this.process.killed) {
             try {
+                this.outputChannel.appendLine('正在强制终止HOME服务进程...');
+                
                 // 首先尝试正常终止
                 this.process.kill('SIGTERM');
                 
-                // 如果进程在1秒内没有终止，则强制杀死
+                // 如果进程在2秒内没有终止，则强制杀死
                 setTimeout(() => {
                     if (this.process && !this.process.killed) {
                         this.process.kill('SIGKILL');
+                        this.outputChannel.appendLine('已发送强制终止信号');
                     }
-                }, 1000);
+                }, 2000);
             } catch (error: any) {
                 this.outputChannel.appendLine(`终止进程失败: ${error.message}`);
             }
+        } else {
+            this.outputChannel.appendLine('没有正在运行的HOME服务进程');
         }
+        
+        // 设置状态为已停止
         this.setStatus(HomeStatus.STOPPED);
         this.isManualStop = false;
+        this.outputChannel.appendLine('✅ HOME服务已停止');
     }
 
     /**
@@ -1628,5 +1720,129 @@ export class HomeService {
         });
     }
 
+    /**
+     * 应用控制台编码补丁
+     * @param homePath NC HOME路径
+     */
+    private async applyConsoleEncodingPatch(homePath: string): Promise<void> {
+        return new Promise((resolve) => {
+            this.outputChannel.appendLine('🔧 应用控制台编码补丁...');
+            
+            try {
+                // 检查JDK版本并应用DirectJDKLog补丁
+                const jdkVersion = this.getJDKVersion(homePath);
+                this.outputChannel.appendLine(`🔍 检测到JDK版本: ${jdkVersion}`);
+                
+                if (jdkVersion >= 50) {
+                    this.outputChannel.appendLine('🔧 JDK版本 >= 50，应用DirectJDKLog补丁...');
+                    
+                    // 目标文件路径
+                    const targetFile = path.join(
+                        homePath, 
+                        'middleware', 
+                        'classes', 
+                        'org', 
+                        'apache', 
+                        'juli', 
+                        'logging', 
+                        'DirectJDKLog.class'
+                    );
+                    
+                    // 检查目标文件是否已存在
+                    if (!fs.existsSync(targetFile)) {
+                        // 确保目标目录存在
+                        const targetDir = path.dirname(targetFile);
+                        if (!fs.existsSync(targetDir)) {
+                            fs.mkdirSync(targetDir, { recursive: true });
+                        }
+                        
+                        // 尝试从resources目录获取补丁文件
+                        const patchFile = path.join(
+                            __dirname, 
+                            '..', 
+                            '..', 
+                            'resources', 
+                            'replacement', 
+                            'DirectJDKLog.class'
+                        );
+                        
+                        if (fs.existsSync(patchFile)) {
+                            // 复制补丁文件到目标位置
+                            fs.copyFileSync(patchFile, targetFile);
+                            this.outputChannel.appendLine(`✅ DirectJDKLog补丁已应用: ${targetFile}`);
+                        } else {
+                            this.outputChannel.appendLine(`⚠️ 未找到DirectJDKLog补丁文件: ${patchFile}`);
+                        }
+                    } else {
+                        this.outputChannel.appendLine('✅ DirectJDKLog补丁已存在，无需重复应用');
+                    }
+                } else {
+                    this.outputChannel.appendLine('✅ JDK版本 < 50，无需应用DirectJDKLog补丁');
+                }
+                
+                this.outputChannel.appendLine('✅ 控制台编码补丁应用完成');
+                resolve();
+            } catch (error: any) {
+                this.outputChannel.appendLine(`⚠️ 应用控制台编码补丁时出现错误: ${error.message}`);
+                // 不要让补丁应用失败阻止服务启动
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * 获取JDK版本
+     * @param homePath NC HOME路径
+     */
+    private getJDKVersion(homePath: string): number {
+        try {
+            // 获取Java可执行文件路径
+            let javaExecutable = 'java';
+            const ufjdkPath = path.join(homePath, 'ufjdk');
+            const ufjdkBinPath = path.join(ufjdkPath, 'bin');
+            
+            if (process.platform === 'win32') {
+                const javaExe = path.join(ufjdkBinPath, 'java.exe');
+                if (fs.existsSync(javaExe)) {
+                    javaExecutable = javaExe;
+                }
+            } else {
+                const javaBin = path.join(ufjdkBinPath, 'java');
+                if (fs.existsSync(javaBin)) {
+                    javaExecutable = javaBin;
+                }
+            }
+            
+            // 执行Java版本命令
+            const result = spawnSync(javaExecutable, ['-version'], {
+                encoding: 'utf8',
+                timeout: 10000
+            });
+            
+            if (result.status === 0) {
+                const versionOutput = result.stderr || result.stdout;
+                // 解析Java版本，例如 "java version \"1.8.0_261\"" 或 "openjdk version \"11.0.8\""
+                const versionMatch = versionOutput.match(/version\s+["']([^"']+)["']/i);
+                if (versionMatch && versionMatch[1]) {
+                    const versionStr = versionMatch[1];
+                    // 提取主版本号
+                    let version: number;
+                    if (versionStr.startsWith('1.')) {
+                        // Java 8及以下版本格式 "1.8.0_261"
+                        version = parseInt(versionStr.split('.')[1]);
+                    } else {
+                        // Java 9及以上版本格式 "11.0.8"
+                        version = parseInt(versionStr.split('.')[0]);
+                    }
+                    return version * 10; // 乘以10以匹配IDEA插件中的逻辑
+                }
+            }
+        } catch (error) {
+            this.outputChannel.appendLine(`⚠️ 获取JDK版本时出错: ${error}`);
+        }
+        
+        // 默认返回一个较低的版本号
+        return 0;
+    }
 
 }
