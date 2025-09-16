@@ -1591,7 +1591,7 @@ export class HomeService {
      */
     private async checkAndKillPortProcesses(serverPort: number, wsPort: number): Promise<void> {
         return new Promise((resolve) => {
-            this.outputChannel.appendLine(`🔍 检查服务端口 ${serverPort} 和WAS端口 ${wsPort} 是否被占用...`);
+            this.outputChannel.appendLine(`🔍 检查HOME服务端口 ${serverPort} 和 WAS端口 ${wsPort} 是否被占用...`);
             
             // 根据不同平台使用不同命令
             let command: string;
