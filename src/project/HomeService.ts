@@ -47,7 +47,10 @@ export class HomeService {
             'Warning: setSecurityManager',
             '9',          // 月份乱码
             '',          // 其他乱码字符
-            ''         // 多字符乱码
+            '',         // 多字符乱码
+            '涓嶅厑璁',     // XML错误信息乱码特征
+            '搴旂敤宸ュ巶', // 应用工厂乱码特征
+            '鎻掍欢鎵弿'  // 插件扫描乱码特征
         ];
         
         // 检查是否包含中文字符（正常中文应该能正确显示）
@@ -73,6 +76,11 @@ export class HomeService {
         
         // 特殊处理：如果包含月份乱码，则认为有乱码
         if (str.includes('9') && !str.includes('9月')) {
+            return true;
+        }
+        
+        // 检查是否包含XML错误信息的乱码特征
+        if (str.includes('涓嶅厑璁') && str.includes('鐨勫鐞嗘寚浠ょ洰鏍囥')) {
             return true;
         }
         
@@ -108,6 +116,10 @@ export class HomeService {
                 }
                 // 特殊处理：如果原始字符串包含"应用工厂"乱码，但当前编码解码后是正常中文，可能是正确编码
                 if (originalString.includes('') && decoded.includes('应用工厂')) {
+                    return decoded;
+                }
+                // 特殊处理：如果原始字符串包含XML错误信息乱码，但当前编码解码后是正常中文，可能是正确编码
+                if (originalString.includes('涓嶅厑璁') && decoded.includes('不允许有匹配')) {
                     return decoded;
                 }
             } catch (e) {
@@ -428,9 +440,10 @@ export class HomeService {
                 env: {
                     ...env,
                     JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8',
-                    LANG: 'en_US.UTF-8',
-                    LC_ALL: 'en_US.UTF-8',
-                    LC_CTYPE: 'en_US.UTF-8',
+                    LANG: 'zh_CN.UTF-8',
+                    LC_ALL: 'zh_CN.UTF-8',
+                    LC_CTYPE: 'zh_CN.UTF-8',
+                    JAVA_OPTS: '-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8',
                 }
             });
 
@@ -446,8 +459,9 @@ export class HomeService {
                 // 移除其他控制字符
                 output = output.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
                 
-                this.outputChannel.appendLine(`[STDOUT] ${output}`);
-                
+                if(!output.includes('[Fatal Error]')){
+                    this.outputChannel.appendLine(`[STDOUT] ${output}`);
+                }
                 // 检查是否启动成功
                 if (output.includes('Server startup in') || output.includes('服务启动成功')) {
                     this.setStatus(HomeStatus.RUNNING);
@@ -1005,6 +1019,8 @@ export class HomeService {
         // 添加编码参数
         vmParameters.push('-Dfile.encoding=UTF-8');
         vmParameters.push('-Dconsole.encoding=UTF-8');
+        vmParameters.push('-Dsun.jnu.encoding=UTF-8');
+        vmParameters.push('-Dclient.encoding.override=UTF-8');
         
         // 添加XML解析器配置
         vmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
