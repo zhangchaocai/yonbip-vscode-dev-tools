@@ -472,9 +472,9 @@ export class HomeService {
                             this.outputChannel.appendLine('❌ 服务启动超时，请检查日志');
                             this.setStatus(HomeStatus.ERROR);
                         }
-                    }, 300000); // 增加到5分钟等待时间
+                    }, 60000); // 增加1分钟等待时间
                 }
-            }, 180000); // 增加到3分钟等待时间
+            }, 60000); // 增加到1分钟等待时间
 
         } catch (error: any) {
             this.outputChannel.appendLine(`❌ 启动过程中出现异常: ${error.message}`);
@@ -546,7 +546,7 @@ export class HomeService {
             }
         }
         
-        // 添加工作区编译输出目录
+        // 首先添加工作区编译输出目录
         if (workspaceFolder) {
             const targetClasses = path.join(workspaceFolder, 'target', 'classes'); // Maven项目
             const buildClasses = path.join(workspaceFolder, 'build', 'classes'); // Gradle项目
@@ -578,34 +578,6 @@ export class HomeService {
             this.outputChannel.appendLine(`📁 添加预处理后的external/classes目录`);
         }
         
-        // 添加resources目录及其子目录
-        // const resourcesDir = path.join(config.homePath, 'resources');
-        // if (fs.existsSync(resourcesDir)) {
-        //     classpathEntries.push(resourcesDir);
-        //     this.outputChannel.appendLine(`📁 添加resources目录: ${resourcesDir}`);
-            
-        //     // 递归添加resources目录下的所有子目录
-        //     const addResourcesSubDirs = (currentDir: string) => {
-        //         try {
-        //             const items = fs.readdirSync(currentDir);
-        //             for (const item of items) {
-        //                 const itemPath = path.join(currentDir, item);
-        //                 if (fs.statSync(itemPath).isDirectory()) {
-        //                     classpathEntries.push(itemPath);
-        //                     //this.outputChannel.appendLine(`📁 添加resources子目录: ${itemPath}`);
-        //                     // 递归处理子目录
-        //                     addResourcesSubDirs(itemPath);
-        //                 }
-        //             }
-        //         } catch (err: any) {
-        //             this.outputChannel.appendLine(`⚠️ 读取resources子目录失败: ${currentDir}, 错误: ${err}`);
-        //         }
-        //     };
-            
-        //     // 添加resources下的所有子目录
-        //     addResourcesSubDirs(resourcesDir);
-        // }
-        
         // 需要扫描的目录列表 (基于IDEA插件的实现，并扩展)
         const libDirs = [
             path.join(config.homePath, 'middleware'),
@@ -614,8 +586,6 @@ export class HomeService {
             path.join(config.homePath, 'ierp', 'bin'),
             path.join(config.homePath, 'license'), // 添加许可证目录
             path.join(config.homePath, 'modules'), // 添加modules目录
-            path.join(config.homePath, 'resources'), // 添加resources目录
-            path.join(config.homePath, 'resources','conf'), // 添加resources/conf目录
             path.join(config.homePath, 'webapps'), // 添加webapps目录
             path.join(config.homePath, 'webapps', 'nccloud', 'WEB-INF', 'lib'), // 添加nccloud webapp lib目录
             path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'lib'), // 添加uapws webapp lib目录
@@ -691,9 +661,37 @@ export class HomeService {
         // 特别检查并添加与web服务相关的jar包
         this.checkAndAddWSJars(config.homePath, classpathEntries);
         
+        // 在所有jar包添加完成后，保守地添加resources目录（避免类加载冲突）
+        const resourcesDir = path.join(config.homePath, 'resources');
+        if (fs.existsSync(resourcesDir)) {
+            // 只添加resources主目录和conf子目录，不递归添加所有子目录
+            classpathEntries.push(resourcesDir);
+            this.outputChannel.appendLine(`📁 添加resources目录: ${resourcesDir}`);
+            
+            // 特别添加conf目录，确保配置文件能被加载
+            const confDir = path.join(resourcesDir, 'conf');
+            if (fs.existsSync(confDir)) {
+                classpathEntries.push(confDir);
+                this.outputChannel.appendLine(`📁 特别添加resources/conf目录: ${confDir}`);
+            }
+        } else {
+            this.outputChannel.appendLine(`⚠️ resources目录不存在: ${resourcesDir}`);
+        }
+        
         // 去除重复项并构建类路径
         const uniqueClasspathEntries = [...new Set(classpathEntries)];
         this.outputChannel.appendLine(`类路径构建完成，共包含 ${uniqueClasspathEntries.length} 个条目`);
+        
+        // 特别检查resources和conf目录是否被正确添加
+        const resourcesEntries = uniqueClasspathEntries.filter(entry => entry.includes('resources'));
+        if (resourcesEntries.length > 0) {
+            this.outputChannel.appendLine(`✅ 类路径中包含resources相关目录 ${resourcesEntries.length} 个:`);
+            resourcesEntries.forEach(entry => {
+                this.outputChannel.appendLine(`   - ${entry}`);
+            });
+        } else {
+            this.outputChannel.appendLine(`❌ 警告: 类路径中未找到resources目录！`);
+        }
         
         // 确保所有类路径条目都是有效的文件系统路径，而不是URI
         const validatedClasspathEntries = uniqueClasspathEntries.filter(entry => {

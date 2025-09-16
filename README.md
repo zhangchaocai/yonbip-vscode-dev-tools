@@ -146,6 +146,18 @@
 
 ## 🐛 问题排查
 
+### HOME服务启动问题
+1. **配置文件加载失败**: 如果登录时报错找不到配置文件，请检查：
+   - 确保 `${homePath}/resources/conf/login.properties` 文件存在
+   - 检查类路径日志中是否包含 resources 目录
+   - 与IDEA插件不同，VSCode插件现在正确支持 resources/conf 加载
+2. **类路径检查**: 启动日志中应该看到：
+   ```
+   📁 添加resources目录: ${homePath}/resources
+   📁 特别添加resources/conf目录: ${homePath}/resources/conf
+   ✅ 类路径中包含resources相关目录
+   ```
+
 ### MCP服务启动失败
 1. **检查Java环境**: 确保安装了JDK 17
 2. **端口冲突**: 插件会自动检测并解决端口冲突
