@@ -9,9 +9,9 @@ export class HomeDebugService {
     private homeService: HomeService;
     private configService: NCHomeConfigService;
 
-    constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService) {
+    constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService, homeService: HomeService) {
         this.configService = configService;
-        this.homeService = new HomeService(context, configService);
+        this.homeService = homeService;
     }
 
     /**

@@ -464,7 +464,10 @@ export class HomeService {
                     this.outputChannel.appendLine(`[STDOUT] ${output}`);
                 }
                 // 检查是否启动成功
-                if (output.includes('Server startup in') || output.includes('服务启动成功')) {
+                if (output.includes('Server startup in') || 
+                    output.includes('服务启动成功') || 
+                    output.includes('Started ServerConnector') ||
+                    output.includes('Tomcat started on port')) {
                     this.setStatus(HomeStatus.RUNNING);
                     vscode.window.showInformationMessage('NC HOME服务启动成功!');
                 }
@@ -1221,28 +1224,23 @@ export class HomeService {
     }
 
     /**
-     * 检查服务状态
-     */
-    private checkServiceStatus(config: any): void {
-        // 这里可以添加服务状态检查逻辑
-        // 比如检查特定端口是否已监听等
-        this.outputChannel.appendLine('✅ 服务启动检查完成');
-    }
-
-    /**
      * 停止NC HOME服务
      */
     public async stopHomeService(): Promise<void> {
+        this.outputChannel.show();
+        // 清空控制台
+        this.outputChannel.clear();
+        this.outputChannel.appendLine('正在停止NC HOME服务...');
+        
         if (this.status === HomeStatus.STOPPED || this.status === HomeStatus.STOPPING) {
             vscode.window.showWarningMessage('NC HOME服务未在运行');
+            this.outputChannel.appendLine('⚠️ NC HOME服务未在运行');
             return;
         }
 
         try {
             this.setStatus(HomeStatus.STOPPING);
             this.isManualStop = true;
-            this.outputChannel.appendLine('正在停止NC HOME服务...');
-            this.outputChannel.show();
 
             const config = this.configService.getConfig();
             
@@ -1276,9 +1274,13 @@ export class HomeService {
                 stopProcess.on('close', (code: any) => {
                     this.outputChannel.appendLine(`停止脚本执行完成，退出码: ${code}`);
                     if (code === 0) {
+                        this.setStatus(HomeStatus.STOPPED);
+                        this.isManualStop = false;
                         this.outputChannel.appendLine('✅ HOME服务已成功停止');
                     } else {
                         this.outputChannel.appendLine(`⚠️ 停止脚本执行完成，但退出码为: ${code}`);
+                        // 脚本执行失败，强制终止进程
+                        this.killProcess();
                     }
                 });
 
@@ -1309,6 +1311,9 @@ export class HomeService {
         }
     }
 
+    /**
+     * 强制终止进程
+     */
     /**
      * 强制终止进程
      */

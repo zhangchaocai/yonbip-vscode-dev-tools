@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { HomeService } from './HomeService';
-import { NCHomeConfigService } from './NCHomeConfigService';
 import { HomeDebugService } from './HomeDebugService';
+import { NCHomeConfigService } from './NCHomeConfigService';
 
 /**
  * HOME服务命令类
@@ -12,7 +12,7 @@ export class HomeCommands {
 
     constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService) {
         this.homeService = new HomeService(context, configService);
-        this.homeDebugService = new HomeDebugService(context, configService);
+        this.homeDebugService = new HomeDebugService(context, configService, this.homeService);
     }
 
     /**
