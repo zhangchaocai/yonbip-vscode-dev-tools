@@ -92,6 +92,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleLoadConfig() {
         const config = this.configService.getConfig();
+        
+        // 如果homePath已配置，尝试从prop.xml中获取端口信息
+        if (config.homePath) {
+            const portsFromProp = this.configService.getPortFromPropXml();
+            if (portsFromProp.port !== null) {
+                config.port = portsFromProp.port;
+            }
+            if (portsFromProp.wsPort !== null) {
+                config.wsPort = portsFromProp.wsPort;
+            }
+        }
+        
         this._view?.webview.postMessage({
             type: 'configLoaded',
             config

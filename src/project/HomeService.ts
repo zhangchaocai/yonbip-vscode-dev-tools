@@ -291,7 +291,7 @@ export class HomeService {
 
         // 提前获取配置以避免变量作用域问题
         const config = this.configService.getConfig();
-
+        
         // 获取当前工作区根目录
         let workspaceFolder = '';
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
@@ -330,8 +330,9 @@ export class HomeService {
             await this.applyConsoleEncodingPatch(config.homePath);
 
             // 检查端口占用情况
-            const serverPort = config.port || 8077;
-            const wsPort = config.wsPort || 8080;
+            const portsFromProp = this.configService.getPortFromPropXml();
+            const serverPort = portsFromProp.port || config.port || 8077;
+            const wsPort = portsFromProp.wsPort || config.wsPort || 8080;
             
             this.outputChannel.appendLine(`🔍 检查端口占用情况...`);
             await this.checkAndKillPortProcesses(serverPort, wsPort);
@@ -409,7 +410,7 @@ export class HomeService {
             const env = this.buildEnvironment(config);
             
             // 构建JVM参数 (使用与IDEA插件一致的参数)
-            const vmParameters = this.buildVMParameters(config);
+            const vmParameters = this.buildVMParameters(config, serverPort, wsPort);
             
             // 确定Java可执行文件路径
             let javaExecutable = this.getJavaExecutable(config);
@@ -936,7 +937,7 @@ export class HomeService {
     /**
      * 构建JVM参数 (与IDEA插件保持一致)
      */
-    private buildVMParameters(config: any): string[] {
+    private buildVMParameters(config: any, serverPort: number, wsPort: number): string[] {
         const vmParameters: string[] = [];
         
         // 添加IDEA插件中的默认VM参数 (与IDEA插件保持一致)
@@ -1010,11 +1011,11 @@ export class HomeService {
         vmParameters.push('-Dnc.home=' + path.resolve(config.homePath));
         vmParameters.push('-Dnc.idesupport=true');
         vmParameters.push('-Dnc.scan=true');
-        vmParameters.push('-Dnc.server.port=' + (config.port || 9999));
+        vmParameters.push('-Dnc.server.port=' + serverPort);
         
         // 特别添加与web服务相关的系统属性
         vmParameters.push('-Dws.server=true');
-        vmParameters.push('-Dws.port=' + (config.wsPort || 8080));
+        vmParameters.push('-Dws.port=' + (wsPort || 8080));
         
         // 添加编码参数
         vmParameters.push('-Dfile.encoding=UTF-8');
@@ -1590,7 +1591,7 @@ export class HomeService {
      */
     private async checkAndKillPortProcesses(serverPort: number, wsPort: number): Promise<void> {
         return new Promise((resolve) => {
-            this.outputChannel.appendLine(`🔍 检查端口 ${serverPort} 和 ${wsPort} 是否被占用...`);
+            this.outputChannel.appendLine(`🔍 检查服务端口 ${serverPort} 和WAS端口 ${wsPort} 是否被占用...`);
             
             // 根据不同平台使用不同命令
             let command: string;

@@ -5,6 +5,7 @@ import * as mysql from 'mysql2/promise';
 import * as pg from 'pg';
 import * as mssql from 'mssql';
 import * as oracledb from 'oracledb';
+import * as iconv from 'iconv-lite';
 import { NCHomeConfig, DataSourceMeta, ConnectionTestResult, AutoParseResult, DRIVER_INFO_MAP } from './NCHomeConfigTypes';
 
 /**
@@ -957,5 +958,63 @@ export class NCHomeConfigService {
      */
     public dispose(): void {
         this.outputChannel.dispose();
+    }
+
+    /**
+     * 从prop.xml文件中获取服务端口信息
+     * @returns 包含http端口和service端口的对象，如果无法获取则对应值为null
+     */
+    public getPortFromPropXml(): { port: number | null, wsPort: number | null } {
+        try {
+            // 检查homePath是否已配置
+            if (!this.config.homePath) {
+                this.outputChannel.appendLine('Home路径未配置，无法读取prop.xml');
+                return { port: null, wsPort: null };
+            }
+
+            // 构建prop.xml文件路径
+            const propXmlPath = path.join(this.config.homePath, 'ierp', 'bin', 'prop.xml');
+            
+            // 检查文件是否存在
+            if (!fs.existsSync(propXmlPath)) {
+                this.outputChannel.appendLine(`prop.xml文件不存在: ${propXmlPath}`);
+                return { port: null, wsPort: null };
+            }
+
+            // 读取文件内容，文件编码为gb2312
+            const buffer = fs.readFileSync(propXmlPath);
+            const content = iconv.decode(buffer, 'gb2312');
+            
+            // 使用正则表达式查找http/port元素
+            const portMatch = content.match(/<http>\s*<address>.*?<\/address>\s*<port>(\d+)<\/port>\s*<\/http>/s);
+            let port: number | null = null;
+            if (portMatch && portMatch[1]) {
+                const parsedPort = parseInt(portMatch[1], 10);
+                if (!isNaN(parsedPort)) {
+                    this.outputChannel.appendLine(`从prop.xml中读取到端口: ${parsedPort}`);
+                    port = parsedPort;
+                }
+            }
+            
+            // 使用正则表达式查找servicePort元素
+            const wsPortMatch = content.match(/<servicePort>(\d+)<\/servicePort>/);
+            let wsPort: number | null = null;
+            if (wsPortMatch && wsPortMatch[1]) {
+                const parsedWsPort = parseInt(wsPortMatch[1], 10);
+                if (!isNaN(parsedWsPort)) {
+                    this.outputChannel.appendLine(`从prop.xml中读取到service端口: ${parsedWsPort}`);
+                    wsPort = parsedWsPort;
+                }
+            }
+            
+            if (port === null && wsPort === null) {
+                this.outputChannel.appendLine('未在prop.xml中找到有效的端口配置');
+            }
+            
+            return { port, wsPort };
+        } catch (error: any) {
+            this.outputChannel.appendLine(`读取prop.xml文件失败: ${error.message}`);
+            return { port: null, wsPort: null };
+        }
     }
 }
