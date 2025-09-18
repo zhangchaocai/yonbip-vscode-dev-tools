@@ -1,11 +1,16 @@
 {
-    "editor.insertSpaces": false,
-    "typescript.preferences.quoteStyle": "single",
-    "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
-    "typescript.validate.enable": true,
-    "search.exclude": {
-        "out/**": true,
-        "node_modules/**": true
-    },
-    "typescript.tsc.autoDetect": "off"
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.suggest.autoImports": true,
+  "javascript.suggest.autoImports": true,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": [
+    "javascript",
+    "typescript"
+  ],
+  "extensions.experimental.affinity": {
+    "yonbip-community.yonbip-dev-tools": 1
+  }
 }

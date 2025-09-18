@@ -5,7 +5,7 @@
 ## 图标要求
 - **尺寸**: 128x128 像素
 - **格式**: PNG
-- **位置**: `resources/icon.png`
+- **位置**: `resources/icons/icon.png`
 - **设计**: 简洁、专业、与YonBIP品牌相关
 
 ## 图标设计建议
@@ -50,13 +50,13 @@
 
 ```bash
 # 创建基础图标
-convert -size 128x128 xc:#0066CC -fill white -gravity center -pointsize 24 -annotate +0+0 "YB" resources/icon.png
+convert -size 128x128 xc:#0066CC -fill white -gravity center -pointsize 24 -annotate +0+0 "YB" resources/icons/icon.png
 ```
 
 ## 临时解决方案
 如果暂时没有图标，可以先注释掉package.json中的icon行：
 ```json
-// "icon": "resources/icon.png",
+// "icon": "resources/icons/icon.png",
 ```
 
 这样插件仍然可以正常发布，只是会使用默认图标。
