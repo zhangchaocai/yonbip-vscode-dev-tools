@@ -17,7 +17,7 @@
     "url": "https://github.com/yonbip/vscode-dev-tools/issues"
   },
   "license": "MIT",
-  "icon": "resources/icons/icon.png",
+  "icon": "resources/icons/views/icon.png",
   "galleryBanner": {
     "color": "#1e1e1e",
     "theme": "dark"
@@ -45,7 +45,7 @@
         {
           "id": "yonbip-view",
           "title": "YonBIP高级版开发者工具",
-          "icon": "resources/icons/view-icon.svg"
+          "icon": "resources/icons/views/icon.png"
         }
       ]
     },
