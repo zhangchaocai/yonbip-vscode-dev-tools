@@ -554,7 +554,7 @@ export class LibraryService {
                     name: "调试Java代码 (含JDK/第三方库)",
                     request: "attach",
                     hostName: "localhost",
-                    port: 8888,
+                    port: vscode.workspace.getConfiguration('yonbip').get<number>('home.debugPort', 8888),  // 动态获取调试端口
                     projectName: "${workspaceFolderBasename}",
                     sourcePaths: [
                         "${workspaceFolder}/src"
@@ -569,7 +569,7 @@ export class LibraryService {
                     classPaths: classPaths,
                     vmArgs: [
                         "-Dfile.encoding=UTF-8",
-                        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8888"
+                        `-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${vscode.workspace.getConfiguration('yonbip').get<number>('home.debugPort', 8888)}`  // 动态获取调试端口
                     ],
                     sourcePaths: [
                         "${workspaceFolder}/src"

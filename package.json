@@ -187,6 +187,11 @@
           "default": "",
           "description": "NC Home目录路径"
         },
+        "yonbip.home.debugPort": {
+          "type": "number",
+          "default": 8888,
+          "description": "NC Home调试模式端口"
+        },
         "yonbip.openapi.baseUrl": {
           "type": "string",
           "default": "http://localhost:9000",

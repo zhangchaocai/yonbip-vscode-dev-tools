@@ -95,6 +95,10 @@ export class NCHomeConfigService {
      * 获取默认配置
      */
     private getDefaultConfig(): NCHomeConfig {
+        // 从工作区配置中获取debugPort的值
+        const workspaceConfig = vscode.workspace.getConfiguration('yonbip');
+        const debugPort = workspaceConfig.get<number>('home.debugPort', 8888);
+
         return {
             homePath: '',
             asyncTask: false,
@@ -108,7 +112,8 @@ export class NCHomeConfigService {
             exportPatchPath: './patches',
             port: 9999,
             wsPort: 8080,
-            debugMode: true  // 默认启用调试模式
+            debugMode: true,  // 默认启用调试模式
+            debugPort: debugPort   // 使用工作区配置的调试端口，默认为8888
         };
     }
 
@@ -127,6 +132,7 @@ export class NCHomeConfigService {
             // 保存其他配置到工作区
             await config.update('hotwebs', this.config.hotwebs, vscode.ConfigurationTarget.Global);
             await config.update('exModules', this.config.exModules, vscode.ConfigurationTarget.Global);
+            await config.update('home.debugPort', this.config.debugPort, vscode.ConfigurationTarget.Global);
         } catch (error: any) {
             this.outputChannel.appendLine(`保存到工作区配置失败: ${error.message}`);
         }

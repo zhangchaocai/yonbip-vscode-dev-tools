@@ -7,7 +7,7 @@ import { DataSourceMeta, NCHomeConfig } from './NCHomeConfigTypes';
  */
 export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'yonbip-nchome';
-    
+
     private _view?: vscode.WebviewView;
     private configService: NCHomeConfigService;
 
@@ -92,7 +92,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleLoadConfig() {
         const config = this.configService.getConfig();
-        
+
         // 如果homePath已配置，尝试从prop.xml中获取端口信息
         if (config.homePath) {
             const portsFromProp = this.configService.getPortFromPropXml();
@@ -103,7 +103,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 config.wsPort = portsFromProp.wsPort;
             }
         }
-        
+
         this._view?.webview.postMessage({
             type: 'configLoaded',
             config
@@ -283,16 +283,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         try {
             const config = this.configService.getConfig();
             const dataSources = config.dataSources || [];
-            
+
             // 查找并更新数据源
             const index = dataSources.findIndex(ds => ds.name === dataSource.name);
             if (index !== -1) {
                 dataSources[index] = dataSource;
                 config.dataSources = dataSources;
-                
+
                 // 保存配置
                 await this.configService.saveConfig(config);
-                
+
                 // 发送成功消息
                 this._view?.webview.postMessage({
                     type: 'dataSourceUpdated',
@@ -428,12 +428,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         // 尝试加载外部HTML文件
         const fs = require('fs');
         const path = require('path');
-        
+
         const htmlPath = path.join(__dirname, 'nc-home-config.html');
         if (fs.existsSync(htmlPath)) {
             return fs.readFileSync(htmlPath, 'utf-8');
         }
-        
+
         // 如果外部文件不存在，使用内嵌的HTML
         return this.getNCHomeConfigHTML();
     }
@@ -679,6 +679,20 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         <label for="autoClient">自动客户端</label>
                     </div>
                     <div class="help-text">自动管理客户端连接</div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="debugMode">
+                        <label for="debugMode">调试模式</label>
+                    </div>
+                    <div class="help-text">启用调试模式以支持远程调试</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="debugPort">调试端口:</label>
+                    <input type="number" id="debugPort" placeholder="8888" min="1024" max="65535">
+                    <div class="help-text">设置调试模式使用的端口号 (1024-65535)</div>
                 </div>
             </div>
             
@@ -952,6 +966,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             document.getElementById('standardMode').checked = config.standardMode !== false;
             document.getElementById('asyncTask').checked = config.asyncTask || false;
             document.getElementById('autoClient').checked = config.autoClient !== false;
+            document.getElementById('debugMode').checked = config.debugMode !== false;
+            document.getElementById('debugPort').value = config.debugPort || 8888;
             document.getElementById('exportPatchPath').value = config.exportPatchPath || './patches';
             
             // 更新数据源列表
@@ -1050,6 +1066,54 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     type: 'deleteDataSource',
                     dataSourceName: dataSourceName
                 });
+            }
+        }
+        
+        // 保存高级配置
+        function saveAdvancedConfig() {
+            const config = {
+                ...currentConfig,
+                standardMode: document.getElementById('standardMode').checked,
+                asyncTask: document.getElementById('asyncTask').checked,
+                autoClient: document.getElementById('autoClient').checked,
+                debugMode: document.getElementById('debugMode').checked,
+                debugPort: parseInt(document.getElementById('debugPort').value) || 8888,
+                exportPatchPath: document.getElementById('exportPatchPath').value
+            };
+            
+            vscode.postMessage({
+                type: 'saveConfig',
+                config: config
+            });
+        }
+        
+        // 重置为默认配置
+        function resetToDefaults() {
+            if (confirm('确定要重置所有配置为默认值吗？')) {
+                const defaultConfig = {
+                    standardMode: true,
+                    asyncTask: false,
+                    autoClient: true,
+                    debugMode: true,
+                    debugPort: 8888,
+                    exportPatchPath: './patches'
+                };
+                
+                // 更新界面显示
+                document.getElementById('standardMode').checked = defaultConfig.standardMode;
+                document.getElementById('asyncTask').checked = defaultConfig.asyncTask;
+                document.getElementById('autoClient').checked = defaultConfig.autoClient;
+                document.getElementById('debugMode').checked = defaultConfig.debugMode;
+                document.getElementById('debugPort').value = defaultConfig.debugPort;
+                document.getElementById('exportPatchPath').value = defaultConfig.exportPatchPath;
+                
+                // 更新当前配置
+                currentConfig = {
+                    ...currentConfig,
+                    ...defaultConfig
+                };
+                
+                showMessage('已重置为默认配置', 'success');
             }
         }
         

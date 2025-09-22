@@ -1084,7 +1084,8 @@ export class HomeService {
 
         // 调试模式参数
         if (config.debugMode) {
-            vmParameters.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8888');
+            const debugPort = config.debugPort || 8888;  // 使用配置的调试端口，默认为8888
+            vmParameters.push(`-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${debugPort}`);
         }
 
         // 添加project.dir作为系统属性

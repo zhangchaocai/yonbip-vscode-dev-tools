@@ -45,6 +45,7 @@ export interface NCHomeConfig {
 
     // 调试模式
     debugMode?: boolean;
+    debugPort?: number;  // 添加调试端口配置
 
     // 补丁信息
     exportPatchPath?: string;
