@@ -35,14 +35,17 @@ export interface NCHomeConfig {
     // Home路径配置
     homePath: string;
     tempHomePath?: string;
-    
+
     // MCP配置
     mcpPort?: string;
-    
+
     // 服务器端口配置
     port?: number;
     wsPort?: number;
-    
+
+    // 调试模式
+    debugMode?: boolean;
+
     // 补丁信息
     exportPatchPath?: string;
     provider?: string;
@@ -51,13 +54,13 @@ export interface NCHomeConfig {
     OSs?: string;
     middlewares?: string;
     DBs?: string;
-    
+
     // 用户信息
     devuser?: string;
     devpwd?: string;
     loginToken?: string;
     uuid?: string;
-    
+
     // 插件配置
     asyncTask?: boolean;
     autoClient?: boolean;
@@ -67,11 +70,11 @@ export interface NCHomeConfig {
     showLocalDatadict?: boolean;
     autoChangeJdk?: boolean;
     standardMode?: boolean;
-    
+
     // 模块配置
     hotwebs?: string;
     exModules?: string;
-    
+
     // 数据源配置
     dataSources?: DataSourceMeta[];
     selectedDataSource?: string;

@@ -44,7 +44,7 @@ export class NCHomeConfigService {
     public async saveConfig(config: NCHomeConfig): Promise<void> {
         try {
             this.config = { ...config };
-            
+
             // 确保存储目录存在
             const storageDir = path.dirname(this.configFilePath);
             if (!fs.existsSync(storageDir)) {
@@ -53,13 +53,13 @@ export class NCHomeConfigService {
 
             // 保存到文件
             fs.writeFileSync(this.configFilePath, JSON.stringify(this.config, null, 2), 'utf-8');
-            
+
             // 同时保存到VS Code配置
             await this.saveToWorkspaceConfig();
-            
+
             this.outputChannel.appendLine(`配置已保存: ${this.configFilePath}`);
             vscode.window.showInformationMessage('NC Home配置已保存');
-            
+
         } catch (error: any) {
             this.outputChannel.appendLine(`保存配置失败: ${error.message}`);
             vscode.window.showErrorMessage(`保存配置失败: ${error.message}`);
@@ -81,7 +81,7 @@ export class NCHomeConfigService {
         } catch (error: any) {
             this.outputChannel.appendLine(`加载配置失败: ${error.message}`);
         }
-        
+
         // 返回默认配置
         return {
             homePath: '',
@@ -97,7 +97,8 @@ export class NCHomeConfigService {
             showLocalDatadict: false,
             autoChangeJdk: false,
             port: 9999,
-            wsPort: 8080
+            wsPort: 8080,
+            debugMode: true  // 默认启用调试模式
         };
     }
 
@@ -117,7 +118,8 @@ export class NCHomeConfigService {
             dataSources: [],
             exportPatchPath: './patches',
             port: 9999,
-            wsPort: 8080
+            wsPort: 8080,
+            debugMode: true  // 默认启用调试模式
         };
     }
 
@@ -127,12 +129,12 @@ export class NCHomeConfigService {
     private async saveToWorkspaceConfig(): Promise<void> {
         try {
             const config = vscode.workspace.getConfiguration('yonbip');
-            
+
             // 保存NC HOME路径到工作区配置
             if (this.config.homePath) {
                 await config.update('homePath', this.config.homePath, vscode.ConfigurationTarget.Global);
             }
-            
+
             // 保存其他配置到工作区
             await config.update('hotwebs', this.config.hotwebs, vscode.ConfigurationTarget.Global);
             await config.update('exModules', this.config.exModules, vscode.ConfigurationTarget.Global);
@@ -155,7 +157,7 @@ export class NCHomeConfigService {
 
         if (result && result[0]) {
             const homePath = result[0].fsPath;
-            
+
             // 验证是否为有效的NC Home目录
             if (await this.validateHomeDirectory(homePath)) {
                 return homePath;
@@ -164,7 +166,7 @@ export class NCHomeConfigService {
                 return undefined;
             }
         }
-        
+
         return undefined;
     }
 
@@ -191,7 +193,7 @@ export class NCHomeConfigService {
 
             this.outputChannel.appendLine(`Home目录验证通过: ${homePath}`);
             return true;
-            
+
         } catch (error: any) {
             this.outputChannel.appendLine(`验证Home目录失败: ${error.message}`);
             return false;
@@ -231,7 +233,7 @@ export class NCHomeConfigService {
 
         const sysConfigPath = path.join(this.config.homePath, 'bin', 'sysconfig.bat');
         const sysConfigPathSh = path.join(this.config.homePath, 'bin', 'sysconfig.sh');
-        
+
         let configPath = '';
         // 根据操作系统选择合适的脚本文件
         if (process.platform === 'win32' && fs.existsSync(sysConfigPath)) {
@@ -271,7 +273,7 @@ export class NCHomeConfigService {
     public async testConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
             this.outputChannel.appendLine(`开始测试数据库连接: ${dataSource.name}`);
-            
+
             // 验证基本参数
             if (!dataSource.host || !dataSource.username || !dataSource.databaseName) {
                 return {
@@ -311,13 +313,13 @@ export class NCHomeConfigService {
 
             this.outputChannel.appendLine(`连接测试结果: ${connectionResult.success ? '成功' : '失败'}`);
             this.outputChannel.appendLine(`消息: ${connectionResult.message}`);
-            
+
             return connectionResult;
 
         } catch (error: any) {
             const errorMsg = `连接测试失败: ${error.message}`;
             this.outputChannel.appendLine(errorMsg);
-            
+
             return {
                 success: false,
                 message: errorMsg,
@@ -342,9 +344,9 @@ export class NCHomeConfigService {
             };
 
             this.outputChannel.appendLine(`连接MySQL: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
-            
+
             const connection = await mysql.createConnection(connectionConfig);
-            
+
             // 执行简单的查询测试
             const [rows] = await connection.execute('SELECT 1 as test');
             await connection.end();
@@ -379,10 +381,10 @@ export class NCHomeConfigService {
             };
 
             this.outputChannel.appendLine(`连接PostgreSQL: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
-            
+
             const client = new pg.Client(connectionConfig);
             await client.connect();
-            
+
             // 执行简单的查询测试
             const result = await client.query('SELECT 1 as test');
             await client.end();
@@ -421,10 +423,10 @@ export class NCHomeConfigService {
             };
 
             this.outputChannel.appendLine(`连接SQL Server: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
-            
+
             const pool = new mssql.ConnectionPool(connectionConfig);
             await pool.connect();
-            
+
             // 执行简单的查询测试
             const result = await pool.request().query('SELECT 1 as test');
             await pool.close();
@@ -450,13 +452,13 @@ export class NCHomeConfigService {
         try {
             // 构建连接字符串
             const connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
-            
+
             this.outputChannel.appendLine(`🔍 开始测试Oracle连接: ${connectString}`);
-            
+
             try {
                 // 直接使用Thick模式以避免版本兼容性问题
                 this.outputChannel.appendLine(`🔄 初始化Oracle Thick模式...`);
-                
+
                 try {
                     // 尝试初始化Thick模式
                     // 首先尝试使用默认路径初始化
@@ -464,7 +466,7 @@ export class NCHomeConfigService {
                     this.outputChannel.appendLine(`✅ Oracle Thick模式初始化成功`);
                 } catch (initError: any) {
                     this.outputChannel.appendLine(`⚠️ Oracle Thick模式初始化失败: ${initError.message}`);
-                    
+
                     // 检查是否是DPI-1047错误（无法找到Oracle客户端库）
                     if (initError.message && initError.message.includes('DPI-1047')) {
                         // 尝试使用常见的Oracle Instant Client安装路径
@@ -478,13 +480,13 @@ export class NCHomeConfigService {
                             '/opt/homebrew/lib',  // Homebrew库路径
                             path.join(this.context.globalStoragePath, 'oracle_client')
                         ];
-                        
+
                         // 添加从环境变量中获取的路径
                         if (process.env.DYLD_LIBRARY_PATH) {
                             const dyldPaths = process.env.DYLD_LIBRARY_PATH.split(':');
                             commonPaths.unshift(...dyldPaths);  // 将环境变量路径放在最前面
                         }
-                        
+
                         let initialized = false;
                         for (const clientPath of commonPaths) {
                             if (clientPath && fs.existsSync(clientPath)) {
@@ -501,7 +503,7 @@ export class NCHomeConfigService {
                                 }
                             }
                         }
-                        
+
                         // 如果所有常见路径都失败了，返回详细的错误信息
                         if (!initialized) {
                             return {
@@ -525,14 +527,14 @@ export class NCHomeConfigService {
                         this.outputChannel.appendLine(`💡 提示: 请确保已安装Oracle Instant Client`);
                     }
                 }
-                
+
                 // 使用Thick模式进行连接
                 const connection = await oracledb.getConnection({
                     user: dataSource.username,
                     password: dataSource.password || '',
                     connectString: connectString
                 });
-                
+
                 const result = await connection.execute('SELECT 1 as test FROM dual');
                 await connection.close();
 
@@ -558,7 +560,7 @@ export class NCHomeConfigService {
     private async testOracleLegacyCompatibility(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
             this.outputChannel.appendLine(`🔄 尝试Oracle旧版本兼容模式...`);
-            
+
             // 尝试多种连接格式
             const connectionFormats = [
                 `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`,
@@ -568,24 +570,24 @@ export class NCHomeConfigService {
 
             for (let i = 0; i < connectionFormats.length; i++) {
                 const connectString = connectionFormats[i];
-                this.outputChannel.appendLine(`   尝试连接格式 ${i+1}: ${connectString}`);
-                
+                this.outputChannel.appendLine(`   尝试连接格式 ${i + 1}: ${connectString}`);
+
                 try {
                     const connection = await oracledb.getConnection({
                         user: dataSource.username,
                         password: dataSource.password || '',
                         connectString: connectString
                     });
-                    
+
                     const result = await connection.execute('SELECT 1 as test FROM dual');
                     await connection.close();
 
                     return {
                         success: true,
-                        message: `✅ Oracle旧版本兼容连接成功 - 使用格式 ${i+1}: ${connectString}`
+                        message: `✅ Oracle旧版本兼容连接成功 - 使用格式 ${i + 1}: ${connectString}`
                     };
                 } catch (formatError: any) {
-                    this.outputChannel.appendLine(`   格式 ${i+1} 失败: ${formatError.message.substring(0, 100)}...`);
+                    this.outputChannel.appendLine(`   格式 ${i + 1} 失败: ${formatError.message.substring(0, 100)}...`);
                     continue;
                 }
             }
@@ -645,7 +647,7 @@ export class NCHomeConfigService {
         }
 
         const fullError = `❌ Oracle连接失败: ${errorMessage}\n\n${solution}`;
-        
+
         this.outputChannel.appendLine(fullError);
 
         return {
@@ -817,7 +819,7 @@ export class NCHomeConfigService {
 
         this.config.dataSources.push(dataSource);
         await this.saveConfig(this.config);
-        
+
         this.outputChannel.appendLine(`添加数据源: ${dataSource.name}`);
     }
 
@@ -837,7 +839,7 @@ export class NCHomeConfigService {
 
         this.config.dataSources[index] = dataSource;
         await this.saveConfig(this.config);
-        
+
         this.outputChannel.appendLine(`更新数据源: ${dataSource.name}`);
     }
 
@@ -855,19 +857,19 @@ export class NCHomeConfigService {
         }
 
         this.config.dataSources.splice(index, 1);
-        
+
         // 如果删除的是当前选中的数据源，清除选择
         if (this.config.selectedDataSource === dataSourceName) {
             this.config.selectedDataSource = undefined;
         }
-        
+
         // 如果删除的是基准库，清除基准库设置
         if (this.config.baseDatabase === dataSourceName) {
             this.config.baseDatabase = undefined;
         }
 
         await this.saveConfig(this.config);
-        
+
         this.outputChannel.appendLine(`删除数据源: ${dataSourceName}`);
     }
 
@@ -881,7 +883,7 @@ export class NCHomeConfigService {
 
         this.config.selectedDataSource = dataSourceName;
         await this.saveConfig(this.config);
-        
+
         this.outputChannel.appendLine(`设置开发库: ${dataSourceName}`);
         vscode.window.showInformationMessage(`已设置 "${dataSourceName}" 为开发库`);
     }
@@ -896,7 +898,7 @@ export class NCHomeConfigService {
 
         this.config.baseDatabase = dataSourceName;
         await this.saveConfig(this.config);
-        
+
         this.outputChannel.appendLine(`设置基准库: ${dataSourceName}`);
         vscode.window.showInformationMessage(`已设置 "${dataSourceName}" 为基准库`);
     }
@@ -922,31 +924,31 @@ export class NCHomeConfigService {
 
         const propDir = path.join(this.config.homePath, 'ierp', 'bin');
         const propFile = path.join(propDir, 'prop.xml');
-        
+
         if (!fs.existsSync(propDir)) {
             return { valid: false, message: `配置目录不存在: ${propDir}` };
         }
-        
+
         if (!fs.existsSync(propFile)) {
             return { valid: false, message: `系统配置文件不存在: ${propFile}` };
         }
-        
+
         // 检查配置文件是否包含基本配置
         try {
             const content = fs.readFileSync(propFile, 'utf-8');
             // 支持多种配置文件格式
             // 标准格式包含<config>标签
             // 简化格式可能只包含<dataSources>标签
-            if ((content.includes('<config>') && content.includes('</config>')) || 
+            if ((content.includes('<config>') && content.includes('</config>')) ||
                 (content.includes('<dataSources>') && content.includes('</dataSources>'))) {
                 return { valid: true, message: '系统配置文件检查通过' };
             }
-            
+
             // 检查是否是有效的XML格式
             if (content.trim().startsWith('<?xml') && content.includes('<')) {
                 return { valid: true, message: '系统配置文件检查通过' };
             }
-            
+
             return { valid: false, message: '系统配置文件格式不正确' };
         } catch (error: any) {
             return { valid: false, message: `读取配置文件失败: ${error.message}` };
@@ -974,7 +976,7 @@ export class NCHomeConfigService {
 
             // 构建prop.xml文件路径
             const propXmlPath = path.join(this.config.homePath, 'ierp', 'bin', 'prop.xml');
-            
+
             // 检查文件是否存在
             if (!fs.existsSync(propXmlPath)) {
                 this.outputChannel.appendLine(`prop.xml文件不存在: ${propXmlPath}`);
@@ -984,7 +986,7 @@ export class NCHomeConfigService {
             // 读取文件内容，文件编码为gb2312
             const buffer = fs.readFileSync(propXmlPath);
             const content = iconv.decode(buffer, 'gb2312');
-            
+
             // 使用正则表达式查找http/port元素
             const portMatch = content.match(/<http>\s*<address>.*?<\/address>\s*<port>(\d+)<\/port>\s*<\/http>/s);
             let port: number | null = null;
@@ -995,7 +997,7 @@ export class NCHomeConfigService {
                     port = parsedPort;
                 }
             }
-            
+
             // 使用正则表达式查找servicePort元素
             const wsPortMatch = content.match(/<servicePort>(\d+)<\/servicePort>/);
             let wsPort: number | null = null;
@@ -1006,11 +1008,11 @@ export class NCHomeConfigService {
                     wsPort = parsedWsPort;
                 }
             }
-            
+
             if (port === null && wsPort === null) {
                 this.outputChannel.appendLine('未在prop.xml中找到有效的端口配置');
             }
-            
+
             return { port, wsPort };
         } catch (error: any) {
             this.outputChannel.appendLine(`读取prop.xml文件失败: ${error.message}`);

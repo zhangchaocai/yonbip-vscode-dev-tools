@@ -52,41 +52,41 @@ export class HomeService {
             '搴旂敤宸ュ巶', // 应用工厂乱码特征
             '鎻掍欢鎵弿'  // 插件扫描乱码特征
         ];
-        
+
         // 检查是否包含中文字符（正常中文应该能正确显示）
         const hasChinese = /[\u4e00-\u9fa5]/.test(str);
-        
+
         // 检查是否包含大量乱码字符
         const hasManyUnknownChars = (str.match(/[^\x00-\x7F]/g) || []).length > str.length * 0.3;
-        
+
         // 检查是否有乱码字符
         const hasGarbledPattern = garbledPatterns.some(pattern => {
             return str.includes(pattern);
         });
-        
+
         // 如果包含中文但也有乱码特征，则认为有乱码
         if (hasChinese && hasGarbledPattern) {
             return true;
         }
-        
+
         // 如果不包含中文，但包含大量非ASCII字符或有乱码模式，可能有乱码
         if (!hasChinese && (hasManyUnknownChars || hasGarbledPattern)) {
             return true;
         }
-        
+
         // 特殊处理：如果包含月份乱码，则认为有乱码
         if (str.includes('9') && !str.includes('9月')) {
             return true;
         }
-        
+
         // 检查是否包含XML错误信息的乱码特征
         if (str.includes('涓嶅厑璁') && str.includes('鐨勫鐞嗘寚浠ょ洰鏍囥')) {
             return true;
         }
-        
+
         return false;
     }
-    
+
     /**
      * 尝试多种编码方式解码数据
      * @param data 原始数据
@@ -95,10 +95,10 @@ export class HomeService {
     private decodeDataWithMultipleEncodings(data: Buffer): string {
         // 尝试的编码列表，按优先级排序
         const encodings = ['utf-8', 'gbk', 'gb2312'];
-        
+
         // 保存原始字符串用于比较
         const originalString = data.toString();
-        
+
         for (const encoding of encodings) {
             try {
                 const decoded = iconv.decode(data, encoding);
@@ -127,7 +127,7 @@ export class HomeService {
                 continue;
             }
         }
-        
+
         // 最后尝试使用gbk解码（因为这是最可能的中文编码）
         try {
             return iconv.decode(data, 'gbk');
@@ -136,14 +136,14 @@ export class HomeService {
             return originalString;
         }
     }
-    
+
     /**
      * 编译项目源代码
      */
     private async compileProject(workspaceFolder: string): Promise<boolean> {
         return new Promise((resolve) => {
             this.outputChannel.appendLine('🔍 检查项目是否需要编译...');
-            
+
             // 检查是否存在src目录
             const srcPath = path.join(workspaceFolder, 'src');
             if (!fs.existsSync(srcPath)) {
@@ -151,31 +151,31 @@ export class HomeService {
                 resolve(true);
                 return;
             }
-            
+
             // 检查是否是Maven项目
             const pomPath = path.join(workspaceFolder, 'pom.xml');
             if (fs.existsSync(pomPath)) {
                 this.outputChannel.appendLine('🔨 检测到Maven项目，正在编译...');
                 this.outputChannel.appendLine('🔧 执行命令: mvn clean compile');
-                
-                const compileProcess = spawn('mvn', ['clean', 'compile'], { 
+
+                const compileProcess = spawn('mvn', ['clean', 'compile'], {
                     cwd: workspaceFolder,
                     env: {
                         ...process.env,
                         JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8'
                     }
                 });
-                
+
                 compileProcess.stdout?.on('data', (data: any) => {
                     const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
                     this.outputChannel.appendLine(`[STDOUT] ${output}`);
                 });
-                
+
                 compileProcess.stderr?.on('data', (data: any) => {
                     const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
                     this.outputChannel.appendLine(`[STDERR] ${output}`);
                 });
-                
+
                 compileProcess.on('close', (code: any) => {
                     if (code === 0) {
                         this.outputChannel.appendLine('✅ Maven编译成功');
@@ -185,40 +185,40 @@ export class HomeService {
                         resolve(false);
                     }
                 });
-                
+
                 compileProcess.on('error', (error: any) => {
                     this.outputChannel.appendLine(`❌ Maven编译出错: ${error.message}`);
                     resolve(false);
                 });
-                
+
                 return;
             }
-            
+
             // 检查是否是Gradle项目
             const gradlePath = path.join(workspaceFolder, 'build.gradle');
             const gradleKtsPath = path.join(workspaceFolder, 'build.gradle.kts');
             if (fs.existsSync(gradlePath) || fs.existsSync(gradleKtsPath)) {
                 this.outputChannel.appendLine('🔨 检测到Gradle项目，正在编译...');
                 this.outputChannel.appendLine('🔧 执行命令: gradle clean compileJava');
-                
-                const compileProcess = spawn('gradle', ['clean', 'compileJava'], { 
+
+                const compileProcess = spawn('gradle', ['clean', 'compileJava'], {
                     cwd: workspaceFolder,
                     env: {
                         ...process.env,
                         JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8'
                     }
                 });
-                
+
                 compileProcess.stdout?.on('data', (data: any) => {
                     const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
                     this.outputChannel.appendLine(`[STDOUT] ${output}`);
                 });
-                
+
                 compileProcess.stderr?.on('data', (data: any) => {
                     const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
                     this.outputChannel.appendLine(`[STDERR] ${output}`);
                 });
-                
+
                 compileProcess.on('close', (code: any) => {
                     if (code === 0) {
                         this.outputChannel.appendLine('✅ Gradle编译成功');
@@ -228,15 +228,15 @@ export class HomeService {
                         resolve(false);
                     }
                 });
-                
+
                 compileProcess.on('error', (error: any) => {
                     this.outputChannel.appendLine(`❌ Gradle编译出错: ${error.message}`);
                     resolve(false);
                 });
-                
+
                 return;
             }
-            
+
             // 检查是否是标准Java项目（存在src目录且包含Java文件）
             if (fs.existsSync(srcPath)) {
                 const hasJavaFiles = this.hasJavaFiles(srcPath);
@@ -248,12 +248,12 @@ export class HomeService {
                     return;
                 }
             }
-            
+
             this.outputChannel.appendLine('⚠️ 未识别的项目类型，跳过编译步骤');
             resolve(true);
         });
     }
-    
+
     /**
      * 检查目录中是否包含Java文件
      */
@@ -263,7 +263,7 @@ export class HomeService {
             for (const item of items) {
                 const itemPath = path.join(dirPath, item);
                 const stat = fs.statSync(itemPath);
-                
+
                 if (stat.isDirectory()) {
                     if (this.hasJavaFiles(itemPath)) {
                         return true;
@@ -277,7 +277,7 @@ export class HomeService {
             return false;
         }
     }
-   
+
 
     /**
      * 启动NC HOME服务 (对应IDEA插件中的ServerDebugAction)
@@ -291,20 +291,20 @@ export class HomeService {
 
         // 提前获取配置以避免变量作用域问题
         const config = this.configService.getConfig();
-        
+
         // 获取当前工作区根目录
         let workspaceFolder = '';
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
             this.outputChannel.appendLine(`📂 当前工作区: ${workspaceFolder}`);
-            
+
             // 编译项目源代码
             const compileSuccess = await this.compileProject(workspaceFolder);
             if (!compileSuccess) {
                 vscode.window.showErrorMessage('项目编译失败，请检查代码错误');
                 return;
             }
-            
+
         } else {
             this.outputChannel.appendLine('⚠️ 未检测到工作区，跳过项目编译和resources目录复制步骤');
         }
@@ -333,13 +333,13 @@ export class HomeService {
             const portsFromProp = this.configService.getPortFromPropXml();
             const serverPort = portsFromProp.port || config.port || 8077;
             const wsPort = portsFromProp.wsPort || config.wsPort || 8080;
-            
+
             this.outputChannel.appendLine(`🔍 检查端口占用情况...`);
             await this.checkAndKillPortProcesses(serverPort, wsPort);
 
             // 确保必要的配置文件存在
             await this.ensureDesignDataSource(config);
-            
+
             // 检查并确定core.jar路径
             const coreJarPath = this.getCoreJarPath(config.homePath);
             if (!coreJarPath) {
@@ -352,7 +352,7 @@ export class HomeService {
 
             // 确定主类 (与IDEA插件保持一致)
             let mainClass = 'ufmiddle.start.tomcat.StartDirectServer';
-            
+
             // 检查core.jar中是否包含wj相关类，如果包含则使用wj的启动类
             if (this.containsWJClasses(coreJarPath)) {
                 mainClass = 'ufmiddle.start.wj.StartDirectServer';
@@ -361,11 +361,11 @@ export class HomeService {
 
             // 构建类路径
             const classpath = this.buildClasspath(config, coreJarPath, workspaceFolder);
-            
+
             // 检查必要的配置文件
             const propDir = path.join(config.homePath, 'ierp', 'bin');
             const propFile = path.join(propDir, 'prop.xml');
-            
+
             if (!fs.existsSync(propFile)) {
                 this.outputChannel.appendLine(`❌ 严重错误: 系统配置文件不存在: ${propFile}`);
                 this.outputChannel.appendLine('请确保正确配置了NC HOME目录，并且包含必要的配置文件');
@@ -374,7 +374,7 @@ export class HomeService {
                 return;
             } else {
                 this.outputChannel.appendLine(`✅ 系统配置文件存在: ${propFile}`);
-                
+
                 // 检查是否有数据源配置
                 try {
                     const propContent = fs.readFileSync(propFile, 'utf-8');
@@ -387,12 +387,12 @@ export class HomeService {
                     this.outputChannel.appendLine(`⚠️ 无法读取配置文件: ${error.message}`);
                 }
             }
-            
+
             // 检查数据源配置
             const dataSourceDir = path.join(config.homePath, 'ierp', 'bin');
             if (fs.existsSync(dataSourceDir)) {
                 const dataSourceFiles = fs.readdirSync(dataSourceDir);
-                const dsConfigs = dataSourceFiles.filter(file => 
+                const dsConfigs = dataSourceFiles.filter(file =>
                     file.startsWith('datasource') && (file.endsWith('.ini') || file.endsWith('.properties')));
                 if (dsConfigs.length > 0) {
                     this.outputChannel.appendLine(`✅ 找到 ${dsConfigs.length} 个数据源配置文件`);
@@ -405,23 +405,23 @@ export class HomeService {
             } else {
                 this.outputChannel.appendLine('⚠️ 未找到数据源配置目录，可能导致启动失败');
             }
-            
+
             // 构建环境变量
             const env = this.buildEnvironment(config);
-            
+
             // 构建JVM参数 (使用与IDEA插件一致的参数)
             const vmParameters = this.buildVMParameters(config, serverPort, wsPort);
-            
+
             // 确定Java可执行文件路径
             let javaExecutable = this.getJavaExecutable(config);
-            
+
             this.outputChannel.appendLine('✅ 准备启动NC HOME服务...');
             this.outputChannel.appendLine(`☕ Java可执行文件: ${javaExecutable}`);
             this.outputChannel.appendLine(`🖥️  主类: ${mainClass}`);
             this.outputChannel.appendLine(`📦 类路径包含 ${classpath.split(path.delimiter).length} 个条目`);
             this.outputChannel.appendLine(`🏠 HOME路径: ${config.homePath}`);
             this.outputChannel.appendLine(`⚙️  JVM参数: ${vmParameters.join(' ')}`);
-            
+
             // 构建Java命令参数
             const javaArgs = [
                 ...vmParameters,
@@ -429,11 +429,11 @@ export class HomeService {
                 classpath,
                 mainClass
             ];
-            
+
             // this.outputChannel.appendLine('🚀 启动命令:');
             // this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
             // this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
-            
+
             // 执行启动命令
             this.process = spawn(javaExecutable, javaArgs, {
                 cwd: config.homePath,
@@ -459,13 +459,13 @@ export class HomeService {
                 output = output.replace(/\u001b\[.*?m/g, '');
                 // 移除其他控制字符
                 output = output.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
-                
-                if(!output.includes('[Fatal Error]')){
+
+                if (!output.includes('[Fatal Error]')) {
                     this.outputChannel.appendLine(`[STDOUT] ${output}`);
                 }
                 // 检查是否启动成功
-                if (output.includes('Server startup in') || 
-                    output.includes('服务启动成功') || 
+                if (output.includes('Server startup in') ||
+                    output.includes('服务启动成功') ||
                     output.includes('Started ServerConnector') ||
                     output.includes('Tomcat started on port')) {
                     this.setStatus(HomeStatus.RUNNING);
@@ -485,20 +485,20 @@ export class HomeService {
                 // 移除其他控制字符
                 stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
                 this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
-                
+
                 // 检查错误信息
                 // 移除其他控制字符
                 stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
                 this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
-                
+
                 // 检查错误信息
                 if (stderrOutput.includes('ERROR') || stderrOutput.includes('Exception')) {
                     this.outputChannel.appendLine('❌ 检测到错误信息');
                 }
-                
+
                 // 即使没有明显的错误标识，也要提醒用户关注stderr信息
-                if (!stderrOutput.includes('Exception') && 
-                    !stderrOutput.includes('Error') && 
+                if (!stderrOutput.includes('Exception') &&
+                    !stderrOutput.includes('Error') &&
                     !stderrOutput.includes('Caused by')) {
                     this.outputChannel.appendLine('⚠️ 请特别关注以上STDERR输出，它可能包含导致启动失败的重要信息');
                 }
@@ -526,7 +526,7 @@ export class HomeService {
                 } else {
                     this.outputChannel.appendLine('✅ 服务已正常退出');
                 }
-                
+
                 this.process = null;
                 this.setStatus(HomeStatus.STOPPED);
             });
@@ -543,7 +543,7 @@ export class HomeService {
             this.process.on('close', (code, signal) => {
                 console.log(`进程关闭，退出码: ${code}, 信号: ${signal}`);
                 this.outputChannel.appendLine(`\nHOME服务进程已关闭，退出码: ${code}${signal ? `, 信号: ${signal}` : ''}`);
-                
+
                 if (code !== 0 && code !== null) {
                     this.outputChannel.appendLine('⚠️ 服务异常退出，请检查日志文件或终端手动启动输出！');
                     if (code === 255) {
@@ -553,7 +553,7 @@ export class HomeService {
                         this.outputChannel.appendLine('   - 必要的系统属性未正确设置');
                     }
                 }
-                
+
                 this.process = null;
                 this.setStatus(HomeStatus.STOPPED);
             });
@@ -610,7 +610,7 @@ export class HomeService {
             if (filename.toLowerCase().includes('wj')) {
                 return true;
             }
-            
+
             // 检查HOME路径是否包含特定标识
             return coreJarPath.includes('wj') || coreJarPath.includes('WJ');
         } catch (error) {
@@ -623,7 +623,7 @@ export class HomeService {
      */
     private buildClasspath(config: any, coreJarPath: string, workspaceFolder: string): string {
         const classpathEntries: string[] = [coreJarPath];
-        
+
         // 特别添加可能包含ws相关类的目录
         const wsRelatedDirs = [
             path.join(config.homePath, 'webapps', 'uapws'),
@@ -633,7 +633,7 @@ export class HomeService {
             path.join(config.homePath, 'hotwebs', 'uapws', 'WEB-INF', 'classes'),
             path.join(config.homePath, 'hotwebs', 'webservice', 'WEB-INF', 'classes')
         ];
-        
+
         // 优先添加这些目录，以确保ws相关类能被正确加载
         for (const wsDir of wsRelatedDirs) {
             if (fs.existsSync(wsDir)) {
@@ -641,39 +641,43 @@ export class HomeService {
                 this.outputChannel.appendLine(`🚨 优先添加WS相关目录: ${wsDir}`);
             }
         }
-        
+
         // 首先添加工作区编译输出目录
         if (workspaceFolder) {
             const targetClasses = path.join(workspaceFolder, 'target', 'classes'); // Maven项目
             const buildClasses = path.join(workspaceFolder, 'build', 'classes'); // Gradle项目
-            
+            const binClasses = path.join(workspaceFolder, 'bin'); // 普通项目
             if (fs.existsSync(targetClasses)) {
                 classpathEntries.push(targetClasses);
                 this.outputChannel.appendLine(`📁 添加Maven编译输出目录: ${targetClasses}`);
             }
-            
+
             if (fs.existsSync(buildClasses)) {
                 classpathEntries.push(buildClasses);
                 this.outputChannel.appendLine(`📁 添加Gradle编译输出目录: ${buildClasses}`);
             }
+            if (fs.existsSync(binClasses)) {
+                classpathEntries.push(binClasses);
+                this.outputChannel.appendLine(`📁 添加普通Java编译输出目录: ${binClasses}`);
+            }
         }
-        
+
         // 添加预处理后的external目录 (解决ClassNotFoundException的关键步骤)
         const externalLibDir = path.join(config.homePath, 'external', 'lib');
         const externalClassesDir = path.join(config.homePath, 'external', 'classes');
-        
+
         if (fs.existsSync(externalLibDir)) {
             const jarFiles = fs.readdirSync(externalLibDir).filter(file => file.endsWith('.jar'));
             const jars = jarFiles.map(file => path.join(externalLibDir, file));
             classpathEntries.push(...jars);
             this.outputChannel.appendLine(`📁 添加预处理后的external/lib目录，共包含 ${jarFiles.length} 个jar文件`);
         }
-        
+
         if (fs.existsSync(externalClassesDir)) {
             classpathEntries.push(externalClassesDir);
             this.outputChannel.appendLine(`📁 添加预处理后的external/classes目录`);
         }
-        
+
         // 需要扫描的目录列表 (基于IDEA插件的实现，并扩展)
         const libDirs = [
             path.join(config.homePath, 'middleware'),
@@ -710,16 +714,16 @@ export class HomeService {
             path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'lib'),
             path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'classes')
         ];
-        
+
         this.outputChannel.appendLine('开始构建类路径...');
-        
+
         // 遍历所有目录，添加其中的jar包到类路径
         for (const dir of libDirs) {
             if (fs.existsSync(dir)) {
                 try {
                     const files = fs.readdirSync(dir);
                     const jars = files.filter(file => file.endsWith('.jar'))
-                                      .map(file => path.join(dir, file));
+                        .map(file => path.join(dir, file));
                     classpathEntries.push(...jars);
                 } catch (err: any) {
                     this.outputChannel.appendLine(`⚠️ 读取目录失败: ${dir}, 错误: ${err}`);
@@ -731,20 +735,20 @@ export class HomeService {
                 }
             }
         }
-        
+
         // 特别处理modules目录，扫描每个子目录下的lib目录
         const modulesDir = path.join(config.homePath, 'modules');
         if (fs.existsSync(modulesDir)) {
             try {
                 const moduleDirs = fs.readdirSync(modulesDir);
                 //this.outputChannel.appendLine(`📁 发现modules目录: ${modulesDir}，包含 ${moduleDirs.length} 个模块`);
-                
+
                 for (const moduleDir of moduleDirs) {
                     const moduleLibDir = path.join(modulesDir, moduleDir, 'lib');
                     if (fs.existsSync(moduleLibDir)) {
                         const files = fs.readdirSync(moduleLibDir);
                         const jars = files.filter(file => file.endsWith('.jar'))
-                                          .map(file => path.join(moduleLibDir, file));
+                            .map(file => path.join(moduleLibDir, file));
                         classpathEntries.push(...jars);
                         //this.outputChannel.appendLine(`📁 添加模块 ${moduleDir} 的lib目录: ${moduleLibDir} (${jars.length} 个jar包)`);
                     }
@@ -753,17 +757,17 @@ export class HomeService {
                 this.outputChannel.appendLine(`⚠️ 读取modules目录失败: ${err}`);
             }
         }
-        
+
         // 特别检查并添加与web服务相关的jar包
         this.checkAndAddWSJars(config.homePath, classpathEntries);
-        
+
         // 在所有jar包添加完成后，保守地添加resources目录（避免类加载冲突）
         const resourcesDir = path.join(config.homePath, 'resources');
         if (fs.existsSync(resourcesDir)) {
             // 只添加resources主目录和conf子目录，不递归添加所有子目录
             classpathEntries.push(resourcesDir);
             this.outputChannel.appendLine(`📁 添加resources目录: ${resourcesDir}`);
-            
+
             // 特别添加conf目录，确保配置文件能被加载
             const confDir = path.join(resourcesDir, 'conf');
             if (fs.existsSync(confDir)) {
@@ -773,11 +777,11 @@ export class HomeService {
         } else {
             this.outputChannel.appendLine(`⚠️ resources目录不存在: ${resourcesDir}`);
         }
-        
+
         // 去除重复项并构建类路径
         const uniqueClasspathEntries = [...new Set(classpathEntries)];
         this.outputChannel.appendLine(`类路径构建完成，共包含 ${uniqueClasspathEntries.length} 个条目`);
-        
+
         // 特别检查resources和conf目录是否被正确添加
         const resourcesEntries = uniqueClasspathEntries.filter(entry => entry.includes('resources'));
         if (resourcesEntries.length > 0) {
@@ -788,7 +792,7 @@ export class HomeService {
         } else {
             this.outputChannel.appendLine(`❌ 警告: 类路径中未找到resources目录！`);
         }
-        
+
         // 确保所有类路径条目都是有效的文件系统路径，而不是URI
         const validatedClasspathEntries = uniqueClasspathEntries.filter(entry => {
             try {
@@ -808,7 +812,7 @@ export class HomeService {
                 return false;
             }
         });
-        
+
         return validatedClasspathEntries.join(path.delimiter);
     }
 
@@ -820,54 +824,54 @@ export class HomeService {
         // 搜索并添加可能包含ws相关类的jar包
         const wsJarKeywords = ['ws', 'webservice', 'uapws', 'web-service'];
         const wsJarPaths: string[] = [];
-        
+
         // 搜索并添加可能包含Granite相关类的jar包
         const graniteJarKeywords = ['granite', 'flex', 'blazeds', 'amf'];
         const graniteJarPaths: string[] = [];
-        
+
         // 搜索middleware/lib目录
         const middlewareLibDir = path.join(homePath, 'middleware', 'lib');
         if (fs.existsSync(middlewareLibDir)) {
             this.searchAndAddWSJars(middlewareLibDir, wsJarKeywords, wsJarPaths);
         }
-        
+
         // 搜索lib目录
         const libDir = path.join(homePath, 'lib');
         if (fs.existsSync(libDir)) {
             this.searchAndAddWSJars(libDir, wsJarKeywords, wsJarPaths);
         }
-        
+
         // 搜索external/lib目录
         const externalLibDir = path.join(homePath, 'external', 'lib');
         if (fs.existsSync(externalLibDir)) {
             this.searchAndAddWSJars(externalLibDir, wsJarKeywords, wsJarPaths);
         }
-        
+
         // 搜索webapps/uapws/WEB-INF/lib目录
         const uapwsLibDir = path.join(homePath, 'webapps', 'uapws', 'WEB-INF', 'lib');
         if (fs.existsSync(uapwsLibDir)) {
             this.searchAndAddWSJars(uapwsLibDir, wsJarKeywords, wsJarPaths);
         }
-        
+
         // 搜索webapps/webservice/WEB-INF/lib目录
         const webserviceLibDir = path.join(homePath, 'webapps', 'webservice', 'WEB-INF', 'lib');
         if (fs.existsSync(webserviceLibDir)) {
             this.searchAndAddWSJars(webserviceLibDir, wsJarKeywords, wsJarPaths);
             this.searchAndAddWSJars(webserviceLibDir, graniteJarKeywords, graniteJarPaths);
         }
-        
+
         // 搜索Granite相关目录
         const graniteLibDir = path.join(homePath, 'middleware', 'granite', 'lib');
         if (fs.existsSync(graniteLibDir)) {
             this.searchAndAddWSJars(graniteLibDir, graniteJarKeywords, graniteJarPaths);
         }
-        
+
         // 搜索flex相关目录
         const flexLibDir = path.join(homePath, 'middleware', 'flex', 'lib');
         if (fs.existsSync(flexLibDir)) {
             this.searchAndAddWSJars(flexLibDir, graniteJarKeywords, graniteJarPaths);
         }
-        
+
         // 将找到的ws相关jar包添加到类路径
         for (const wsJarPath of wsJarPaths) {
             if (!classpathEntries.includes(wsJarPath)) {
@@ -875,7 +879,7 @@ export class HomeService {
                 this.outputChannel.appendLine(`🚨 特别添加WS相关jar包: ${path.basename(wsJarPath)}`);
             }
         }
-        
+
         // 将找到的Granite相关jar包添加到类路径
         for (const graniteJarPath of graniteJarPaths) {
             if (!classpathEntries.includes(graniteJarPath)) {
@@ -892,11 +896,11 @@ export class HomeService {
         try {
             const files = fs.readdirSync(dir);
             const jars = files.filter(file => file.endsWith('.jar'));
-            
+
             for (const jar of jars) {
                 const jarPath = path.join(dir, jar);
                 const jarName = jar.toLowerCase();
-                
+
                 for (const keyword of keywords) {
                     if (jarName.includes(keyword.toLowerCase())) {
                         jarPaths.push(jarPath);
@@ -914,26 +918,26 @@ export class HomeService {
      */
     private buildEnvironment(config: any): NodeJS.ProcessEnv {
         const env = { ...process.env };
-        
+
         // 设置与IDEA插件一致的环境变量
         env.FIELD_NC_HOME = config.homePath;
         env.FIELD_HOTWEBS = config.hotwebs || 'nccloud,fs,yonbip';
         env.FIELD_EX_MODULES = config.exModules || '';
-        
+
         // 兼容IDEA插件的变量命名
         env.IDEA_FIELD_NC_HOME = config.homePath;
         env.IDEA_FIELD_HOTWEBS = config.hotwebs || 'nccloud,fs,yonbip';
         env.IDEA_FIELD_EX_MODULES = config.exModules || '';
-        
+
         // 添加数据源配置目录到环境变量
         const propDir = path.join(config.homePath, 'ierp', 'bin');
         env.NC_PROP_DIR = propDir;
         env.PROP_DIR = propDir;
-        
+
         this.outputChannel.appendLine(`设置环境变量: FIELD_NC_HOME=${env.FIELD_NC_HOME}`);
         this.outputChannel.appendLine(`设置环境变量: FIELD_HOTWEBS=${env.FIELD_HOTWEBS}`);
         this.outputChannel.appendLine(`设置环境变量: NC_PROP_DIR=${env.NC_PROP_DIR}`);
-        
+
         return env;
     }
 
@@ -942,7 +946,7 @@ export class HomeService {
      */
     private buildVMParameters(config: any, serverPort: number, wsPort: number): string[] {
         const vmParameters: string[] = [];
-        
+
         // 添加IDEA插件中的默认VM参数 (与IDEA插件保持一致)
         // 使用path.resolve确保所有路径都是绝对路径，避免URI格式问题
         vmParameters.push('-Dnc.exclude.modules=' + (config.exModules || ''));
@@ -960,12 +964,12 @@ export class HomeService {
         vmParameters.push('-Dnc.debug=true');            // 开启调试模式
         vmParameters.push('-Dnc.log.level=DEBUG');       // 设置日志级别为 DEBUG
         vmParameters.push('-Dnc.startup.trace=true');    // 启动跟踪
-        
+
         // 添加数据源配置目录参数 - 与IDEA插件保持一致
         const propDir = path.resolve(config.homePath, 'ierp', 'bin');
         vmParameters.push('-Dnc.prop.dir=' + propDir);
         vmParameters.push('-Dprop.dir=' + propDir);
-        
+
         // 检查prop.xml文件是否存在
         const propFile = path.join(propDir, 'prop.xml');
         if (fs.existsSync(propFile)) {
@@ -973,16 +977,16 @@ export class HomeService {
         } else {
             this.outputChannel.appendLine(`❌ 未找到系统配置文件: ${propFile}`);
         }
-        
+
         // 添加默认数据源配置参数
         if (config.selectedDataSource) {
             vmParameters.push('-Dnc.datasource.default=' + config.selectedDataSource);
         }
-        
+
         // 默认JVM参数
         vmParameters.push('-Xms256m');
         vmParameters.push('-Xmx1024m');
-        
+
         // 检测Java版本，决定是否添加MaxPermSize参数
         // MaxPermSize参数在Java 9+版本中已被移除
         let javaVersion = 0;
@@ -997,7 +1001,7 @@ export class HomeService {
         } catch (error: any) {
             this.outputChannel.appendLine(`警告: 无法检测Java版本，将假设使用Java 8+: ${error.message}`);
         }
-        
+
         // 仅在Java 8及以下版本添加MaxPermSize参数
         if (javaVersion < 9 && javaVersion !== 0) {
             vmParameters.push('-XX:MaxPermSize=512m');
@@ -1005,32 +1009,32 @@ export class HomeService {
         } else {
             this.outputChannel.appendLine('Java版本 >= 9，不添加MaxPermSize参数');
         }
-        
+
         vmParameters.push('-XX:+HeapDumpOnOutOfMemoryError');
         vmParameters.push('-XX:HeapDumpPath=' + path.join(config.homePath, 'logs', 'nc_heapdump.hprof'));
-        
+
         // 添加系统属性
         vmParameters.push('-Dnc.server.home=' + path.resolve(config.homePath));
         vmParameters.push('-Dnc.home=' + path.resolve(config.homePath));
         vmParameters.push('-Dnc.idesupport=true');
         vmParameters.push('-Dnc.scan=true');
         vmParameters.push('-Dnc.server.port=' + serverPort);
-        
+
         // 特别添加与web服务相关的系统属性
         vmParameters.push('-Dws.server=true');
         vmParameters.push('-Dws.port=' + (wsPort || 8080));
-        
+
         // 添加编码参数
         vmParameters.push('-Dfile.encoding=UTF-8');
         vmParameters.push('-Dconsole.encoding=UTF-8');
         vmParameters.push('-Dsun.jnu.encoding=UTF-8');
         vmParameters.push('-Dclient.encoding.override=UTF-8');
-        
+
         // 添加XML解析器配置
         vmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
         vmParameters.push('-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl');
         vmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
-        
+
         // 添加Java 17兼容性参数 (如果Java版本 >= 17)
         if (javaVersion >= 17) {
             vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
@@ -1069,21 +1073,20 @@ export class HomeService {
             vmParameters.push('--add-opens=java.desktop/sun.swing=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.desktop/java.awt.color=ALL-UNNAMED');
         }
-        
+
         // 添加对java.lang包的开放访问权限，解决InaccessibleObjectException问题
         vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
-        
+
         // macOS参数
         if (process.platform === 'darwin') {
             vmParameters.push('-Dapple.awt.UIElement=true');
         }
-        
+
         // 调试模式参数
-        if (config.debugMode) {
-            vmParameters.push('-Xdebug');
-            vmParameters.push('-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8888');
-        }
-        
+        //if (config.debugMode) {
+        vmParameters.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8888');
+        //}
+
         // 添加project.dir作为系统属性
         if (config.projectDir) {
             vmParameters.push('-Dproject.dir=' + config.projectDir);
@@ -1093,7 +1096,7 @@ export class HomeService {
         if (config.vmParameters && config.vmParameters.length > 0) {
             vmParameters.push(...config.vmParameters);
         }
-        
+
         return vmParameters;
     }
 
@@ -1114,7 +1117,7 @@ export class HomeService {
         try {
             const javaConfig = vscode.workspace.getConfiguration('java.configuration');
             const runtimes = javaConfig.get<any[]>('runtimes', []);
-            
+
             // 查找默认的Java运行时
             const defaultRuntime = runtimes.find(runtime => runtime.default === true);
             if (defaultRuntime && defaultRuntime.path) {
@@ -1124,7 +1127,7 @@ export class HomeService {
                     return javaPath;
                 }
             }
-            
+
             // 如果没有默认运行时，尝试使用第一个配置的运行时
             if (runtimes.length > 0 && runtimes[0].path) {
                 const javaPath = path.join(runtimes[0].path, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
@@ -1140,11 +1143,11 @@ export class HomeService {
         // 回退到内置的ufjdk
         const ufjdkPath = path.join(config.homePath, 'ufjdk');
         const ufjdkBinPath = path.join(ufjdkPath, 'bin');
-        
+
         // 根据操作系统确定可执行文件名
         const javaExeName = process.platform === 'win32' ? 'java.exe' : 'java';
         const javaBinPath = path.join(ufjdkBinPath, javaExeName);
-        
+
         // 检查是否存在且可执行
         if (fs.existsSync(javaBinPath)) {
             try {
@@ -1152,13 +1155,13 @@ export class HomeService {
                 if (process.platform !== 'win32') {
                     fs.accessSync(javaBinPath, fs.constants.X_OK);
                 }
-                
+
                 // 验证这是一个有效的Java可执行文件
-                const versionResult = spawnSync(javaBinPath, ['-version'], { 
+                const versionResult = spawnSync(javaBinPath, ['-version'], {
                     encoding: 'utf8',
-                    timeout: 5000 
+                    timeout: 5000
                 });
-                
+
                 if (versionResult.status === 0) {
                     this.outputChannel.appendLine(`✅ 使用NC内置JDK: ${javaBinPath}`);
                     return javaBinPath;
@@ -1171,20 +1174,20 @@ export class HomeService {
         } else {
             this.outputChannel.appendLine(`⚠️  未找到NC内置JDK: ${javaBinPath}`);
         }
-        
+
         // 检查是否为Windows JDK在macOS/Linux上
         const wrongPlatformJava = path.join(ufjdkBinPath, process.platform === 'win32' ? 'java' : 'java.exe');
         if (fs.existsSync(wrongPlatformJava)) {
             this.outputChannel.appendLine(`⚠️  检测到不匹配的JDK平台，使用系统Java`);
         }
-        
+
         // 使用系统Java
         try {
-            const systemJavaResult = spawnSync('java', ['-version'], { 
+            const systemJavaResult = spawnSync('java', ['-version'], {
                 encoding: 'utf8',
-                timeout: 5000 
+                timeout: 5000
             });
-            
+
             if (systemJavaResult.status === 0) {
                 this.outputChannel.appendLine(`✅ 使用系统Java: java`);
                 return 'java';
@@ -1192,22 +1195,22 @@ export class HomeService {
         } catch (error) {
             // 继续尝试其他路径
         }
-        
+
         // 尝试常见Java路径
         const commonJavaPaths = [
             '/usr/bin/java',
             '/usr/local/bin/java',
             '/opt/homebrew/bin/java'
         ];
-        
+
         for (const javaPath of commonJavaPaths) {
             if (fs.existsSync(javaPath)) {
                 try {
-                    const result = spawnSync(javaPath, ['-version'], { 
+                    const result = spawnSync(javaPath, ['-version'], {
                         encoding: 'utf8',
-                        timeout: 5000 
+                        timeout: 5000
                     });
-                    
+
                     if (result.status === 0) {
                         this.outputChannel.appendLine(`✅ 使用系统Java: ${javaPath}`);
                         return javaPath;
@@ -1217,7 +1220,7 @@ export class HomeService {
                 }
             }
         }
-        
+
         // 最后的回退方案
         this.outputChannel.appendLine(`❌ 未找到可用的Java可执行文件，使用默认java命令`);
         return 'java';
@@ -1231,7 +1234,7 @@ export class HomeService {
         // 清空控制台
         this.outputChannel.clear();
         this.outputChannel.appendLine('正在停止NC HOME服务...');
-        
+
         if (this.status === HomeStatus.STOPPED || this.status === HomeStatus.STOPPING) {
             vscode.window.showWarningMessage('NC HOME服务未在运行');
             this.outputChannel.appendLine('⚠️ NC HOME服务未在运行');
@@ -1243,7 +1246,7 @@ export class HomeService {
             this.isManualStop = true;
 
             const config = this.configService.getConfig();
-            
+
             // 确定停止脚本路径
             let stopScriptPath = '';
             if (process.platform === 'win32') {
@@ -1263,7 +1266,7 @@ export class HomeService {
                         this.outputChannel.appendLine(`添加执行权限失败: ${chmodError.message}`);
                     }
                 }
-                
+
                 // 执行停止脚本
                 const stopProcess = spawn(stopScriptPath, {
                     cwd: path.dirname(stopScriptPath),
@@ -1321,10 +1324,10 @@ export class HomeService {
         if (this.process && !this.process.killed) {
             try {
                 this.outputChannel.appendLine('正在强制终止HOME服务进程...');
-                
+
                 // 首先尝试正常终止
                 this.process.kill('SIGTERM');
-                
+
                 // 如果进程在2秒内没有终止，则强制杀死
                 setTimeout(() => {
                     if (this.process && !this.process.killed) {
@@ -1338,7 +1341,7 @@ export class HomeService {
         } else {
             this.outputChannel.appendLine('没有正在运行的HOME服务进程');
         }
-        
+
         // 设置状态为已停止
         this.setStatus(HomeStatus.STOPPED);
         this.isManualStop = false;
@@ -1372,10 +1375,10 @@ export class HomeService {
     public async restartHomeService(): Promise<void> {
         this.outputChannel.appendLine('正在重启NC HOME服务...');
         await this.stopHomeService();
-        
+
         // 等待服务完全停止
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
+
         // 重新启动服务
         await this.startHomeService();
     }
@@ -1402,11 +1405,11 @@ export class HomeService {
             clearTimeout(this.startupCheckTimer);
             this.startupCheckTimer = null;
         }
-        
+
         if (this.process && !this.process.killed) {
             this.process.kill();
         }
-        
+
         this.outputChannel.dispose();
     }
 
@@ -1419,12 +1422,12 @@ export class HomeService {
         const dataSourceIniPath = path.join(binDir, 'datasource.ini');
         const dataSourcePropertiesPath = path.join(binDir, 'datasource.properties');
         const propXmlPath = path.join(binDir, 'prop.xml');
-        
+
         // 确保目录存在
         if (!fs.existsSync(binDir)) {
             fs.mkdirSync(binDir, { recursive: true });
         }
-        
+
         // 检查是否已存在数据源配置文件
         if (fs.existsSync(dataSourceIniPath) || fs.existsSync(dataSourcePropertiesPath)) {
             this.outputChannel.appendLine('✅ 数据源配置已存在');
@@ -1433,19 +1436,19 @@ export class HomeService {
             if (config.dataSources && config.dataSources.length > 0) {
                 // 查找被标记为design的数据源
                 let designDataSource = config.dataSources.find((ds: any) => ds.name === config.selectedDataSource);
-                
+
                 // 如果没有找到明确指定的design数据源，则使用第一个数据源
                 if (!designDataSource && config.dataSources.length > 0) {
                     designDataSource = config.dataSources[0];
                     this.outputChannel.appendLine(`⚠️ 未找到明确指定的design数据源，使用第一个数据源: ${designDataSource.name}`);
                 }
-                
+
                 if (designDataSource) {
                     this.outputChannel.appendLine(`🔧 创建design数据源配置: ${designDataSource.name}`);
-                    
+
                     // 构建数据源配置内容
                     const dataSourceContent = this.buildDataSourceConfig(designDataSource);
-                    
+
                     // 写入配置文件
                     fs.writeFileSync(dataSourceIniPath, dataSourceContent, 'utf-8');
                     this.outputChannel.appendLine(`✅ 已创建数据源配置文件: ${dataSourceIniPath}`);
@@ -1464,12 +1467,12 @@ export class HomeService {
     <maxCon>20</maxCon>
     <minCon>5</minCon>
 </DataSourceMeta>`;
-                
+
                 fs.writeFileSync(dataSourceIniPath, defaultDataSourceContent, 'utf-8');
                 this.outputChannel.appendLine(`✅ 已创建默认数据源配置文件: ${dataSourceIniPath}`);
             }
         }
-        
+
         // 如果prop.xml不存在，也创建一个基础的prop.xml文件
         if (!fs.existsSync(propXmlPath)) {
             this.createBasicPropXml(config, null, propXmlPath);
@@ -1488,7 +1491,7 @@ export class HomeService {
         if (!fs.existsSync(propDir)) {
             fs.mkdirSync(propDir, { recursive: true });
         }
-        
+
         const propXmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <config>
     <domain>
@@ -1508,7 +1511,7 @@ export class HomeService {
         <minCon>5</minCon>
     </dataSource>
 </config>`;
-        
+
         fs.writeFileSync(propXmlPath, propXmlContent, 'utf-8');
         this.outputChannel.appendLine(`✅ 已创建基础prop.xml配置文件: ${propXmlPath}`);
     }
@@ -1538,7 +1541,7 @@ export class HomeService {
                     databaseUrl = `jdbc:${dataSource.databaseType.toLowerCase()}://${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
             }
         }
-        
+
         return `<?xml version="1.0" encoding="UTF-8"?>
 <DataSourceMeta>
     <dataSourceName>design</dataSourceName>
@@ -1562,7 +1565,7 @@ export class HomeService {
             this.outputChannel.appendLine('⚠️ 数据库类型未指定，使用默认MySQL驱动');
             return 'com.mysql.cj.jdbc.Driver';
         }
-        
+
         switch (databaseType.toLowerCase().trim()) {
             case 'mysql':
             case 'mysql5':
@@ -1597,11 +1600,11 @@ export class HomeService {
     private async checkAndKillPortProcesses(serverPort: number, wsPort: number): Promise<void> {
         return new Promise((resolve) => {
             this.outputChannel.appendLine(`🔍 检查HOME服务端口 ${serverPort} 和 WAS端口 ${wsPort} 是否被占用...`);
-            
+
             // 根据不同平台使用不同命令
             let command: string;
             let args: string[];
-            
+
             if (process.platform === 'win32') {
                 // Windows平台使用netstat命令
                 command = 'netstat';
@@ -1611,28 +1614,28 @@ export class HomeService {
                 command = 'lsof';
                 args = ['-i', `:${serverPort}`, '-t'];
             }
-            
+
             const processList = spawn(command, args);
             let output = '';
             let errorOutput = '';
-            
+
             processList.stdout?.on('data', (data) => {
                 output += data.toString();
             });
-            
+
             processList.stderr?.on('data', (data) => {
                 errorOutput += data.toString();
             });
-            
+
             processList.on('close', async (code) => {
                 if (code !== 0 && errorOutput) {
                     this.outputChannel.appendLine(`⚠️ 检查端口时出现错误: ${errorOutput}`);
                     resolve();
                     return;
                 }
-                
+
                 const processesToKill: number[] = [];
-                
+
                 if (process.platform === 'win32') {
                     // Windows平台处理
                     const lines = output.split('\n');
@@ -1640,10 +1643,10 @@ export class HomeService {
                         // 查找TCP连接中包含指定端口且状态为LISTENING的行
                         const serverPortRegex = new RegExp(`TCP\\s+[^:]+:${serverPort}\\s+[^:]+:\\d+\\s+LISTENING\\s+(\\d+)`);
                         const wsPortRegex = new RegExp(`TCP\\s+[^:]+:${wsPort}\\s+[^:]+:\\d+\\s+LISTENING\\s+(\\d+)`);
-                        
+
                         const serverMatch = line.match(serverPortRegex);
                         const wsMatch = line.match(wsPortRegex);
-                        
+
                         if (serverMatch) {
                             const pid = parseInt(serverMatch[1]);
                             if (!isNaN(pid) && !processesToKill.includes(pid)) {
@@ -1651,7 +1654,7 @@ export class HomeService {
                                 this.outputChannel.appendLine(`🔍 发现端口 ${serverPort} 被进程 ${pid} 占用`);
                             }
                         }
-                        
+
                         if (wsMatch) {
                             const pid = parseInt(wsMatch[1]);
                             if (!isNaN(pid) && !processesToKill.includes(pid)) {
@@ -1671,16 +1674,16 @@ export class HomeService {
                                 this.outputChannel.appendLine(`🔍 发现端口 ${serverPort} 被进程 ${pid} 占用`);
                             }
                         }
-                        
+
                         // 检查wsPort
                         try {
                             const wsProcessList = spawn('lsof', ['-i', `:${wsPort}`, '-t']);
                             let wsOutput = '';
-                            
+
                             wsProcessList.stdout?.on('data', (data) => {
                                 wsOutput += data.toString();
                             });
-                            
+
                             wsProcessList.on('close', (wsCode) => {
                                 if (wsCode === 0) {
                                     const wsLines = wsOutput.split('\n').filter(line => line.trim() !== '');
@@ -1698,19 +1701,19 @@ export class HomeService {
                         }
                     }
                 }
-                
+
                 // 终止占用端口的进程
                 if (processesToKill.length > 0) {
                     this.outputChannel.appendLine(`🚫 发现 ${processesToKill.length} 个进程占用端口，准备终止...`);
-                    
+
                     for (const pid of processesToKill) {
                         try {
                             this.outputChannel.appendLine(`⏳ 正在终止进程 ${pid}...`);
                             process.kill(pid, 'SIGTERM');
-                            
+
                             // 等待一段时间让进程正常退出
                             await new Promise(r => setTimeout(r, 1000));
-                            
+
                             // 检查进程是否仍然存在，如果存在则强制杀死
                             try {
                                 process.kill(pid, 0); // 检查进程是否存在
@@ -1729,14 +1732,14 @@ export class HomeService {
                             }
                         }
                     }
-                    
+
                     // 等待一段时间确保端口已释放
                     this.outputChannel.appendLine('⏳ 等待端口释放...');
                     await new Promise(r => setTimeout(r, 2000));
                 } else {
                     this.outputChannel.appendLine('✅ 未发现端口冲突');
                 }
-                
+
                 resolve();
             });
         });
@@ -1749,27 +1752,27 @@ export class HomeService {
     private async applyConsoleEncodingPatch(homePath: string): Promise<void> {
         return new Promise((resolve) => {
             this.outputChannel.appendLine('🔧 应用控制台编码补丁...');
-            
+
             try {
                 // 检查JDK版本并应用DirectJDKLog补丁
                 const jdkVersion = this.getJDKVersion(homePath);
                 this.outputChannel.appendLine(`🔍 检测到JDK版本: ${jdkVersion}`);
-                
+
                 if (jdkVersion >= 50) {
                     this.outputChannel.appendLine('🔧 JDK版本 >= 50，应用DirectJDKLog补丁...');
-                    
+
                     // 目标文件路径
                     const targetFile = path.join(
-                        homePath, 
-                        'middleware', 
-                        'classes', 
-                        'org', 
-                        'apache', 
-                        'juli', 
-                        'logging', 
+                        homePath,
+                        'middleware',
+                        'classes',
+                        'org',
+                        'apache',
+                        'juli',
+                        'logging',
                         'DirectJDKLog.class'
                     );
-                    
+
                     // 检查目标文件是否已存在
                     if (!fs.existsSync(targetFile)) {
                         // 确保目标目录存在
@@ -1777,17 +1780,17 @@ export class HomeService {
                         if (!fs.existsSync(targetDir)) {
                             fs.mkdirSync(targetDir, { recursive: true });
                         }
-                        
+
                         // 尝试从resources目录获取补丁文件
                         const patchFile = path.join(
-                            __dirname, 
-                            '..', 
-                            '..', 
-                            'resources', 
-                            'replacement', 
+                            __dirname,
+                            '..',
+                            '..',
+                            'resources',
+                            'replacement',
                             'DirectJDKLog.class'
                         );
-                        
+
                         if (fs.existsSync(patchFile)) {
                             // 复制补丁文件到目标位置
                             fs.copyFileSync(patchFile, targetFile);
@@ -1801,7 +1804,7 @@ export class HomeService {
                 } else {
                     this.outputChannel.appendLine('✅ JDK版本 < 50，无需应用DirectJDKLog补丁');
                 }
-                
+
                 this.outputChannel.appendLine('✅ 控制台编码补丁应用完成');
                 resolve();
             } catch (error: any) {
@@ -1822,7 +1825,7 @@ export class HomeService {
             let javaExecutable = 'java';
             const ufjdkPath = path.join(homePath, 'ufjdk');
             const ufjdkBinPath = path.join(ufjdkPath, 'bin');
-            
+
             if (process.platform === 'win32') {
                 const javaExe = path.join(ufjdkBinPath, 'java.exe');
                 if (fs.existsSync(javaExe)) {
@@ -1834,13 +1837,13 @@ export class HomeService {
                     javaExecutable = javaBin;
                 }
             }
-            
+
             // 执行Java版本命令
             const result = spawnSync(javaExecutable, ['-version'], {
                 encoding: 'utf8',
                 timeout: 10000
             });
-            
+
             if (result.status === 0) {
                 const versionOutput = result.stderr || result.stdout;
                 // 解析Java版本，例如 "java version \"1.8.0_261\"" 或 "openjdk version \"11.0.8\""
@@ -1862,7 +1865,7 @@ export class HomeService {
         } catch (error) {
             this.outputChannel.appendLine(`⚠️ 获取JDK版本时出错: ${error}`);
         }
-        
+
         // 默认返回一个较低的版本号
         return 0;
     }

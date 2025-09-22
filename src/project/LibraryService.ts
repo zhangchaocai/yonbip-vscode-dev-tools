@@ -61,12 +61,12 @@ export class LibraryService {
      */
     private getLibraryNameList(needDbLibrary: boolean): string[] {
         const list: string[] = [];
-        
+
         // 注意顺序！！！！！
         if (needDbLibrary) {
             list.push(LibraryService.LIBRARY_NAMES.DB_DRIVER_LIBRARY);
         }
-        
+
         list.push(LibraryService.LIBRARY_NAMES.ANT_LIBRARY);
         list.push(LibraryService.LIBRARY_NAMES.PRODUCT_COMMON_LIBRARY);
         list.push(LibraryService.LIBRARY_NAMES.MIDDLEWARE_LIBRARY);
@@ -85,7 +85,7 @@ export class LibraryService {
         list.push(LibraryService.LIBRARY_NAMES.NCCLOUD_LIBRARY);
         list.push(LibraryService.LIBRARY_NAMES.NCCHR_LIBRARY);
         list.push(LibraryService.LIBRARY_NAMES.RESOURCES_LIBRARY);
-        
+
         return list;
     }
 
@@ -94,7 +94,7 @@ export class LibraryService {
      */
     public async initLibrary(homePath: string, needDbLibrary: boolean = false, driverLibPath?: string): Promise<void> {
         this.outputChannel.appendLine(`开始初始化库，HOME路径: ${homePath}`);
-        
+
         try {
             // 验证HOME路径
             if (!this.validateHomePath(homePath)) {
@@ -115,31 +115,37 @@ export class LibraryService {
 
             // 获取库名称列表
             const libraryNameList = this.getLibraryNameList(needDbLibrary);
-            
+
             // 获取模块jar映射
             const moduleJarMap = this.getModuleJarMap(homePath);
-            
+
             // 已处理的jar列表，用于去重
             const allJarNameList: string[] = [];
-            
+
             // 为每个库生成配置
             for (const libraryName of libraryNameList) {
                 await this.generateLibraryConfig(
-                    libraryName, 
-                    homePath, 
-                    libDir, 
-                    moduleJarMap, 
-                    driverLibPath, 
+                    libraryName,
+                    homePath,
+                    libDir,
+                    moduleJarMap,
+                    driverLibPath,
                     allJarNameList
                 );
             }
 
             // 生成VSCode的settings.json更新
             await this.updateVSCodeSettings(libDir);
-            
+
+            // 生成launch.json配置用于调试Java代码
+            await this.generateLaunchConfiguration(workspaceFolder.uri.fsPath, libDir);
+
+            // 生成Eclipse项目文件(.project和.classpath)
+            await this.generateEclipseProjectFiles(homePath);
+
             this.outputChannel.appendLine('库初始化完成');
             vscode.window.showInformationMessage('Java项目库初始化完成');
-            
+
         } catch (error: any) {
             this.outputChannel.appendLine(`初始化库失败: ${error.message}`);
             vscode.window.showErrorMessage(`初始化库失败: ${error.message}`);
@@ -152,7 +158,7 @@ export class LibraryService {
      */
     private validateHomePath(homePath: string): boolean {
         const requiredPaths = ['bin', 'lib', 'modules', 'hotwebs', 'resources'];
-        
+
         for (const requiredPath of requiredPaths) {
             const fullPath = path.join(homePath, requiredPath);
             if (!fs.existsSync(fullPath)) {
@@ -160,7 +166,7 @@ export class LibraryService {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -177,7 +183,7 @@ export class LibraryService {
      */
     private getModuleJarMap(homePath: string): Map<string, string[]> {
         const moduleJarMap = new Map<string, string[]>();
-        
+
         // 初始化映射
         moduleJarMap.set(LibraryService.LIBRARY_NAMES.EXTENSION_PUBLIC_LIBRARY, []);
         moduleJarMap.set(LibraryService.LIBRARY_NAMES.HYEXT_PUBLIC_LIBRARY, []);
@@ -404,7 +410,7 @@ export class LibraryService {
         jarInfoList.forEach(jarInfo => {
             const first = jarInfoList.find(
                 info => this.getJarFirstName(info.jarName) === this.getJarFirstName(jarInfo.jarName) &&
-                        this.compareVersions(info.jarVersion, jarInfo.jarVersion) > 0
+                    this.compareVersions(info.jarVersion, jarInfo.jarVersion) > 0
             );
 
             if (!first) {
@@ -422,7 +428,7 @@ export class LibraryService {
     private parseJarInfo(jarPath: string): JarInfoVO {
         const jarName = path.basename(jarPath);
         const match = jarName.match(/^(.+?)-(\d+(?:\.\d+)*).*\.jar$/);
-        
+
         if (match) {
             return {
                 jarPath,
@@ -476,7 +482,7 @@ export class LibraryService {
      */
     private async updateVSCodeSettings(libDir: string): Promise<void> {
         const workspaceConfig = vscode.workspace.getConfiguration();
-        
+
         // 获取所有库配置文件
         const libraryConfigs = fs.readdirSync(libDir)
             .filter(file => file.endsWith('.json'))
@@ -485,11 +491,11 @@ export class LibraryService {
                 return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
             });
 
-        // 构建Java配置
+        // 构建Java配置（移除未注册的反编译器配置）
         const javaConfig = {
-            'java.project.referencedLibraries': libraryConfigs.flatMap((config: LibraryConfig) => config.paths),
-            'java.project.sourcePaths': ['src'],
-            'java.project.outputPath': 'bin'
+            'java.project.sourcePaths': ['src/private', 'src/public'],
+            'java.project.outputPath': 'bin',
+            'java.project.referencedLibraries': libraryConfigs.flatMap((config: LibraryConfig) => config.paths)
         };
 
         // 更新配置
@@ -501,15 +507,304 @@ export class LibraryService {
     }
 
     /**
+     * 生成launch.json配置用于调试Java代码
+     */
+    private async generateLaunchConfiguration(workspacePath: string, libDir: string): Promise<void> {
+        try {
+            // 获取所有库配置文件
+            const libraryConfigs = fs.readdirSync(libDir)
+                .filter(file => file.endsWith('.json'))
+                .map(file => {
+                    const configPath = path.join(libDir, file);
+                    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                });
+
+            // 构建类路径，包含所有jar文件和classes目录
+            const classPaths = libraryConfigs.flatMap((config: LibraryConfig) => config.paths);
+
+            // 添加项目源代码路径
+            classPaths.push("${workspaceFolder}/src");
+
+            // 创建.vscode目录（如果不存在）
+            const vscodeDir = path.join(workspacePath, '.vscode');
+            if (!fs.existsSync(vscodeDir)) {
+                fs.mkdirSync(vscodeDir, { recursive: true });
+            }
+
+            // 读取现有的launch.json文件（如果存在）
+            let existingLaunchConfig: any = {
+                version: "0.2.0",
+                configurations: []
+            };
+
+            const launchJsonPath = path.join(vscodeDir, 'launch.json');
+            if (fs.existsSync(launchJsonPath)) {
+                try {
+                    const existingContent = fs.readFileSync(launchJsonPath, 'utf-8');
+                    existingLaunchConfig = JSON.parse(existingContent);
+                } catch (error) {
+                    this.outputChannel.appendLine(`读取现有launch.json失败，将创建新的配置: ${error}`);
+                }
+            }
+
+            // 创建Java调试配置
+            const javaDebugConfigurations = [
+                {
+                    type: "java",
+                    name: "调试Java代码 (含JDK/第三方库)",
+                    request: "attach",
+                    hostName: "localhost",
+                    port: 8888,
+                    projectName: "${workspaceFolderBasename}",
+                    sourcePaths: [
+                        "${workspaceFolder}/src"
+                    ]
+                },
+                {
+                    type: "java",
+                    name: "启动并调试Java应用",
+                    request: "launch",
+                    mainClass: "",
+                    projectName: "${workspaceFolderBasename}",
+                    classPaths: classPaths,
+                    vmArgs: [
+                        "-Dfile.encoding=UTF-8",
+                        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8888"
+                    ],
+                    sourcePaths: [
+                        "${workspaceFolder}/src"
+                    ]
+                }
+            ];
+
+            // 合并配置，保留非Java配置，替换或添加Java配置
+            const nonJavaConfigurations = existingLaunchConfig.configurations.filter((config: any) =>
+                config.type !== "java"
+            );
+
+            const newConfigurations = [
+                ...nonJavaConfigurations,
+                ...javaDebugConfigurations
+            ];
+
+            // 生成最终的launch.json配置
+            const launchConfig = {
+                version: "0.2.0",
+                configurations: newConfigurations
+            };
+
+            // 写入launch.json文件
+            fs.writeFileSync(launchJsonPath, JSON.stringify(launchConfig, null, 4), 'utf-8');
+
+            this.outputChannel.appendLine('launch.json调试配置已生成');
+        } catch (error: any) {
+            this.outputChannel.appendLine(`生成launch.json配置失败: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * 生成普通Java项目所需的 .project 和 .classpath 文件
+     */
+    public async generateEclipseProjectFiles(homePath: string): Promise<void> {
+        this.outputChannel.appendLine(`开始生成Eclipse项目文件，HOME路径: ${homePath}`);
+
+        try {
+            // 获取工作区文件夹
+            const workspaceFolder = this.getWorkspaceFolder();
+            if (!workspaceFolder) {
+                throw new Error('未找到工作区文件夹');
+            }
+
+            const workspacePath = workspaceFolder.uri.fsPath;
+
+            // 生成 .project 文件
+            await this.generateProjectFile(workspacePath);
+
+            // 生成 .classpath 文件
+            await this.generateClasspathFile(homePath, workspacePath);
+
+            this.outputChannel.appendLine('Eclipse项目文件生成完成');
+            vscode.window.showInformationMessage('Eclipse项目文件生成完成');
+
+        } catch (error: any) {
+            this.outputChannel.appendLine(`生成Eclipse项目文件失败: ${error.message}`);
+            vscode.window.showErrorMessage(`生成Eclipse项目文件失败: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * 生成 .project 文件
+     */
+    private async generateProjectFile(workspacePath: string): Promise<void> {
+        const projectFilePath = path.join(workspacePath, '.project');
+
+        // 检查文件是否已存在
+        if (fs.existsSync(projectFilePath)) {
+            this.outputChannel.appendLine('.project 文件已存在，跳过生成');
+            return;
+        }
+
+        // 获取项目名称
+        const projectName = path.basename(workspacePath);
+
+        // 生成 .project 文件内容
+        const projectFileContent = `<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+    <name>${projectName}</name>
+    <comment></comment>
+    <projects>
+    </projects>
+    <buildSpec>
+        <buildCommand>
+            <name>org.eclipse.jdt.core.javabuilder</name>
+            <arguments>
+            </arguments>
+        </buildCommand>
+    </buildSpec>
+    <natures>
+        <nature>org.eclipse.jdt.core.javanature</nature>
+    </natures>
+</projectDescription>`;
+
+        // 写入文件
+        fs.writeFileSync(projectFilePath, projectFileContent, 'utf-8');
+        this.outputChannel.appendLine('.project 文件已生成');
+    }
+
+    /**
+     * 生成 .classpath 文件
+     */
+    private async generateClasspathFile(homePath: string, workspacePath: string): Promise<void> {
+        const classpathFilePath = path.join(workspacePath, '.classpath');
+
+        // 检查文件是否已存在
+        if (fs.existsSync(classpathFilePath)) {
+            this.outputChannel.appendLine('.classpath 文件已存在，跳过生成');
+            return;
+        }
+
+        // 获取所有jar文件路径
+        const jarPaths = this.getAllJarPaths(homePath);
+
+        // 生成 .classpath 文件内容
+        let classpathContent = `<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+    <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+    <classpathentry kind="src" path="src"/>
+    <classpathentry kind="output" path="bin"/>`;
+
+        // 添加所有jar文件
+        for (const jarPath of jarPaths) {
+            // 转换为相对路径（如果可能）
+            const relativePath = path.relative(workspacePath, jarPath);
+            const usePath = relativePath.startsWith('..') ? jarPath : relativePath;
+
+            classpathContent += `\n    <classpathentry kind="lib" path="${usePath}"/>`;
+        }
+
+        classpathContent += '\n</classpath>';
+
+        // 写入文件
+        fs.writeFileSync(classpathFilePath, classpathContent, 'utf-8');
+        this.outputChannel.appendLine('.classpath 文件已生成，包含 ' + jarPaths.length + ' 个jar文件');
+    }
+
+    /**
+     * 获取所有jar文件路径
+     */
+    private getAllJarPaths(homePath: string): string[] {
+        const jarPaths: string[] = [];
+
+        // 获取模块jar映射
+        const moduleJarMap = this.getModuleJarMap(homePath);
+
+        // 收集所有库的jar路径
+        const libraryNameList = this.getLibraryNameList(true); // 包含DB驱动库
+
+        for (const libraryName of libraryNameList) {
+            let paths: string[] = [];
+
+            switch (libraryName) {
+                case LibraryService.LIBRARY_NAMES.DB_DRIVER_LIBRARY:
+                    // DB驱动库需要特殊处理，这里暂时跳过
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.ANT_LIBRARY:
+                    paths = this.getJarAndClasses(path.join(homePath, 'ant'), true);
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.PRODUCT_COMMON_LIBRARY:
+                    const externalPaths = this.getJarAndClasses(path.join(homePath, 'external'), true);
+                    const libPaths = this.getJarAndClasses(path.join(homePath, 'lib'), false);
+                    paths = [...externalPaths, ...libPaths];
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.MIDDLEWARE_LIBRARY:
+                    paths = this.getJarAndClasses(path.join(homePath, 'middleware'), false);
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.FRAMEWORK_LIBRARY:
+                    paths = this.getJarAndClasses(path.join(homePath, 'framework'), false);
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.EXTENSION_PUBLIC_LIBRARY:
+                case LibraryService.LIBRARY_NAMES.HYEXT_PUBLIC_LIBRARY:
+                case LibraryService.LIBRARY_NAMES.MODULE_PUBLIC_LIBRARY:
+                case LibraryService.LIBRARY_NAMES.EXTENSION_CLIENT_LIBRARY:
+                case LibraryService.LIBRARY_NAMES.HYEXT_CLIENT_LIBRARY:
+                case LibraryService.LIBRARY_NAMES.MODULE_CLIENT_LIBRARY:
+                case LibraryService.LIBRARY_NAMES.EXTENSION_PRIVATE_LIBRARY:
+                case LibraryService.LIBRARY_NAMES.HYEXT_PRIVATE_LIBRARY:
+                case LibraryService.LIBRARY_NAMES.MODULE_PRIVATE_LIBRARY:
+                    paths = moduleJarMap.get(libraryName) || [];
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.MODULE_LANG_LIBRARY:
+                    paths = this.getJarAndClasses(path.join(homePath, 'langlib'), false);
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.GENERATED_EJB:
+                    paths = this.getJarAndClasses(path.join(homePath, 'ejb'), false);
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.NCCLOUD_LIBRARY:
+                    paths = this.getJarAndClasses(
+                        path.join(homePath, 'hotwebs', 'nccloud', 'WEB-INF'), true
+                    );
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.NCCHR_LIBRARY:
+                    paths = this.getJarAndClasses(
+                        path.join(homePath, 'hotwebs', 'ncchr', 'WEB-INF'), true
+                    );
+                    break;
+
+                case LibraryService.LIBRARY_NAMES.RESOURCES_LIBRARY:
+                    // resources库不包含jar文件
+                    break;
+            }
+
+            // 过滤出jar文件
+            const jarFiles = paths.filter(p => p.toLowerCase().endsWith('.jar') && !p.toLowerCase().endsWith('_src.jar'));
+            jarPaths.push(...jarFiles);
+        }
+
+        // 去重
+        return [...new Set(jarPaths)];
+    }
+
+    /**
      * 从配置文件获取HOME路径
      */
     private getHomePathFromConfigFile(): string | undefined {
         try {
             // 检查全局存储路径的配置文件
-            const globalStoragePath = this.context?.globalStoragePath || 
-                                    path.join(require('os').homedir(), '.vscode', 'yonbip-devtool');
+            const globalStoragePath = this.context?.globalStoragePath ||
+                path.join(require('os').homedir(), '.vscode', 'yonbip-devtool');
             const configFilePath = path.join(globalStoragePath, 'nc-home-config.json');
-            
+
             if (fs.existsSync(configFilePath)) {
                 const config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
                 this.outputChannel.appendLine(`从配置文件获取HOME路径: ${config.homePath || '未找到'}`);
@@ -517,7 +812,7 @@ export class LibraryService {
             } else {
                 this.outputChannel.appendLine(`配置文件不存在: ${configFilePath}`);
             }
-            
+
             return undefined;
         } catch (error) {
             this.outputChannel.appendLine(`读取配置文件失败: ${error}`);
@@ -530,14 +825,14 @@ export class LibraryService {
      */
     public async autoInitLibrary(): Promise<void> {
         this.outputChannel.appendLine('=== 开始检查HOME路径配置 ===');
-        
+
         // 检查不同作用域的配置
         const config = vscode.workspace.getConfiguration('yonbip');
         const homePath = config.get<string>('homePath');
-        
+
         // 详细调试信息
         this.outputChannel.appendLine(`从yonbip配置获取的homePath: ${homePath || '未找到'}`);
-        
+
         // 检查配置详情
         const inspect = config.inspect('homePath');
         if (inspect) {
@@ -545,20 +840,20 @@ export class LibraryService {
             this.outputChannel.appendLine(`工作区配置: ${inspect.workspaceValue || '未设置'}`);
             this.outputChannel.appendLine(`工作区文件夹配置: ${inspect.workspaceFolderValue || '未设置'}`);
         }
-        
+
         // 从配置文件获取HOME路径
-         const configFileHomePath = this.getHomePathFromConfigFile();
-          
-         // 优先使用任何可用的配置
-         let actualHomePath = homePath || 
-                            configFileHomePath ||
-                            inspect?.workspaceValue || 
-                            inspect?.workspaceFolderValue || 
-                            inspect?.globalValue;
-        
+        const configFileHomePath = this.getHomePathFromConfigFile();
+
+        // 优先使用任何可用的配置
+        let actualHomePath = homePath ||
+            configFileHomePath ||
+            inspect?.workspaceValue ||
+            inspect?.workspaceFolderValue ||
+            inspect?.globalValue;
+
         if (!actualHomePath) {
             this.outputChannel.appendLine('未找到任何HOME路径配置，跳过库初始化');
-            
+
             // 提供解决方案
             this.outputChannel.appendLine('解决方案:');
             this.outputChannel.appendLine('1. 通过命令面板运行: YonBIP/库管理: 调试配置信息');
@@ -573,7 +868,7 @@ export class LibraryService {
         }
 
         this.outputChannel.appendLine(`使用HOME路径: ${actualHomePath}`);
-        
+
         try {
             await this.initLibrary(actualHomePath as string);
             this.outputChannel.appendLine('库自动初始化完成');
