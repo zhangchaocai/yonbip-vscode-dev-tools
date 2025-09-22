@@ -76,30 +76,19 @@ export class NCHomeConfigService {
                 const content = fs.readFileSync(this.configFilePath, 'utf-8');
                 const config = JSON.parse(content) as NCHomeConfig;
                 this.outputChannel.appendLine(`配置已加载: ${this.configFilePath}`);
-                return config;
+
+                // 确保所有默认字段都存在，特别是 debugMode
+                const defaultConfig = this.getDefaultConfig();
+                const mergedConfig = { ...defaultConfig, ...config };
+
+                return mergedConfig;
             }
         } catch (error: any) {
             this.outputChannel.appendLine(`加载配置失败: ${error.message}`);
         }
 
         // 返回默认配置
-        return {
-            homePath: '',
-            dataSources: [],
-            hotwebs: 'nccloud,fs,yonbip',
-            exModules: '',
-            exportPatchPath: './patches',
-            standardMode: false,
-            asyncTask: true,
-            autoClient: true,
-            exportAllsql: true,
-            customTableCheck: false,
-            showLocalDatadict: false,
-            autoChangeJdk: false,
-            port: 9999,
-            wsPort: 8080,
-            debugMode: true  // 默认启用调试模式
-        };
+        return this.getDefaultConfig();
     }
 
     /**

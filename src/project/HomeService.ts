@@ -1083,9 +1083,9 @@ export class HomeService {
         }
 
         // 调试模式参数
-        //if (config.debugMode) {
-        vmParameters.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8888');
-        //}
+        if (config.debugMode) {
+            vmParameters.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8888');
+        }
 
         // 添加project.dir作为系统属性
         if (config.projectDir) {
