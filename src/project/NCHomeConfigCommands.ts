@@ -12,7 +12,7 @@ export class NCHomeConfigCommands {
     constructor(context: vscode.ExtensionContext) {
         this.service = new NCHomeConfigService(context);
         this.webviewProvider = new NCHomeConfigProvider(context.extensionUri, context);
-        
+
         this.registerCommands(context);
     }
 
@@ -65,6 +65,11 @@ export class NCHomeConfigCommands {
         try {
             // 显示NC Home配置面板
             await vscode.commands.executeCommand('workbench.view.extension.yonbip-tools');
+
+            // 通过发送消息来刷新配置显示
+            setTimeout(() => {
+                vscode.commands.executeCommand('yonbip.nchome.config');
+            }, 500);
         } catch (error: any) {
             vscode.window.showErrorMessage(`打开NC Home配置失败: ${error.message}`);
         }
@@ -80,9 +85,9 @@ export class NCHomeConfigCommands {
                 const config = this.service.getConfig();
                 config.homePath = homePath;
                 await this.service.saveConfig(config);
-                
+
                 vscode.window.showInformationMessage(`NC Home路径已设置: ${homePath}`);
-                
+
                 // 如果配置界面已打开，刷新显示
                 // this.webviewProvider.refresh();
             }
@@ -96,7 +101,7 @@ export class NCHomeConfigCommands {
      */
     private async showSimpleConfigDialog(): Promise<void> {
         const config = this.service.getConfig();
-        
+
         const quickPick = vscode.window.createQuickPick();
         quickPick.title = 'NC Home 配置';
         quickPick.items = [
@@ -131,7 +136,7 @@ export class NCHomeConfigCommands {
             if (selection.length > 0) {
                 const selected = selection[0];
                 quickPick.hide();
-                
+
                 try {
                     switch (selected.label) {
                         case '$(home) 设置 Home 目录':
@@ -171,7 +176,7 @@ export class NCHomeConfigCommands {
      */
     private async showAdvancedSettings(): Promise<void> {
         const config = this.service.getConfig();
-        
+
         const setting = await vscode.window.showQuickPick([
             {
                 label: '$(folder) 补丁输出目录',
@@ -256,14 +261,14 @@ export class NCHomeConfigCommands {
     private async testCurrentConnection(): Promise<void> {
         try {
             const config = this.service.getConfig();
-            
+
             if (!config.dataSources || config.dataSources.length === 0) {
                 vscode.window.showWarningMessage('请先配置数据源');
                 return;
             }
 
             let dataSource = config.dataSources[0];
-            
+
             // 如果有选中的数据源，使用选中的
             if (config.selectedDataSource) {
                 const selected = config.dataSources.find(ds => ds.name === config.selectedDataSource);
@@ -278,7 +283,7 @@ export class NCHomeConfigCommands {
                 cancellable: false
             }, async () => {
                 const result = await this.service.testConnection(dataSource);
-                
+
                 if (result.success) {
                     vscode.window.showInformationMessage(result.message);
                 } else {

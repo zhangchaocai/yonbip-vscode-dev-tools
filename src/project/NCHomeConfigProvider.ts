@@ -96,15 +96,49 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     private async handleLoadConfig() {
         const config = this.configService.getConfig();
 
-        // 如果homePath已配置，尝试从prop.xml中获取端口信息
+        // 如果homePath已配置，尝试从prop.xml中获取端口信息和数据源信息
         if (config.homePath) {
-            const portsFromProp = this.configService.getPortFromPropXml();
-            if (portsFromProp.port !== null) {
-                config.port = portsFromProp.port;
+            const portsAndDataSourcesFromProp = this.configService.getPortFromPropXml();
+            if (portsAndDataSourcesFromProp.port !== null) {
+                config.port = portsAndDataSourcesFromProp.port;
             }
-            if (portsFromProp.wsPort !== null) {
-                config.wsPort = portsFromProp.wsPort;
+            if (portsAndDataSourcesFromProp.wsPort !== null) {
+                config.wsPort = portsAndDataSourcesFromProp.wsPort;
             }
+
+            // 如果prop.xml中有数据源信息，更新到配置中
+            if (portsAndDataSourcesFromProp.dataSources.length > 0) {
+                // 合并数据源信息，避免重复
+                const existingDataSources = config.dataSources || [];
+                const newDataSources = portsAndDataSourcesFromProp.dataSources;
+
+                // 创建一个映射来跟踪已存在的数据源
+                const existingDataSourceNames = new Set(existingDataSources.map(ds => ds.name));
+
+                // 添加新的数据源（不覆盖已存在的）
+                for (const newDataSource of newDataSources) {
+                    if (!existingDataSourceNames.has(newDataSource.name)) {
+                        existingDataSources.push(newDataSource);
+                        existingDataSourceNames.add(newDataSource.name);
+                    }
+                }
+
+                config.dataSources = existingDataSources;
+            }
+        }
+
+        // 确保所有相关字段正确初始化
+        if (!config.dataSources) {
+            config.dataSources = [];
+        }
+
+        // 确保 selectedDataSource 和 baseDatabase 字段存在
+        if (config.selectedDataSource === undefined) {
+            config.selectedDataSource = undefined;
+        }
+
+        if (config.baseDatabase === undefined) {
+            config.baseDatabase = undefined;
         }
 
         this._view?.webview.postMessage({
@@ -284,32 +318,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleUpdateDataSource(dataSource: DataSourceMeta) {
         try {
+            await this.configService.updateDataSource(dataSource);
             const config = this.configService.getConfig();
-            const dataSources = config.dataSources || [];
-
-            // 查找并更新数据源
-            const index = dataSources.findIndex(ds => ds.name === dataSource.name);
-            if (index !== -1) {
-                dataSources[index] = dataSource;
-                config.dataSources = dataSources;
-
-                // 保存配置
-                await this.configService.saveConfig(config);
-
-                // 发送成功消息
-                this._view?.webview.postMessage({
-                    type: 'dataSourceUpdated',
-                    success: true,
-                    config: config
-                });
-            } else {
-                // 未找到要更新的数据源
-                this._view?.webview.postMessage({
-                    type: 'dataSourceUpdated',
-                    success: false,
-                    error: '未找到要更新的数据源'
-                });
-            }
+            this._view?.webview.postMessage({
+                type: 'dataSourceUpdated',
+                success: true,
+                config: config
+            });
         } catch (error: any) {
             // 发送错误消息
             this._view?.webview.postMessage({

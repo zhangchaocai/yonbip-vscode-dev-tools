@@ -20,6 +20,8 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
      */
     public async createOrShow(): Promise<void> {
         if (this.panel) {
+            // 如果面板已存在，直接刷新数据
+            this.refresh();
             this.panel.reveal(vscode.ViewColumn.One);
             return;
         }
@@ -37,6 +39,9 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
 
         this.panel.webview.html = await this.getWebviewContent();
         this.setupMessageHandlers();
+
+        // 初始化时加载配置数据
+        this.handleGetConfig();
 
         this.panel.onDidDispose(() => {
             this.panel = undefined;
@@ -119,9 +124,41 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
      */
     private async handleGetConfig(): Promise<void> {
         const config = this.service.getConfig();
+
+        // 如果homePath已配置，尝试从prop.xml中获取端口信息和数据源信息
+        if (config.homePath) {
+            const portsAndDataSourcesFromProp = this.service.getPortFromPropXml();
+            if (portsAndDataSourcesFromProp.port !== null) {
+                config.port = portsAndDataSourcesFromProp.port;
+            }
+            if (portsAndDataSourcesFromProp.wsPort !== null) {
+                config.wsPort = portsAndDataSourcesFromProp.wsPort;
+            }
+
+            // 如果prop.xml中有数据源信息，更新到配置中
+            if (portsAndDataSourcesFromProp.dataSources.length > 0) {
+                // 合并数据源信息，避免重复
+                const existingDataSources = config.dataSources || [];
+                const newDataSources = portsAndDataSourcesFromProp.dataSources;
+
+                // 创建一个映射来跟踪已存在的数据源
+                const existingDataSourceNames = new Set(existingDataSources.map(ds => ds.name));
+
+                // 添加新的数据源（不覆盖已存在的）
+                for (const newDataSource of newDataSources) {
+                    if (!existingDataSourceNames.has(newDataSource.name)) {
+                        existingDataSources.push(newDataSource);
+                        existingDataSourceNames.add(newDataSource.name);
+                    }
+                }
+
+                config.dataSources = existingDataSources;
+            }
+        }
+
         this.panel?.webview.postMessage({
             type: 'configLoaded',
-            config
+            config: config
         });
     }
 
@@ -255,7 +292,7 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
             config
         });
     }
-    
+
     /**
      * 处理测试数据源连接
      */
@@ -264,7 +301,7 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
             // 获取数据源配置
             const config = this.service.getConfig();
             const dataSource = config.dataSources?.find(ds => ds.name === dataSourceName);
-            
+
             if (!dataSource) {
                 this.panel?.webview.postMessage({
                     type: 'dataSourceConnectionTested',
@@ -274,7 +311,7 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                 });
                 return;
             }
-            
+
             // 测试连接
             const result = await this.service.testConnection(dataSource);
             this.panel?.webview.postMessage({
@@ -344,12 +381,12 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
         // HTML内容较长，单独创建一个文件
         const fs = require('fs');
         const path = require('path');
-        
+
         const htmlPath = path.join(__dirname, 'nc-home-config.html');
         if (fs.existsSync(htmlPath)) {
             return fs.readFileSync(htmlPath, 'utf-8');
         }
-        
+
         // 如果HTML文件不存在，返回简化版本
         return this.getSimpleWebviewContent();
     }
@@ -480,6 +517,16 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
         
         // 显示添加数据源表单
         function showAddDataSourceForm() {
+            showDataSourceForm('add', null);
+        }
+        
+        // 显示编辑数据源表单
+        function showEditDataSourceForm(dataSource) {
+            showDataSourceForm('edit', dataSource);
+        }
+        
+        // 显示数据源表单（添加或编辑）
+        function showDataSourceForm(mode, dataSource) {
             // 创建模态框
             const modal = document.createElement('div');
             modal.id = 'dataSourceModal';
@@ -496,6 +543,12 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                 align-items: center;
             \`;
             
+            const isEditMode = mode === 'edit';
+            const title = isEditMode ? '编辑数据源' : '添加数据源';
+            const nameField = isEditMode ? 
+                '<input type="text" id="dsName" value="' + dataSource.name + '" required readonly>' :
+                '<input type="text" id="dsName" required>';
+            
             modal.innerHTML = \`
                 <div style="
                     background: var(--vscode-editor-background);
@@ -505,10 +558,10 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                     width: 500px;
                     max-width: 90%;
                 ">
-                    <h3 style="margin-top: 0; color: var(--vscode-foreground);">添加数据源</h3>
+                    <h3 style="margin-top: 0; color: var(--vscode-foreground);">\${title}</h3>
                     <div class="form-group">
                         <label for="dsName">数据源名称:</label>
-                        <input type="text" id="dsName" required>
+                        \${nameField}
                     </div>
                     <div class="form-group">
                         <label for="dsType">数据库类型:</label>
@@ -542,12 +595,22 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                     </div>
                     <div style="text-align: right; margin-top: 20px;">
                         <button class="button secondary" onclick="closeModal()">取消</button>
-                        <button class="button" onclick="saveDataSource()">保存</button>
+                        <button class="button" onclick="saveDataSource('\${mode}')">\${isEditMode ? '更新' : '保存'}</button>
                     </div>
                 </div>
             \`;
             
             document.body.appendChild(modal);
+            
+            // 如果是编辑模式，填充现有数据
+            if (isEditMode) {
+                document.getElementById('dsType').value = dataSource.databaseType;
+                document.getElementById('dsHost').value = dataSource.host;
+                document.getElementById('dsPort').value = dataSource.port;
+                document.getElementById('dsDatabase').value = dataSource.databaseName;
+                document.getElementById('dsUsername').value = dataSource.username;
+                // 密码字段不填充，保持为空
+            }
         }
         
         // 关闭模态框
@@ -559,12 +622,13 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
         }
         
         // 保存数据源
-        function saveDataSource() {
+        function saveDataSource(mode) {
+            const portValue = document.getElementById('dsPort').value;
             const dataSource = {
                 name: document.getElementById('dsName').value,
                 databaseType: document.getElementById('dsType').value,
                 host: document.getElementById('dsHost').value,
-                port: parseInt(document.getElementById('dsPort').value),
+                port: portValue ? parseInt(portValue) : 3306,
                 databaseName: document.getElementById('dsDatabase').value,
                 username: document.getElementById('dsUsername').value,
                 password: document.getElementById('dsPassword').value,
@@ -577,8 +641,15 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                 return;
             }
             
+            // 如果是编辑模式且密码字段为空，则不发送密码
+            if (mode === 'edit' && !dataSource.password) {
+                delete dataSource.password;
+            }
+            
+            const messageType = mode === 'edit' ? 'updateDataSource' : 'addDataSource';
+            
             vscode.postMessage({
-                type: 'addDataSource',
+                type: messageType,
                 dataSource: dataSource
             });
             
@@ -636,6 +707,11 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
             
             let html = '<div style="margin-top: 10px;">';
             dataSources.forEach((ds, index) => {
+                // 转义特殊字符以避免HTML注入
+                const dsJson = JSON.stringify(ds)
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '\\\'');
+                
                 html += \`
                     <div style="
                         padding: 10px; 
@@ -650,8 +726,10 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                             <div>主机: \${ds.host}:\${ds.port}</div>
                             <div>数据库: \${ds.databaseName}</div>
                         </div>
-                        <div style="margin-top: 10px;">
-                            <button class="button" onclick="testDataSourceConnection('\${ds.name}')">测试连接</button>
+                        <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
+                            <button class="button secondary" style="font-size: 12px; padding: 4px 8px;" onclick="showEditDataSourceForm(\${dsJson})">编辑</button>
+                            <button class="button secondary" style="font-size: 12px; padding: 4px 8px;" onclick="testDataSourceConnection('\${ds.name}')">测试连接</button>
+                            <button class="button secondary" style="font-size: 12px; padding: 4px 8px;" onclick="deleteDataSource('\${ds.name}')">删除</button>
                         </div>
                     </div>
                 \`;
@@ -685,13 +763,24 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
             updateDataSourceList(config.dataSources || []);
         }
         
+        // 删除数据源
+        function deleteDataSource(dataSourceName) {
+            if (confirm(\`确定要删除数据源 "\${dataSourceName}" 吗？\`)) {
+                vscode.postMessage({
+                    type: 'deleteDataSource',
+                    dataSourceName: dataSourceName
+                });
+            }
+        }
+        
         window.addEventListener('message', event => {
             const message = event.data;
-            if (message.type === 'homeDirectorySelected' && message.homePath) {
-                document.getElementById('homePath').value = message.homePath;
-            }
             
             switch (message.type) {
+                case 'configLoaded':
+                    updateConfigDisplay(message.config);
+                    break;
+                    
                 case 'homeDirectorySelected':
                     if (message.homePath) {
                         document.getElementById('homePath').value = message.homePath;
@@ -699,16 +788,26 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                     }
                     break;
                     
+                case 'configSaved':
+                    showMessage('配置保存成功', 'success');
+                    break;
+                    
                 case 'dataSourceAdded':
-                    if (message.success) {
-                        showMessage('数据源添加成功', 'success');
-                        // 更新配置显示
-                        if (message.config) {
-                            updateConfigDisplay(message.config);
-                        }
-                    } else {
-                        showMessage('数据源添加失败: ' + message.error, 'error');
-                    }
+                    showMessage('数据源添加成功', 'success');
+                    // 重新加载配置以更新数据源列表
+                    vscode.postMessage({ type: 'getConfig' });
+                    break;
+                    
+                case 'dataSourceUpdated':
+                    showMessage('数据源更新成功', 'success');
+                    // 重新加载配置以更新数据源列表
+                    vscode.postMessage({ type: 'getConfig' });
+                    break;
+                    
+                case 'dataSourceDeleted':
+                    showMessage('数据源删除成功', 'success');
+                    // 重新加载配置以更新数据源列表
+                    vscode.postMessage({ type: 'getConfig' });
                     break;
                     
                 case 'dataSourceConnectionTested':
@@ -720,6 +819,9 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                     break;
             }
         });
+        
+        // 页面加载完成后主动请求配置数据
+        vscode.postMessage({ type: 'getConfig' });
     </script>
 </body>
 </html>`;

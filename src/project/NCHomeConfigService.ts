@@ -958,15 +958,15 @@ export class NCHomeConfigService {
     }
 
     /**
-     * 从prop.xml文件中获取服务端口信息
-     * @returns 包含http端口和service端口的对象，如果无法获取则对应值为null
+     * 从prop.xml文件中获取服务端口信息和数据源信息
+     * @returns 包含http端口、service端口和数据源列表的对象，如果无法获取则对应值为null
      */
-    public getPortFromPropXml(): { port: number | null, wsPort: number | null } {
+    public getPortFromPropXml(): { port: number | null, wsPort: number | null, dataSources: DataSourceMeta[] } {
         try {
             // 检查homePath是否已配置
             if (!this.config.homePath) {
                 this.outputChannel.appendLine('Home路径未配置，无法读取prop.xml');
-                return { port: null, wsPort: null };
+                return { port: null, wsPort: null, dataSources: [] };
             }
 
             // 构建prop.xml文件路径
@@ -975,7 +975,7 @@ export class NCHomeConfigService {
             // 检查文件是否存在
             if (!fs.existsSync(propXmlPath)) {
                 this.outputChannel.appendLine(`prop.xml文件不存在: ${propXmlPath}`);
-                return { port: null, wsPort: null };
+                return { port: null, wsPort: null, dataSources: [] };
             }
 
             // 读取文件内容，文件编码为gb2312
@@ -1004,14 +1004,111 @@ export class NCHomeConfigService {
                 }
             }
 
-            if (port === null && wsPort === null) {
-                this.outputChannel.appendLine('未在prop.xml中找到有效的端口配置');
+            // 提取数据源信息
+            const dataSources: DataSourceMeta[] = [];
+
+            // 使用正则表达式查找所有dataSource元素
+            const dataSourceMatches = content.match(/<dataSource>([\s\S]*?)<\/dataSource>/g);
+
+            if (dataSourceMatches) {
+                for (const dataSourceMatch of dataSourceMatches) {
+                    try {
+                        // 提取各个字段
+                        const dataSourceNameMatch = dataSourceMatch.match(/<dataSourceName>(.*?)<\/dataSourceName>/);
+                        const databaseUrlMatch = dataSourceMatch.match(/<databaseUrl>(.*?)<\/databaseUrl>/);
+                        const userMatch = dataSourceMatch.match(/<user>(.*?)<\/user>/);
+                        const passwordMatch = dataSourceMatch.match(/<password>(.*?)<\/password>/);
+                        const driverClassNameMatch = dataSourceMatch.match(/<driverClassName>(.*?)<\/driverClassName>/);
+                        const databaseTypeMatch = dataSourceMatch.match(/<databaseType>(.*?)<\/databaseType>/);
+                        const oidMarkMatch = dataSourceMatch.match(/<oidMark>(.*?)<\/oidMark>/);
+
+                        if (dataSourceNameMatch && databaseUrlMatch && userMatch) {
+                            const dataSourceName = dataSourceNameMatch[1];
+                            const databaseUrl = databaseUrlMatch[1];
+                            const username = userMatch[1];
+                            const password = passwordMatch ? passwordMatch[1] : '';
+                            const driverClassName = driverClassNameMatch ? driverClassNameMatch[1] : '';
+                            const databaseType = databaseTypeMatch ? databaseTypeMatch[1] : '';
+                            const oidFlag = oidMarkMatch ? oidMarkMatch[1] : '';
+
+                            // 从URL中解析主机、端口和数据库名
+                            let host = '';
+                            let port = 0;
+                            let databaseName = '';
+
+                            // 处理不同数据库类型的URL解析
+                            if (databaseUrl.startsWith('jdbc:oracle:')) {
+                                // Oracle: jdbc:oracle:thin:@10.16.232.123:1521/ORCL
+                                const urlMatch = databaseUrl.match(/jdbc:oracle:thin:@([^:]+):(\d+)\/(.+)/);
+                                if (urlMatch) {
+                                    host = urlMatch[1];
+                                    port = parseInt(urlMatch[2], 10);
+                                    databaseName = urlMatch[3];
+                                }
+                            } else if (databaseUrl.startsWith('jdbc:mysql:')) {
+                                // MySQL: jdbc:mysql://localhost:3306/nc6x?useSSL=false&serverTimezone=UTC
+                                const urlMatch = databaseUrl.match(/jdbc:mysql:\/\/([^:]+):(\d+)\/([^?]+)/);
+                                if (urlMatch) {
+                                    host = urlMatch[1];
+                                    port = parseInt(urlMatch[2], 10);
+                                    databaseName = urlMatch[3];
+                                }
+                            } else if (databaseUrl.startsWith('jdbc:sqlserver:')) {
+                                // SQL Server: jdbc:sqlserver://localhost:1433;database=nc6x
+                                const urlMatch = databaseUrl.match(/jdbc:sqlserver:\/\/([^:]+):(\d+);database=([^;]+)/);
+                                if (urlMatch) {
+                                    host = urlMatch[1];
+                                    port = parseInt(urlMatch[2], 10);
+                                    databaseName = urlMatch[3];
+                                }
+                            } else if (databaseUrl.startsWith('jdbc:postgresql:')) {
+                                // PostgreSQL: jdbc:postgresql://localhost:5432/nc6x
+                                const urlMatch = databaseUrl.match(/jdbc:postgresql:\/\/([^:]+):(\d+)\/(.+)/);
+                                if (urlMatch) {
+                                    host = urlMatch[1];
+                                    port = parseInt(urlMatch[2], 10);
+                                    databaseName = urlMatch[3];
+                                }
+                            } else {
+                                // 其他类型，尝试通用解析
+                                const urlMatch = databaseUrl.match(/\/\/([^:]+):(\d+)\/(.+)/);
+                                if (urlMatch) {
+                                    host = urlMatch[1];
+                                    port = parseInt(urlMatch[2], 10);
+                                    databaseName = urlMatch[3];
+                                }
+                            }
+
+                            // 创建DataSourceMeta对象
+                            const dataSource: DataSourceMeta = {
+                                name: dataSourceName,
+                                databaseType: databaseType,
+                                driverClassName: driverClassName,
+                                host: host,
+                                port: port,
+                                databaseName: databaseName,
+                                oidFlag: oidFlag,
+                                username: username,
+                                password: password
+                            };
+
+                            dataSources.push(dataSource);
+                            this.outputChannel.appendLine(`从prop.xml中读取到数据源: ${dataSourceName}`);
+                        }
+                    } catch (error: any) {
+                        this.outputChannel.appendLine(`解析数据源信息时出错: ${error.message}`);
+                    }
+                }
             }
 
-            return { port, wsPort };
+            if (port === null && wsPort === null && dataSources.length === 0) {
+                this.outputChannel.appendLine('未在prop.xml中找到有效的端口配置或数据源配置');
+            }
+
+            return { port, wsPort, dataSources };
         } catch (error: any) {
             this.outputChannel.appendLine(`读取prop.xml文件失败: ${error.message}`);
-            return { port: null, wsPort: null };
+            return { port: null, wsPort: null, dataSources: [] };
         }
     }
 }

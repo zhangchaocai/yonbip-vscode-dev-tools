@@ -330,9 +330,9 @@ export class HomeService {
             await this.applyConsoleEncodingPatch(config.homePath);
 
             // 检查端口占用情况
-            const portsFromProp = this.configService.getPortFromPropXml();
-            const serverPort = portsFromProp.port || config.port || 8077;
-            const wsPort = portsFromProp.wsPort || config.wsPort || 8080;
+            const portsAndDataSourcesFromProp = this.configService.getPortFromPropXml();
+            const serverPort = portsAndDataSourcesFromProp.port || config.port || 8077;
+            const wsPort = portsAndDataSourcesFromProp.wsPort || config.wsPort || 8080;
 
             this.outputChannel.appendLine(`🔍 检查端口占用情况...`);
             await this.checkAndKillPortProcesses(serverPort, wsPort);
