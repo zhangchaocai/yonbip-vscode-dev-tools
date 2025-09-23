@@ -80,6 +80,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'debugHomeService':
                     await this.handleDebugHomeService();
                     break;
+                case 'confirmResetDefaults':
+                    await this.handleConfirmResetDefaults();
+                    break;
             }
         });
 
@@ -1094,32 +1097,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         
         // 重置为默认配置
         function resetToDefaults() {
-            if (confirm('确定要重置所有配置为默认值吗？')) {
-                const defaultConfig = {
-                    standardMode: true,
-                    asyncTask: false,
-                    autoClient: true,
-                    debugMode: true,
-                    debugPort: 8888,
-                    exportPatchPath: './patches'
-                };
-                
-                // 更新界面显示
-                document.getElementById('standardMode').checked = defaultConfig.standardMode;
-                document.getElementById('asyncTask').checked = defaultConfig.asyncTask;
-                document.getElementById('autoClient').checked = defaultConfig.autoClient;
-                document.getElementById('debugMode').checked = defaultConfig.debugMode;
-                document.getElementById('debugPort').value = defaultConfig.debugPort;
-                document.getElementById('exportPatchPath').value = defaultConfig.exportPatchPath;
-                
-                // 更新当前配置
-                currentConfig = {
-                    ...currentConfig,
-                    ...defaultConfig
-                };
-                
-                showMessage('已重置为默认配置', 'success');
-            }
+            // 请求扩展处理确认对话框
+            vscode.postMessage({
+                type: 'confirmResetDefaults'
+            });
         }
         
         // 监听消息
@@ -1229,6 +1210,17 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         showMessage('数据源删除失败: ' + message.error, 'error');
                     }
                     break;
+                case 'defaultsReset':
+                    if (message.success) {
+                        // 更新配置显示
+                        if (message.config) {
+                            updateConfigDisplay(message.config);
+                        }
+                        showMessage('已重置为默认配置', 'success');
+                    } else {
+                        showMessage('重置默认配置失败: ' + message.error, 'error');
+                    }
+                    break;
             }
         });
         
@@ -1257,6 +1249,58 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     message: `检查系统配置失败: ${error.message}`
                 }
             });
+        }
+    }
+
+    /**
+     * 处理确认重置默认值
+     */
+    private async handleConfirmResetDefaults() {
+        const confirm = await vscode.window.showWarningMessage(
+            '确定要重置所有配置为默认值吗？',
+            { modal: true },
+            '确定',
+            '取消'
+        );
+
+        if (confirm === '确定') {
+            try {
+                // 获取当前配置
+                const config = this.configService.getConfig();
+
+                // 设置默认值
+                const defaultConfig = {
+                    standardMode: true,
+                    asyncTask: false,
+                    autoClient: true,
+                    debugMode: true,
+                    debugPort: 8888,
+                    exportPatchPath: './patches'
+                };
+
+                // 更新配置
+                const updatedConfig = {
+                    ...config,
+                    ...defaultConfig
+                };
+
+                // 保存配置
+                await this.configService.saveConfig(updatedConfig);
+
+                // 发送成功消息
+                this._view?.webview.postMessage({
+                    type: 'defaultsReset',
+                    success: true,
+                    config: updatedConfig
+                });
+            } catch (error: any) {
+                // 发送错误消息
+                this._view?.webview.postMessage({
+                    type: 'defaultsReset',
+                    success: false,
+                    error: error.message
+                });
+            }
         }
     }
 }

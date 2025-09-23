@@ -498,7 +498,7 @@ export class LibraryService {
         // 构建Java配置（移除未注册的反编译器配置）
         const javaConfig = {
             'java.project.sourcePaths': ['src/private', 'src/public'],
-            'java.project.outputPath': 'bin',
+            'java.project.outputPath': 'build/classes',
             'java.project.referencedLibraries': libraryConfigs.flatMap((config: LibraryConfig) => config.paths)
         };
 
@@ -516,18 +516,18 @@ export class LibraryService {
     private async generateLaunchConfiguration(workspacePath: string, libDir: string): Promise<void> {
         try {
             // 获取所有库配置文件
-            const libraryConfigs = fs.readdirSync(libDir)
-                .filter(file => file.endsWith('.json'))
-                .map(file => {
-                    const configPath = path.join(libDir, file);
-                    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-                });
+            // const libraryConfigs = fs.readdirSync(libDir)
+            //     .filter(file => file.endsWith('.json'))
+            //     .map(file => {
+            //         const configPath = path.join(libDir, file);
+            //         return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            //     });
 
             // 构建类路径，包含所有jar文件和classes目录
-            // const classPaths = libraryConfigs.flatMap((config: LibraryConfig) => config.paths);
+            //const classPaths = libraryConfigs.flatMap((config: LibraryConfig) => config.paths);
 
             // 添加项目源代码路径
-            // classPaths.push("${workspaceFolder}/src");
+            //classPaths.push("${workspaceFolder}/src");
 
             // 创建.vscode目录（如果不存在）
             const vscodeDir = path.join(workspacePath, '.vscode');
@@ -558,7 +558,7 @@ export class LibraryService {
             const javaDebugConfigurations = [
                 {
                     type: "java",
-                    name: "运行调试Java代码 (含JDK/第三方库)",
+                    name: "调试Java代码 (含JDK/第三方库)",
                     request: "attach",
                     hostName: "localhost",
                     port: config.debugPort || 8888,  // 使用获取到的调试端口
