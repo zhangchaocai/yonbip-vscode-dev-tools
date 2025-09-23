@@ -6,7 +6,7 @@ import { McpService, McpConfig, McpStatus } from './McpService';
  */
 export class McpProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'yonbip-mcp';
-    
+
     private _view?: vscode.WebviewView;
     private mcpService: McpService;
     private outputChannel: vscode.OutputChannel;
@@ -79,7 +79,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
      */
     private async handleLoadConfig() {
         const config = this.mcpService.getConfig();
-        
+
         this._view?.webview.postMessage({
             type: 'configLoaded',
             config
@@ -93,19 +93,19 @@ export class McpProvider implements vscode.WebviewViewProvider {
         try {
             // 获取默认配置
             const defaultConfig = this.mcpService.getDefaultConfig();
-            
+
             // 保存默认配置
             await this.mcpService.saveConfig(defaultConfig);
-            
+
             // 发送配置加载消息，更新前端显示
             this._view?.webview.postMessage({
                 type: 'configLoaded',
                 config: defaultConfig
             });
-            
+
             // 显示重置成功的提示
             vscode.window.showInformationMessage('MCP配置已重置为默认值');
-            
+
             this._view?.webview.postMessage({
                 type: 'configSaved',
                 success: true
@@ -126,7 +126,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
     private async handleSaveConfig(config: McpConfig) {
         try {
             await this.mcpService.saveConfig(config);
-            
+
             // 添加保存成功的提示
             vscode.window.showInformationMessage('MCP配置已保存');
 
@@ -151,7 +151,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
         try {
             await this.mcpService.start();
             await this.handleGetStatus();
-            
+
             this._view?.webview.postMessage({
                 type: 'mcpStarted',
                 success: true
@@ -171,7 +171,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
     private async handleStop() {
         try {
             this.outputChannel.appendLine('开始停止MCP服务...');
-            
+
             // 先更新状态为停止中
             this._view?.webview.postMessage({
                 type: 'statusLoaded',
@@ -180,17 +180,17 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     message: '正在停止服务...'
                 }
             });
-            
+
             await this.mcpService.stop();
-            
+
             // 停止完成后更新状态
             await this.handleGetStatus();
-            
+
             this._view?.webview.postMessage({
                 type: 'mcpStopped',
                 success: true
             });
-            
+
             this.outputChannel.appendLine('MCP服务停止操作完成');
         } catch (error: any) {
             this.outputChannel.appendLine(`MCP服务停止失败: ${error.message}`);
@@ -209,7 +209,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
         try {
             await this.mcpService.restart();
             await this.handleGetStatus();
-            
+
             this._view?.webview.postMessage({
                 type: 'mcpRestarted',
                 success: true
@@ -233,7 +233,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 isRunning: mcpStatus === McpStatus.RUNNING,
                 message: this.getStatusMessage(mcpStatus)
             };
-            
+
             this._view?.webview.postMessage({
                 type: 'statusLoaded',
                 status
@@ -280,7 +280,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 success: isRunning,
                 message: isRunning ? '连接测试成功' : '服务未运行'
             };
-            
+
             this._view?.webview.postMessage({
                 type: 'connectionTestResult',
                 result
@@ -301,11 +301,11 @@ export class McpProvider implements vscode.WebviewViewProvider {
      */
     private async handleShowResetConfirm() {
         const result = await vscode.window.showWarningMessage(
-            '确定要重置所有配置为默认值吗？', 
-            '确定', 
+            '确定要重置所有配置为默认值吗？',
+            '确定',
             '取消'
         );
-        
+
         if (result === '确定') {
             await this.handleResetConfig();
         }
