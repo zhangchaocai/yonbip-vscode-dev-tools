@@ -80,6 +80,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'debugHomeService':
                     await this.handleDebugHomeService();
                     break;
+                case 'selectExportPath':
+                    await this.handleSelectExportPath();
+                    break;
+                case 'showOutput':
+                    await this.handleShowOutput();
+                    break;
                 case 'confirmResetDefaults':
                     await this.handleConfirmResetDefaults();
                     break;
@@ -440,6 +446,60 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     }
 
     /**
+     * 处理选择补丁输出目录
+     */
+    private async handleSelectExportPath() {
+        try {
+            const options: vscode.OpenDialogOptions = {
+                canSelectMany: false,
+                canSelectFiles: false,
+                canSelectFolders: true,
+                openLabel: '选择补丁输出目录'
+            };
+
+            const folderUri = await vscode.window.showOpenDialog(options);
+            if (folderUri && folderUri.length > 0) {
+                const exportPath = folderUri[0].fsPath;
+                const config = this.configService.getConfig();
+                config.exportPatchPath = exportPath;
+                await this.configService.saveConfig(config);
+                
+                this._view?.webview.postMessage({
+                    type: 'exportPathSelected',
+                    exportPath,
+                    success: true
+                });
+            }
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'exportPathSelected',
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理显示输出日志
+     */
+    private async handleShowOutput() {
+        try {
+            // 显示输出面板
+            await vscode.commands.executeCommand('yonbip.home.showOutput');
+            this._view?.webview.postMessage({
+                type: 'outputShown',
+                success: true
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'outputShown',
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
      * 生成WebView HTML内容
      */
     private _getHtmlForWebview(webview: vscode.Webview) {
@@ -472,47 +532,117 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             font-size: var(--vscode-font-size);
             color: var(--vscode-foreground);
             background-color: var(--vscode-editor-background);
-            padding: 15px;
+            padding: 10px;
             margin: 0;
         }
         
+        /* 滚动条样式优化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--vscode-scrollbarSlider-background);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--vscode-scrollbarSlider-hoverBackground);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--vscode-scrollbarSlider-activeBackground);
+        }
+        
         .section {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             border: 1px solid var(--vscode-widget-border);
-            border-radius: 6px;
-            padding: 20px;
+            border-radius: 8px;
+            padding: 16px;
             background-color: var(--vscode-input-background);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+        
+        .section:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         
         .section-title {
-            font-weight: bold;
-            margin-bottom: 15px;
+            font-weight: 600;
+            margin-bottom: 16px;
             color: var(--vscode-textLink-foreground);
             font-size: 16px;
             border-bottom: 1px solid var(--vscode-widget-border);
             padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 16px;
+            background-color: var(--vscode-textLink-foreground);
+            margin-right: 8px;
+            border-radius: 2px;
         }
         
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 16px;
         }
         
         .form-row {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            gap: 8px;
         }
         
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
+            margin-bottom: 6px;
+            font-weight: 500;
             min-width: 100px;
+            color: var(--vscode-editor-foreground);
         }
         
         .form-row label {
             margin-bottom: 0;
             margin-right: 10px;
+        }
+        
+        .form-row .input-container {
+            display: flex;
+            flex: 1;
+            min-width: 0; /* 允许输入框在空间不足时收缩 */
+            gap: 8px;
+        }
+        
+        .form-row .input-container input {
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        
+        @media (max-width: 500px) {
+            .form-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .form-row .input-container {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+            
+            .form-row .browse-button {
+                width: 100%;
+            }
         }
         
         input, select {
@@ -521,8 +651,15 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             border: 1px solid var(--vscode-input-border);
             background-color: var(--vscode-input-background);
             color: var(--vscode-input-foreground);
-            border-radius: 4px;
+            border-radius: 6px;
             box-sizing: border-box;
+            transition: border-color 0.2s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
         }
         
         .form-row input {
@@ -533,17 +670,33 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
             border: none;
-            padding: 10px 18px;
-            border-radius: 4px;
+            padding: 8px 16px;
+            border-radius: 6px;
             cursor: pointer;
-            margin-right: 10px;
+            margin-right: 8px;
             margin-bottom: 8px;
             font-size: 14px;
             font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            min-height: 32px;
+        }
+        
+        .browse-button {
+            height: 28px;
+            padding: 4px 12px;
+            margin-bottom: 0;
         }
         
         button:hover {
             background-color: var(--vscode-button-hoverBackground);
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0);
         }
         
         button.secondary {
@@ -555,14 +708,23 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-button-secondaryHoverBackground);
         }
         
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
         .tabs {
             display: flex;
             border-bottom: 2px solid var(--vscode-widget-border);
             margin-bottom: 20px;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            padding-bottom: 1px;
         }
         
         .tab {
-            padding: 12px 20px;
+            padding: 10px 16px;
             cursor: pointer;
             border: none;
             background: none;
@@ -570,16 +732,39 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             margin-right: 4px;
             border-radius: 6px 6px 0 0;
             font-weight: 500;
+            position: relative;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+        
+        .tab:hover {
+            background-color: var(--vscode-list-hoverBackground);
         }
         
         .tab.active {
             background-color: var(--vscode-tab-activeBackground);
-            border-bottom: 3px solid var(--vscode-textLink-foreground);
             color: var(--vscode-textLink-foreground);
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: var(--vscode-textLink-foreground);
+            border-radius: 3px 3px 0 0;
         }
         
         .tab-content {
             display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
         .tab-content.active {
@@ -588,36 +773,86 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         
         .status-message {
             padding: 12px;
-            border-radius: 4px;
+            border-radius: 6px;
             margin-bottom: 15px;
             text-align: center;
+            animation: fadeIn 0.3s ease;
         }
         
         .status-success {
-            background-color: var(--vscode-terminal-ansiGreen);
-            color: white;
+            background-color: rgba(35, 134, 54, 0.2);
+            color: var(--vscode-terminal-ansiGreen);
+            border: 1px solid var(--vscode-terminal-ansiGreen);
         }
         
         .status-error {
-            background-color: var(--vscode-errorForeground);
-            color: white;
+            background-color: rgba(203, 36, 49, 0.2);
+            color: var(--vscode-errorForeground);
+            border: 1px solid var(--vscode-errorForeground);
         }
         
         .checkbox-group {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .checkbox-group:hover {
+            background-color: var(--vscode-list-hoverBackground);
         }
         
         .checkbox-group input[type="checkbox"] {
-            width: auto;
-            margin-right: 8px;
+            width: 16px;
+            height: 16px;
+            margin-right: 10px;
+            cursor: pointer;
         }
         
         .help-text {
             font-size: 12px;
             color: var(--vscode-descriptionForeground);
             margin-top: 5px;
+            line-height: 1.4;
+            padding-left: 2px;
+        }
+        
+        /* 卡片样式 */
+        .card {
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background-color: var(--vscode-editor-background);
+            transition: all 0.2s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: var(--vscode-focusBorder);
+        }
+        
+        /* 徽章样式 */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-right: 6px;
+        }
+        
+        .badge-primary {
+            background-color: var(--vscode-textLink-foreground);
+            color: white;
+        }
+        
+        .badge-secondary {
+            background-color: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
         }
     </style>
 </head>
@@ -638,18 +873,34 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 <div class="form-group">
                     <div class="form-row">
                         <label for="homePath">Home目录:</label>
-                        <input type="text" id="homePath" readonly placeholder="请选择NC Home安装目录">
-                        <button onclick="selectHomeDirectory()" style="margin-left: 10px; min-width: 80px;">浏览...</button>
+                        <div class="input-container">
+                            <input type="text" id="homePath" readonly placeholder="请选择NC Home安装目录">
+                            <button class="browse-button" onclick="selectHomeDirectory()" style="max-width: 100px; min-width: 80px;">
+                                <span style="margin-right: 4px;">📁</span> 浏览...
+                            </button>
+                        </div>
                     </div>
                     <div class="help-text">选择YonBIP NC的安装目录，通常包含bin、lib、modules等文件夹</div>
                 </div>
                 
                 <div class="form-group">
-                    <button onclick="openHomeDirectory()">📂 打开Home目录</button>
-                    <button class="secondary" onclick="openSysConfig()">🔧 启动SysConfig</button>
-                    <button class="secondary" onclick="stopHomeService()">✋ 停止HOME服务</button>
-                    <button class="secondary" onclick="debugHomeService()">🐞 调试启动HOME服务</button>
-                    <button class="secondary" onclick="showOutput()">📝 查看日志</button>
+                    <div class="button-group">
+                        <button onclick="openHomeDirectory()">
+                            <span style="margin-right: 6px;">📂</span> 打开Home目录
+                        </button>
+                        <button class="secondary" onclick="openSysConfig()">
+                            <span style="margin-right: 6px;">🔧</span> 启动SysConfig
+                        </button>
+                        <button class="secondary" onclick="stopHomeService()">
+                            <span style="margin-right: 6px;">✋</span> 停止HOME服务
+                        </button>
+                        <button class="secondary" onclick="debugHomeService()">
+                            <span style="margin-right: 6px;">🐞</span> 调试启动HOME服务
+                        </button>
+                        <button class="secondary" onclick="showOutput()">
+                            <span style="margin-right: 6px;">📝</span> 查看日志
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -657,14 +908,17 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         <!-- 数据源选项卡 -->
         <div id="datasources-tab" class="tab-content">
             <div class="section">
-                <div class="section-title">
-                    数据源管理
-                    <button onclick="showAddDataSourceForm()" style="float: right;">➕ 添加数据源</button>
+                <div class="section-title" style="display: flex; align-items: center;">
+                    <span style="flex: 1;">数据源管理</span>
+                    <button onclick="showAddDataSourceForm()" style="margin: 0; height: 28px; padding: 4px 12px;">
+                        <span style="margin-right: 4px;">➕</span> 添加数据源
+                    </button>
                 </div>
                 
                 <div id="datasourceList">
-                    <div class="status-message" style="color: var(--vscode-descriptionForeground);">
-                        🗂️ 暂无数据源配置，点击"添加数据源"开始配置
+                    <div class="status-message" style="color: var(--vscode-descriptionForeground); display: flex; align-items: center; justify-content: center; padding: 20px;">
+                        <span style="font-size: 24px; margin-right: 10px;">🗂️</span>
+                        <span>暂无数据源配置，点击"添加数据源"开始配置</span>
                     </div>
                 </div>
             </div>
@@ -709,7 +963,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 
                 <div class="form-group">
                     <label for="debugPort">调试端口:</label>
-                    <input type="number" id="debugPort" placeholder="8888" min="1024" max="65535">
+                    <div class="form-row">
+                        <div class="input-container">
+                            <input type="number" id="debugPort" placeholder="8888" min="1024" max="65535">
+                        </div>
+                    </div>
                     <div class="help-text">设置调试模式使用的端口号 (1024-65535)</div>
                 </div>
             </div>
@@ -719,15 +977,28 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 
                 <div class="form-group">
                     <label for="exportPatchPath">补丁输出目录:</label>
-                    <input type="text" id="exportPatchPath" placeholder="./patches">
+                    <div class="form-row">
+                        <div class="input-container">
+                            <input type="text" id="exportPatchPath" placeholder="./patches">
+                            <button class="browse-button" onclick="selectExportPath()" style="max-width: 100px; min-width: 80px;">
+                                <span style="margin-right: 4px;">📁</span> 浏览...
+                            </button>
+                        </div>
+                    </div>
                     <div class="help-text">设置补丁包和导出文件的保存目录</div>
                 </div>
             </div>
             
             <div class="section">
                 <div class="section-title">操作</div>
-                <button onclick="saveAdvancedConfig()">💾 保存设置</button>
-                <button class="secondary" onclick="resetToDefaults()">🔄 重置为默认</button>
+                <div class="button-group">
+                    <button onclick="saveAdvancedConfig()">
+                        <span style="margin-right: 6px;">💾</span> 保存设置
+                    </button>
+                    <button class="secondary" onclick="resetToDefaults()">
+                        <span style="margin-right: 6px;">🔄</span> 重置为默认
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -785,7 +1056,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
         // 显示输出
         function showOutput() {
-            console.log('显示输出日志');
+            vscode.postMessage({ type: 'showOutput' });
+        }
+        
+        // 选择补丁输出目录
+        function selectExportPath() {
+            vscode.postMessage({ type: 'selectExportPath' });
         }
         
         // 显示添加数据源表单
