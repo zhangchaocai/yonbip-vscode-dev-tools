@@ -811,6 +811,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
+                stopBtn.textContent = '⏹️ 停止服务'; // 确保按钮文本正确
                 restartBtn.disabled = false;
             } else {
                 indicator.className = 'status-indicator status-stopped';
@@ -818,6 +819,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
+                stopBtn.textContent = '⏹️ 停止服务'; // 确保按钮文本正确
                 restartBtn.disabled = true;
             }
             
