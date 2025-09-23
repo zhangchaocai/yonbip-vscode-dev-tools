@@ -1081,6 +1081,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 exportPatchPath: document.getElementById('exportPatchPath').value
             };
             
+            // 确保 debugPort 字段存在且为数字类型
+            if (typeof config.debugPort !== 'number' || isNaN(config.debugPort)) {
+                config.debugPort = 8888;
+            }
+            
             vscode.postMessage({
                 type: 'saveConfig',
                 config: config

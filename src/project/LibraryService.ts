@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { NCHomeConfigService } from './NCHomeConfigService';
 
 /**
  * Jar包信息VO
@@ -51,9 +52,12 @@ export class LibraryService {
 
     private context?: vscode.ExtensionContext;
 
-    constructor(context?: vscode.ExtensionContext) {
+    private configService: NCHomeConfigService;
+
+    constructor(context?: vscode.ExtensionContext, configService?: NCHomeConfigService) {
         this.outputChannel = vscode.window.createOutputChannel('YonBIP Library Service');
         this.context = context;
+        this.configService = configService || new NCHomeConfigService(context!);
     }
 
     /**
@@ -520,10 +524,10 @@ export class LibraryService {
                 });
 
             // 构建类路径，包含所有jar文件和classes目录
-            const classPaths = libraryConfigs.flatMap((config: LibraryConfig) => config.paths);
+            // const classPaths = libraryConfigs.flatMap((config: LibraryConfig) => config.paths);
 
             // 添加项目源代码路径
-            classPaths.push("${workspaceFolder}/src");
+            // classPaths.push("${workspaceFolder}/src");
 
             // 创建.vscode目录（如果不存在）
             const vscodeDir = path.join(workspacePath, '.vscode');
@@ -547,34 +551,37 @@ export class LibraryService {
                 }
             }
 
+
+            // 提前获取配置以避免变量作用域问题
+            const config = this.configService.getConfig();
             // 创建Java调试配置
             const javaDebugConfigurations = [
                 {
                     type: "java",
-                    name: "调试Java代码 (含JDK/第三方库)",
+                    name: "运行调试Java代码 (含JDK/第三方库)",
                     request: "attach",
                     hostName: "localhost",
-                    port: vscode.workspace.getConfiguration('yonbip').get<number>('home.debugPort', 8888),  // 动态获取调试端口
+                    port: config.debugPort || 8888,  // 使用获取到的调试端口
                     projectName: "${workspaceFolderBasename}",
-                    sourcePaths: [
-                        "${workspaceFolder}/src"
-                    ]
-                },
-                {
-                    type: "java",
-                    name: "启动并调试Java应用",
-                    request: "launch",
-                    mainClass: "",
-                    projectName: "${workspaceFolderBasename}",
-                    classPaths: classPaths,
-                    vmArgs: [
-                        "-Dfile.encoding=UTF-8",
-                        `-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${vscode.workspace.getConfiguration('yonbip').get<number>('home.debugPort', 8888)}`  // 动态获取调试端口
-                    ],
                     sourcePaths: [
                         "${workspaceFolder}/src"
                     ]
                 }
+                // {
+                //     type: "java",
+                //     name: "启动并调试Java应用",
+                //     request: "launch",
+                //     mainClass: "",
+                //     projectName: "${workspaceFolderBasename}",
+                //     classPaths: classPaths,
+                //     vmArgs: [
+                //         "-Dfile.encoding=UTF-8",
+                //         `-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${config.debugPort || 8888}`  // 使用获取到的调试端口
+                //     ],
+                //     sourcePaths: [
+                //         "${workspaceFolder}/src"
+                //     ]
+                // }
             ];
 
             // 合并配置，保留非Java配置，替换或添加Java配置

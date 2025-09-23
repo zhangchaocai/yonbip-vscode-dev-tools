@@ -95,9 +95,9 @@ export class NCHomeConfigService {
      * 获取默认配置
      */
     private getDefaultConfig(): NCHomeConfig {
-        // 从工作区配置中获取debugPort的值
+        // 从工作区配置中获取debugPort的值，如果获取不到则使用默认值8888
         const workspaceConfig = vscode.workspace.getConfiguration('yonbip');
-        const debugPort = workspaceConfig.get<number>('home.debugPort', 8888);
+        const debugPort = workspaceConfig.get<number>('home.debugPort') || 8888;
 
         return {
             homePath: '',

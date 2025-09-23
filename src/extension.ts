@@ -24,11 +24,11 @@ function createBuildDirectories(): void {
 		if (rootPath) {
 			const buildPath = path.join(rootPath, 'build');
 			const classesPath = path.join(buildPath, 'classes');
-			
+
 			if (!fs.existsSync(buildPath)) {
 				fs.mkdirSync(buildPath, { recursive: true });
 			}
-			
+
 			if (!fs.existsSync(classesPath)) {
 				fs.mkdirSync(classesPath, { recursive: true });
 			}
@@ -41,10 +41,10 @@ function createBuildDirectories(): void {
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-	
+
 	// 创建 build/classes 目录
 	createBuildDirectories();
-	
+
 	// 显示插件加载成功的提示信息
 	vscode.window.showInformationMessage('🚀 YonBIP高级版开发者工具加载成功', '了解更多')
 		.then(selection => {
@@ -53,10 +53,10 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.env.openExternal(vscode.Uri.parse('https://community.yonyou.com'));
 			}
 		});
-	
+
 	// 注册MCP命令
 	const mcpCommands = McpCommands.registerCommands(context);
-	
+
 	// 注册MCP界面
 	const mcpProvider = new McpProvider(context.extensionUri, context);
 	context.subscriptions.push(
@@ -71,24 +71,24 @@ export function activate(context: vscode.ExtensionContext) {
 		)
 	);
 
-	
+
 	// 注册NC Home配置界面和命令
 	const ncHomeConfigService = new NCHomeConfigService(context);
 	const ncHomeConfigCommands = new NCHomeConfigCommands(context);
 	// NCHomeConfigCommands类没有实现dispose方法，因此不能添加到context.subscriptions中
-	
+
 	// 注册HOME服务命令
 	HomeCommands.registerCommands(context, ncHomeConfigService);
-	
+
 	// 注册库管理命令
 	LibraryCommands.registerCommands(context);
-	
+
 	// 自动初始化库（如果配置了HOME路径）
-	const libraryService = new LibraryService(context);
+	const libraryService = new LibraryService(context, ncHomeConfigService);
 	setTimeout(() => {
 		libraryService.autoInitLibrary();
 	}, 2000); // 延迟2秒执行，确保配置已加载
-	
+
 	// 注册NC Home配置界面
 	const ncHomeConfigProvider = new NCHomeConfigProvider(context.extensionUri, context);
 	context.subscriptions.push(
@@ -102,7 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		)
 	);
-	
+
 	// 注册OpenAPI测试界面
 	const openApiProvider = new OpenApiProvider(context.extensionUri, context);
 	context.subscriptions.push(
