@@ -83,11 +83,6 @@
         "category": "YonBIP/MCP"
       },
       {
-        "command": "yonbip.mcp.restart",
-        "title": "重启MCP服务",
-        "category": "YonBIP/MCP"
-      },
-      {
         "command": "yonbip.mcp.status",
         "title": "查看MCP服务状态",
         "category": "YonBIP/MCP"

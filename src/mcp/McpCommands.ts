@@ -29,11 +29,6 @@ export class McpCommands {
             mcpCommands.stopMcp();
         });
 
-        // 注册重启命令
-        const restartCommand = vscode.commands.registerCommand('yonbip.mcp.restart', () => {
-            mcpCommands.restartMcp();
-        });
-
         // 注册配置命令
         const configCommand = vscode.commands.registerCommand('yonbip.mcp.config', () => {
             mcpCommands.showConfigDialog();
@@ -52,7 +47,6 @@ export class McpCommands {
         context.subscriptions.push(
             startCommand,
             stopCommand,
-            restartCommand,
             configCommand,
             statusCommand,
             logsCommand
@@ -83,24 +77,7 @@ export class McpCommands {
         }
     }
 
-    /**
-     * 重启MCP服务
-     */
-    public async restartMcp(): Promise<void> {
-        const choice = await vscode.window.showInformationMessage(
-            ' 确定要重启MCP服务吗？',
-            '确定',
-            '取消'
-        );
 
-        if (choice === '确定') {
-            try {
-                await this.mcpService.restart();
-            } catch (error: any) {
-                vscode.window.showErrorMessage(`重启MCP服务失败: ${error.message}`);
-            }
-        }
-    }
 
     /**
      * 显示配置对话框
@@ -122,8 +99,7 @@ export class McpCommands {
             },
             { label: '$(terminal) Java路径', description: config.javaPath, detail: '配置Java可执行文件路径' },
             { label: '$(memory) 最大内存', description: config.maxMemory, detail: '配置JVM最大内存' },
-            { label: '$(bug) 调试模式', description: config.enableDebug ? '已启用' : '已禁用', detail: '启用/禁用调试模式' },
-            { label: '$(check) 测试连接', description: '', detail: '测试当前配置是否有效' }
+            { label: '$(bug) 调试模式', description: config.enableDebug ? '已启用' : '已禁用', detail: '启用/禁用调试模式' }
         ];
 
         quickPick.onDidChangeSelection(async (selection) => {
@@ -146,9 +122,6 @@ export class McpCommands {
                         break;
                     case '$(bug) 调试模式':
                         await this.toggleDebugMode();
-                        break;
-                    case '$(check) 测试连接':
-                        await this.testConfiguration();
                         break;
                 }
             }
@@ -325,57 +298,7 @@ export class McpCommands {
         }
     }
 
-    /**
-     * 测试配置
-     */
-    private async testConfiguration(): Promise<void> {
-        const config = this.mcpService.getConfig();
-        
-        vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: '正在测试MCP配置...',
-            cancellable: false
-        }, async (progress) => {
-            progress.report({ increment: 0, message: '检查Java环境...' });
-            
-            // 检查Java是否可用
-            try {
-                const { exec } = require('child_process');
-                await new Promise((resolve, reject) => {
-                    exec(`"${config.javaPath}" -version`, (error: any, stdout: string, stderr: string) => {
-                        if (error) {
-                            reject(new Error(`Java不可用: ${error.message}`));
-                        } else {
-                            resolve(stderr || stdout);
-                        }
-                    });
-                });
-                progress.report({ increment: 33, message: 'Java环境正常' });
-            } catch (error: any) {
-                vscode.window.showErrorMessage(`Java环境测试失败: ${error.message}`);
-                return;
-            }
 
-            progress.report({ increment: 33, message: '检查JAR文件...' });
-            
-            // 检查JAR文件
-            const fs = require('fs');
-            if (!config.jarPath || !fs.existsSync(config.jarPath)) {
-                vscode.window.showErrorMessage('JAR文件不存在或路径错误');
-                return;
-            }
-            
-            progress.report({ increment: 34, message: '检查端口可用性...' });
-            
-            // 检查端口
-            const isPortAvailable = await this.mcpService.isPortAvailable(config.port);
-            if (!isPortAvailable) {
-                vscode.window.showWarningMessage(`端口 ${config.port} 已被占用`);
-            }
-            
-            vscode.window.showInformationMessage('配置测试完成，所有检查通过！');
-        });
-    }
 
     /**
      * 显示状态

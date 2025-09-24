@@ -51,14 +51,8 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 case 'stopMcp':
                     await this.handleStop();
                     break;
-                case 'restartMcp':
-                    await this.handleRestart();
-                    break;
                 case 'getStatus':
                     await this.handleGetStatus();
-                    break;
-                case 'testConnection':
-                    await this.handleTestConnection();
                     break;
                 case 'selectJarFile':
                     await this.handleSelectJarFile();
@@ -202,26 +196,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    /**
-     * 处理重启MCP服务
-     */
-    private async handleRestart() {
-        try {
-            await this.mcpService.restart();
-            await this.handleGetStatus();
 
-            this._view?.webview.postMessage({
-                type: 'mcpRestarted',
-                success: true
-            });
-        } catch (error: any) {
-            this._view?.webview.postMessage({
-                type: 'mcpRestarted',
-                success: false,
-                error: error.message
-            });
-        }
-    }
 
     /**
      * 处理获取状态
@@ -268,33 +243,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    /**
-     * 处理测试连接
-     */
-    private async handleTestConnection() {
-        try {
-            // 简化处理，模拟测试连接
-            const status = await this.mcpService.getStatus();
-            const isRunning = status === McpStatus.RUNNING;
-            const result = {
-                success: isRunning,
-                message: isRunning ? '连接测试成功' : '服务未运行'
-            };
 
-            this._view?.webview.postMessage({
-                type: 'connectionTestResult',
-                result
-            });
-        } catch (error: any) {
-            this._view?.webview.postMessage({
-                type: 'connectionTestResult',
-                result: {
-                    success: false,
-                    message: `测试连接失败: ${error.message}`
-                }
-            });
-        }
-    }
 
     /**
      * 处理显示重置确认对话框
@@ -590,9 +539,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 <div class="service-controls">
                     <button id="startBtn" onclick="startMcp()">▶️ 启动服务</button>
                     <button id="stopBtn" onclick="stopMcp()" class="danger">⏹️ 停止服务</button>
-                    <button id="restartBtn" onclick="restartMcp()">🔄 重启服务</button>
-                    <button onclick="refreshStatus()" class="secondary">🔍 刷新状态</button>
-                    <button onclick="testConnection()" class="secondary">🔧 测试连接</button>
                 </div>
             </div>
             
@@ -731,20 +677,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'stopMcp' });
         }
         
-        // 重启MCP服务
-        function restartMcp() {
-            vscode.postMessage({ type: 'restartMcp' });
-        }
-        
-        // 刷新状态
-        function refreshStatus() {
-            vscode.postMessage({ type: 'getStatus' });
-        }
-        
-        // 测试连接
-        function testConnection() {
-            vscode.postMessage({ type: 'testConnection' });
-        }
+
         
         // 选择JAR文件
         function selectJarFile() {
@@ -803,7 +736,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
             const message = document.getElementById('statusMessage');
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
-            const restartBtn = document.getElementById('restartBtn');
             
             if (status.isRunning) {
                 indicator.className = 'status-indicator status-running';
@@ -812,7 +744,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
                 stopBtn.textContent = '⏹️ 停止服务'; // 确保按钮文本正确
-                restartBtn.disabled = false;
             } else {
                 indicator.className = 'status-indicator status-stopped';
                 indicator.textContent = '🔴 服务已停止';
@@ -820,7 +751,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
                 stopBtn.textContent = '⏹️ 停止服务'; // 确保按钮文本正确
-                restartBtn.disabled = true;
             }
             
             message.textContent = status.message || '无状态信息';
@@ -863,21 +793,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                     
-                case 'mcpRestarted':
-                    if (message.success) {
-                        console.log('MCP服务重启成功');
-                    } else {
-                        console.error('MCP服务重启失败: ' + message.error);
-                    }
-                    break;
-                    
-                case 'connectionTestResult':
-                    if (message.result.success) {
-                        alert('连接测试成功！');
-                    } else {
-                        alert('连接测试失败: ' + message.result.message);
-                    }
-                    break;
+
                     
                 case 'jarFileSelected':
                     if (message.success && message.jarPath) {

@@ -356,15 +356,7 @@ export class McpService {
         }
     }
 
-    /**
-     * 重启MCP服务
-     */
-    public async restart(): Promise<void> {
-        await this.stop();
-        // 等待一段时间确保进程完全停止
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        await this.start();
-    }
+
 
     /**
      * 验证配置
