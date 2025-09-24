@@ -365,19 +365,22 @@ export class McpProvider implements vscode.WebviewViewProvider {
         .form-row {
             display: flex;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            gap: 8px; /* 使用gap替代margin */
         }
         
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            min-width: 100px;
+            margin-bottom: 6px;
+            font-weight: 600; /* 使用600代替bold */
+            min-width: 120px;
+            color: var(--vscode-foreground);
         }
         
         .form-row label {
             margin-bottom: 0;
-            margin-right: 10px;
+            margin-right: 0; /* 使用gap替代margin */
+            flex-shrink: 0;
         }
         
         input, select {
@@ -388,23 +391,32 @@ export class McpProvider implements vscode.WebviewViewProvider {
             color: var(--vscode-input-foreground);
             border-radius: 4px;
             box-sizing: border-box;
+            height: 38px; /* 统一输入框高度 */
+            line-height: 1.4;
         }
         
         .form-row input, .form-row select {
             flex: 1;
+            margin-right: 8px; /* 添加右边距 */
         }
         
         button {
             background-color: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
             border: none;
-            padding: 10px 18px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
             margin-right: 10px;
             margin-bottom: 8px;
             font-size: 14px;
             font-weight: 500;
+            height: 38px; /* 统一按钮高度 */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 80px; /* 最小宽度 */
+            box-sizing: border-box;
         }
         
         button:hover {
@@ -475,42 +487,139 @@ export class McpProvider implements vscode.WebviewViewProvider {
         
         .service-controls {
             display: flex;
-            gap: 10px;
-            margin-top: 15px;
+            gap: 12px;
+            margin-top: 16px;
             flex-wrap: wrap; /* 允许按钮换行 */
         }
 
         .service-controls button {
-            flex: 1 0 auto; /* 确保按钮不会超出容器 */
-            max-width: calc(20% - 10px); /* 控制按钮的最大宽度 */
+            flex: 1;
+            min-width: 120px;
+            max-width: 200px;
+            transition: all 0.2s ease;
+        }
+        
+        .service-controls button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         #quickInfo {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
 
         .config-item {
             background-color: var(--vscode-editor-background);
             border: 1px solid var(--vscode-widget-border);
-            border-radius: 4px;
-            padding: 12px;
-            margin-bottom: 10px;
-            flex: 1 0 auto; /* 确保配置项不会超出容器 */
-            max-width: 100%; /* 控制配置项的最大宽度 */
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+            flex: 1 0 auto;
+            max-width: 100%;
+            transition: all 0.2s ease;
+        }
+        
+        .config-item:hover {
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
         .config-label {
-            font-weight: bold;
+            font-weight: 600;
             color: var(--vscode-textLink-foreground);
-            margin-bottom: 5px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .config-value {
-            color: var(--vscode-descriptionForeground);
-            font-family: monospace;
+            color: var(--vscode-foreground);
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
             word-break: break-all;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        /* 响应式布局 - 窄屏优化 */
+        @media (max-width: 600px) {
+            .tabs {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            
+            .tab {
+                padding: 8px 12px;
+                font-size: 13px;
+                margin-right: 2px;
+                flex: 1;
+                min-width: 0;
+                text-align: center;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            
+            .form-row label {
+                margin-right: 0;
+                margin-bottom: 4px;
+                min-width: auto;
+            }
+            
+            .form-row input {
+                margin-right: 0;
+                width: 100%;
+            }
+            
+            .form-row button {
+                width: 100%;
+                margin-left: 0;
+            }
+            
+            .service-controls {
+                flex-direction: column;
+            }
+            
+            .service-controls button {
+                max-width: 100%;
+                width: 100%;
+            }
+            
+            #quickInfo {
+                flex-direction: column;
+            }
+            
+            .config-item {
+                max-width: 100%;
+            }
+            
+            .section {
+                padding: 15px;
+            }
+            
+            .section-title {
+                font-size: 15px;
+            }
+        }
+        
+        /* 中等屏幕优化 */
+        @media (max-width: 800px) and (min-width: 601px) {
+            .form-row {
+                flex-wrap: wrap;
+            }
+            
+            .form-row label {
+                min-width: 80px;
+            }
+            
+            .service-controls button {
+                max-width: calc(33.333% - 10px);
+            }
         }
     </style>
 </head>
