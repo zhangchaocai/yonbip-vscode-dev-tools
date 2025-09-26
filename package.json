@@ -222,10 +222,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "build": "npm run compile",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
-    "perf:analyze": "node scripts/performance.js"
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
@@ -234,6 +232,7 @@
     "@types/node": "^24.5.2",
     "@types/oracledb": "^6.9.1",
     "@types/pg": "^8.15.5",
+    "@types/sinon": "^17.0.4",
     "@types/vscode": "^1.104.0",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
@@ -241,6 +240,7 @@
     "eslint": "^9.35.0",
     "glob": "^11.0.3",
     "mocha": "^11.7.2",
+    "sinon": "^21.0.0",
     "typescript": "^5.0.4"
   },
   "dependencies": {

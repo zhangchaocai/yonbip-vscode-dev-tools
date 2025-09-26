@@ -7,6 +7,7 @@ import * as mssql from 'mssql';
 import * as oracledb from 'oracledb';
 import * as iconv from 'iconv-lite';
 import { NCHomeConfig, DataSourceMeta, ConnectionTestResult, AutoParseResult, DRIVER_INFO_MAP } from './NCHomeConfigTypes';
+import { PasswordEncryptor } from '../utils/PasswordEncryptor';
 
 /**
  * NC Home配置服务
@@ -25,10 +26,34 @@ export class NCHomeConfigService {
     }
 
     /**
-     * 获取配置
+     * 获取配置（在返回给前端前处理密码解密）
      */
     public getConfig(): NCHomeConfig {
-        return { ...this.config };
+        // 创建配置的深拷贝，避免修改原始配置
+        const configCopy: NCHomeConfig = JSON.parse(JSON.stringify(this.config));
+        
+        // 如果存在数据源，对密码进行解密处理
+        if (configCopy.dataSources && configCopy.dataSources.length > 0) {
+            for (const dataSource of configCopy.dataSources) {
+                if (dataSource.password) {
+                    // 使用PasswordEncryptor解密密码
+                    const decryptedPassword = PasswordEncryptor.getSecurePassword(dataSource.password);
+                    
+                    // 检查解密结果是否包含大量乱码字符
+                    // 如果解密后包含多个连续的替换字符，说明解密可能失败
+                    const replacementCharCount = (decryptedPassword.match(/\uFFFD/g) || []).length;
+                    if (replacementCharCount > 2) {
+                        // 如果解密后包含过多乱码，说明可能使用了不同的加密方式
+                        // 在这种情况下，我们显示一个占位符而不是乱码
+                        dataSource.password = '[加密密码-需要重新输入]';
+                    } else {
+                        dataSource.password = decryptedPassword;
+                    }
+                }
+            }
+        }
+        
+        return configCopy;
     }
 
     /**
@@ -277,6 +302,15 @@ export class NCHomeConfigService {
                 };
             }
 
+            // 处理密码解密
+            const securePassword = PasswordEncryptor.getSecurePassword(dataSource.password || '');
+            const secureDataSource = {
+                ...dataSource,
+                password: securePassword
+            };
+
+            this.outputChannel.appendLine(`使用解密后的密码进行连接测试`);
+
             if (!dataSource.port || dataSource.port <= 0 || dataSource.port > 65535) {
                 return {
                     success: false,
@@ -286,30 +320,30 @@ export class NCHomeConfigService {
 
             let connectionResult: ConnectionTestResult;
 
-            switch (dataSource.databaseType.toLowerCase()) {
+            switch (secureDataSource.databaseType.toLowerCase()) {
                 case 'mysql':
                 case 'mysql5':
                 case 'mysql8':
-                    connectionResult = await this.testMySQLConnection(dataSource);
+                    connectionResult = await this.testMySQLConnection(secureDataSource);
                     break;
                 case 'oracle':
                 case 'oracle11g':
                 case 'oracle12c':
                 case 'oracle19c':
-                    connectionResult = await this.testOracleConnection(dataSource);
+                    connectionResult = await this.testOracleConnection(secureDataSource);
                     break;
                 case 'sqlserver':
                 case 'mssql':
-                    connectionResult = await this.testSQLServerConnection(dataSource);
+                    connectionResult = await this.testSQLServerConnection(secureDataSource);
                     break;
                 case 'postgresql':
                 case 'pg':
-                    connectionResult = await this.testPostgreSQLConnection(dataSource);
+                    connectionResult = await this.testPostgreSQLConnection(secureDataSource);
                     break;
                 default:
                     return {
                         success: false,
-                        message: `不支持的数据库类型: ${dataSource.databaseType}`
+                        message: `不支持的数据库类型: ${secureDataSource.databaseType}`
                     };
             }
 
