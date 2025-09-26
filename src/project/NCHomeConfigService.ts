@@ -286,17 +286,24 @@ export class NCHomeConfigService {
 
             let connectionResult: ConnectionTestResult;
 
-            switch (dataSource.databaseType) {
+            switch (dataSource.databaseType.toLowerCase()) {
                 case 'mysql':
+                case 'mysql5':
+                case 'mysql8':
                     connectionResult = await this.testMySQLConnection(dataSource);
                     break;
                 case 'oracle':
+                case 'oracle11g':
+                case 'oracle12c':
+                case 'oracle19c':
                     connectionResult = await this.testOracleConnection(dataSource);
                     break;
                 case 'sqlserver':
+                case 'mssql':
                     connectionResult = await this.testSQLServerConnection(dataSource);
                     break;
                 case 'postgresql':
+                case 'pg':
                     connectionResult = await this.testPostgreSQLConnection(dataSource);
                     break;
                 default:
