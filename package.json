@@ -151,8 +151,22 @@
         "command": "yonbip.library.debugConfig",
         "title": "调试配置信息",
         "category": "YonBIP/库管理"
+      },
+      {
+        "command": "yonbip.project.initContext",
+        "title": "初始化YONBIP项目目录",
+        "category": "YonBIP/项目管理"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "yonbip.project.initContext",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "type": "object",
       "title": "YonBIP高级版开发者工具",

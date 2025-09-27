@@ -42,6 +42,44 @@ export class ProjectService {
     }
 
     /**
+     * 生成lib目录的README文件
+     */
+    private generateLibReadme(config: ProjectConfig): string {
+        return `# 依赖库目录
+
+此目录用于存放项目的第三方依赖库文件（.jar文件）。
+
+## 使用说明
+
+1. 将需要的 .jar 文件复制到此目录下
+2. VS Code 会自动识别并加载这些依赖库
+3. 项目配置已自动设置为引用 lib/**/*.jar
+
+## ${config.type === 'yonbip' ? 'YonBIP项目' : '标准Java项目'}依赖
+
+${config.type === 'yonbip' ? `
+### YonBIP框架依赖
+- 请将YonBIP相关的jar包放置在此目录
+- 包括但不限于：framework.jar, platform.jar等
+
+### 数据库驱动
+- 根据使用的数据库类型，添加相应的JDBC驱动
+- 例如：mysql-connector-java.jar, ojdbc.jar等
+` : `
+### 常用依赖
+- 将项目需要的第三方库jar文件放置在此目录
+- 例如：commons-lang3.jar, gson.jar等
+`}
+
+## 注意事项
+
+- 确保jar文件版本兼容
+- 避免重复依赖导致冲突
+- 建议使用Maven管理依赖，此目录仅用于特殊情况
+`;
+    }
+
+    /**
      * 创建YonBIP项目
      */
     public async createYonBipProject(): Promise<void> {
@@ -233,6 +271,10 @@ export class ProjectService {
                 fs.mkdirSync(fullPath, { recursive: true });
             }
         }
+
+        // 在lib目录中创建一个README文件，说明如何添加依赖
+        const libReadmeContent = this.generateLibReadme(config);
+        fs.writeFileSync(path.join(projectPath, 'lib', 'README.md'), libReadmeContent, 'utf-8');
     }
 
     /**
@@ -250,6 +292,12 @@ export class ProjectService {
         // 生成.gitignore
         const gitignoreContent = this.generateGitignore();
         fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignoreContent, 'utf-8');
+
+        // 生成VS Code Java项目配置
+        await this.generateVSCodeConfig(projectPath, config);
+
+        // 生成Eclipse项目配置文件
+        await this.generateEclipseConfig(projectPath, config);
 
         if (config.type === 'yonbip') {
             // 生成YonBIP特有文件
@@ -398,6 +446,179 @@ temp/
     <description>${config.description}</description>
     <author>${config.author}</author>
 </module>`;
+    }
+
+    /**
+     * 生成VS Code Java项目配置
+     */
+    private async generateVSCodeConfig(projectPath: string, config: ProjectConfig): Promise<void> {
+        const vscodeDir = path.join(projectPath, '.vscode');
+        if (!fs.existsSync(vscodeDir)) {
+            fs.mkdirSync(vscodeDir, { recursive: true });
+        }
+
+        // 生成settings.json
+        const settingsContent = this.generateVSCodeSettings(config);
+        fs.writeFileSync(path.join(vscodeDir, 'settings.json'), settingsContent, 'utf-8');
+
+        // 生成launch.json
+        const launchContent = this.generateVSCodeLaunch(config);
+        fs.writeFileSync(path.join(vscodeDir, 'launch.json'), launchContent, 'utf-8');
+    }
+
+    /**
+     * 生成VS Code settings.json
+     */
+    private generateVSCodeSettings(config: ProjectConfig): string {
+        const settings = {
+            "java.configuration.updateBuildConfiguration": "automatic",
+            "java.compile.nullAnalysis.mode": "automatic",
+            "java.sources.organizeImports.starThreshold": 99,
+            "java.sources.organizeImports.staticStarThreshold": 99,
+            "java.project.sourcePaths": ["src/main/java"],
+            "java.project.outputPath": "target/classes",
+            "java.project.referencedLibraries": [
+                "lib/**/*.jar"
+            ]
+        };
+
+        if (config.type === 'yonbip') {
+            // YonBIP项目特有配置
+            settings["java.project.sourcePaths"] = [
+                "src/main/java",
+                "client/src/main/java", 
+                "public/src/main/java"
+            ];
+        }
+
+        return JSON.stringify(settings, null, 4);
+    }
+
+    /**
+     * 生成VS Code launch.json
+     */
+    private generateVSCodeLaunch(config: ProjectConfig): string {
+        const launch = {
+            "version": "0.2.0",
+            "configurations": [
+                {
+                    "type": "java",
+                    "name": `Launch ${config.name}`,
+                    "request": "launch",
+                    "mainClass": config.type === 'yonbip' ? 
+                        `com.yonyou.${config.name.toLowerCase()}.Main` : 
+                        `com.example.${config.name.toLowerCase()}.Main`,
+                    "projectName": config.name,
+                    "classPaths": [
+                        "$Auto",
+                        "lib/**/*.jar"
+                    ]
+                }
+            ]
+        };
+
+        return JSON.stringify(launch, null, 4);
+    }
+
+    /**
+     * 生成Eclipse项目配置文件
+     */
+    private async generateEclipseConfig(projectPath: string, config: ProjectConfig): Promise<void> {
+        // 生成.project文件
+        const projectContent = this.generateEclipseProject(config);
+        fs.writeFileSync(path.join(projectPath, '.project'), projectContent, 'utf-8');
+
+        // 生成.classpath文件
+        const classpathContent = this.generateEclipseClasspath(config);
+        fs.writeFileSync(path.join(projectPath, '.classpath'), classpathContent, 'utf-8');
+    }
+
+    /**
+     * 生成Eclipse .project文件
+     */
+    private generateEclipseProject(config: ProjectConfig): string {
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+    <name>${config.name}</name>
+    <comment>${config.description}</comment>
+    <projects>
+    </projects>
+    <buildSpec>
+        <buildCommand>
+            <name>org.eclipse.jdt.core.javabuilder</name>
+            <arguments>
+            </arguments>
+        </buildCommand>
+        <buildCommand>
+            <name>org.eclipse.m2e.core.maven2Builder</name>
+            <arguments>
+            </arguments>
+        </buildCommand>
+    </buildSpec>
+    <natures>
+        <nature>org.eclipse.jdt.core.javanature</nature>
+        <nature>org.eclipse.m2e.core.maven2Nature</nature>
+    </natures>
+</projectDescription>`;
+    }
+
+    /**
+     * 生成Eclipse .classpath文件
+     */
+    private generateEclipseClasspath(config: ProjectConfig): string {
+        let sourcePaths = `    <classpathentry kind="src" output="target/classes" path="src/main/java">
+        <attributes>
+            <attribute name="optional" value="true"/>
+            <attribute name="maven.pomderived" value="true"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry excluding="**" kind="src" output="target/classes" path="src/main/resources">
+        <attributes>
+            <attribute name="maven.pomderived" value="true"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry kind="src" output="target/test-classes" path="src/test/java">
+        <attributes>
+            <attribute name="optional" value="true"/>
+            <attribute name="maven.pomderived" value="true"/>
+            <attribute name="test" value="true"/>
+        </attributes>
+    </classpathentry>`;
+
+        if (config.type === 'yonbip') {
+            sourcePaths += `
+    <classpathentry kind="src" path="client/src/main/java">
+        <attributes>
+            <attribute name="optional" value="true"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry kind="src" path="public/src/main/java">
+        <attributes>
+            <attribute name="optional" value="true"/>
+        </attributes>
+    </classpathentry>`;
+        }
+
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+${sourcePaths}
+    <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
+        <attributes>
+            <attribute name="maven.pomderived" value="true"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
+        <attributes>
+            <attribute name="maven.pomderived" value="true"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry kind="lib" path="lib" sourcepath="lib">
+        <attributes>
+            <attribute name="optional" value="true"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry kind="output" path="target/classes"/>
+</classpath>`;
     }
 
     /**

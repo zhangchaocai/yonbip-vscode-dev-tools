@@ -96,7 +96,7 @@ export class LibraryService {
     /**
      * 初始化库
      */
-    public async initLibrary(homePath: string, needDbLibrary: boolean = false, driverLibPath?: string): Promise<void> {
+    public async initLibrary(homePath: string, needDbLibrary: boolean = false, driverLibPath?: string, selectedPath?: string): Promise<void> {
         this.outputChannel.appendLine(`开始初始化库，HOME路径: ${homePath}`);
 
         try {
@@ -105,14 +105,21 @@ export class LibraryService {
                 throw new Error('无效的HOME路径');
             }
 
-            // 获取工作区文件夹
-            const workspaceFolder = this.getWorkspaceFolder();
-            if (!workspaceFolder) {
-                throw new Error('未找到工作区文件夹');
+            // 确定目标目录
+            let targetPath: string;
+            if (selectedPath) {
+                targetPath = selectedPath;
+            } else {
+                // 获取工作区文件夹
+                const workspaceFolder = this.getWorkspaceFolder();
+                if (!workspaceFolder) {
+                    throw new Error('未找到工作区文件夹');
+                }
+                targetPath = workspaceFolder.uri.fsPath;
             }
 
             // 创建.lib目录用于存储库配置
-            const libDir = path.join(workspaceFolder.uri.fsPath, '.lib');
+            const libDir = path.join(targetPath, '.lib');
             if (!fs.existsSync(libDir)) {
                 fs.mkdirSync(libDir, { recursive: true });
             }
@@ -139,13 +146,13 @@ export class LibraryService {
             }
 
             // 生成VSCode的settings.json更新
-            await this.updateVSCodeSettings(libDir);
+            await this.updateVSCodeSettings(libDir, targetPath);
 
             // 生成launch.json配置用于调试Java代码
-            await this.generateLaunchConfiguration(workspaceFolder.uri.fsPath, libDir);
+            await this.generateLaunchConfiguration(targetPath, libDir);
 
             // 生成Eclipse项目文件(.project和.classpath)
-            await this.generateEclipseProjectFiles(homePath);
+            await this.generateEclipseProjectFiles(homePath, selectedPath);
 
             this.outputChannel.appendLine('库初始化完成');
             vscode.window.showInformationMessage('Java项目库初始化完成');
@@ -484,9 +491,7 @@ export class LibraryService {
     /**
      * 更新VSCode设置
      */
-    private async updateVSCodeSettings(libDir: string): Promise<void> {
-        const workspaceConfig = vscode.workspace.getConfiguration();
-
+    private async updateVSCodeSettings(libDir: string, targetPath?: string): Promise<void> {
         // 获取所有库配置文件
         const libraryConfigs = fs.readdirSync(libDir)
             .filter(file => file.endsWith('.json'))
@@ -495,19 +500,47 @@ export class LibraryService {
                 return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
             });
 
-        // 构建Java配置（移除未注册的反编译器配置）
+        // 构建Java配置
         const javaConfig = {
             'java.project.sourcePaths': ['src/private', 'src/public'],
             'java.project.outputPath': 'build/classes',
             'java.project.referencedLibraries': libraryConfigs.flatMap((config: LibraryConfig) => config.paths)
         };
 
-        // 更新配置
-        for (const [key, value] of Object.entries(javaConfig)) {
-            await workspaceConfig.update(key, value, vscode.ConfigurationTarget.Workspace);
-        }
+        // 如果提供了目标路径，则在该路径下创建.vscode/settings.json文件
+        if (targetPath) {
+            const vscodeDir = path.join(targetPath, '.vscode');
+            if (!fs.existsSync(vscodeDir)) {
+                fs.mkdirSync(vscodeDir, { recursive: true });
+            }
 
-        this.outputChannel.appendLine('VSCode Java配置已更新');
+            const settingsPath = path.join(vscodeDir, 'settings.json');
+
+            // 如果文件已存在，读取现有配置并合并
+            let existingSettings = {};
+            if (fs.existsSync(settingsPath)) {
+                try {
+                    const content = fs.readFileSync(settingsPath, 'utf-8');
+                    existingSettings = JSON.parse(content);
+                } catch (error) {
+                    this.outputChannel.appendLine(`读取现有settings.json失败: ${error}`);
+                }
+            }
+
+            // 合并配置
+            const mergedSettings = { ...existingSettings, ...javaConfig };
+
+            // 写入配置文件
+            fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
+            this.outputChannel.appendLine(`VSCode Java配置已保存到: ${settingsPath}`);
+        } else {
+            // 如果没有提供目标路径，则更新工作区配置
+            const workspaceConfig = vscode.workspace.getConfiguration();
+            for (const [key, value] of Object.entries(javaConfig)) {
+                await workspaceConfig.update(key, value, vscode.ConfigurationTarget.Workspace);
+            }
+            this.outputChannel.appendLine('VSCode Java配置已更新');
+        }
     }
 
     /**
@@ -613,23 +646,28 @@ export class LibraryService {
     /**
      * 生成普通Java项目所需的 .project 和 .classpath 文件
      */
-    public async generateEclipseProjectFiles(homePath: string): Promise<void> {
+    public async generateEclipseProjectFiles(homePath: string, selectedPath?: string): Promise<void> {
         this.outputChannel.appendLine(`开始生成Eclipse项目文件，HOME路径: ${homePath}`);
 
         try {
-            // 获取工作区文件夹
-            const workspaceFolder = this.getWorkspaceFolder();
-            if (!workspaceFolder) {
-                throw new Error('未找到工作区文件夹');
+            // 确定目标目录
+            let targetPath: string;
+            if (selectedPath) {
+                targetPath = selectedPath;
+            } else {
+                // 获取工作区文件夹
+                const workspaceFolder = this.getWorkspaceFolder();
+                if (!workspaceFolder) {
+                    throw new Error('未找到工作区文件夹');
+                }
+                targetPath = workspaceFolder.uri.fsPath;
             }
 
-            const workspacePath = workspaceFolder.uri.fsPath;
-
             // 生成 .project 文件
-            await this.generateProjectFile(workspacePath);
+            await this.generateProjectFile(targetPath);
 
             // 生成 .classpath 文件
-            await this.generateClasspathFile(homePath, workspacePath);
+            await this.generateClasspathFile(homePath, targetPath);
 
             this.outputChannel.appendLine('Eclipse项目文件生成完成');
             vscode.window.showInformationMessage('Eclipse项目文件生成完成');
@@ -695,12 +733,20 @@ export class LibraryService {
         // 获取所有jar文件路径
         const jarPaths = this.getAllJarPaths(homePath);
 
+        // 获取用户选择的目录名称，用于拼接src和bin路径
+        const selectedDirName = path.basename(workspacePath);
+
+        // 根据用户需求，将路径拼接上用户选择的目录
+        // 例如，如果用户选择yyyy目录，需要设置为 yyyy/src, yyyy/bin
+        const srcPath = selectedDirName ? `${selectedDirName}/src` : 'src';
+        const binPath = selectedDirName ? `${selectedDirName}/bin` : 'bin';
+
         // 生成 .classpath 文件内容
         let classpathContent = `<?xml version="1.0" encoding="UTF-8"?>
 <classpath>
     <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-    <classpathentry kind="src" path="src"/>
-    <classpathentry kind="output" path="bin"/>`;
+    <classpathentry kind="src" path="${srcPath}"/>
+    <classpathentry kind="output" path="${binPath}"/>`;
 
         // 添加所有jar文件
         for (const jarPath of jarPaths) {

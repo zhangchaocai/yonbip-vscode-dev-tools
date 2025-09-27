@@ -14,36 +14,19 @@ import { HomeCommands } from './project/HomeCommands';
 import { NCHomeConfigCommands } from './project/NCHomeConfigCommands';
 import { LibraryCommands } from './project/LibraryCommands';
 import { LibraryService } from './project/LibraryService';
+import { ProjectContextCommands } from './project/ProjectContextCommands';
 
 /**
  * 在项目根目录下创建 build/classes 目录
  */
 function createBuildDirectories(): void {
-	try {
-		const rootPath = vscode.workspace.rootPath;
-		if (rootPath) {
-			const buildPath = path.join(rootPath, 'build');
-			const classesPath = path.join(buildPath, 'classes');
-
-			if (!fs.existsSync(buildPath)) {
-				fs.mkdirSync(buildPath, { recursive: true });
-			}
-
-			if (!fs.existsSync(classesPath)) {
-				fs.mkdirSync(classesPath, { recursive: true });
-			}
-		}
-	} catch (error) {
-		console.error('Failed to create build/classes directory:', error);
-	}
+	// 此功能已移至右键菜单命令中
+	// 不再在插件激活时自动创建目录
 }
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-
-	// 创建 build/classes 目录
-	createBuildDirectories();
 
 	// 显示插件加载成功的提示信息
 	vscode.window.showInformationMessage('🚀 YonBIP高级版开发者工具加载成功', '了解更多')
@@ -83,11 +66,8 @@ export function activate(context: vscode.ExtensionContext) {
 	// 注册库管理命令
 	LibraryCommands.registerCommands(context);
 
-	// 自动初始化库（如果配置了HOME路径）
-	const libraryService = new LibraryService(context, ncHomeConfigService);
-	setTimeout(() => {
-		libraryService.autoInitLibrary();
-	}, 2000); // 延迟2秒执行，确保配置已加载
+	// 注册项目上下文菜单命令
+	ProjectContextCommands.registerCommands(context);
 
 	// 注册NC Home配置界面
 	const ncHomeConfigProvider = new NCHomeConfigProvider(context.extensionUri, context);
