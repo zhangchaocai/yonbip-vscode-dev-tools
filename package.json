@@ -133,6 +133,11 @@
         "category": "YonBIP/HOME"
       },
       {
+        "command": "yonbip.home.startFromDirectory",
+        "title": "从目录启动HOME服务",
+        "category": "YonBIP/HOME"
+      },
+      {
         "command": "yonbip.library.init",
         "title": "初始化Java项目库",
         "category": "YonBIP/库管理"
@@ -154,7 +159,7 @@
       },
       {
         "command": "yonbip.project.initContext",
-        "title": "初始化YONBIP项目目录",
+        "title": "初始化YONBIP项目工程",
         "category": "YonBIP/项目管理"
       }
     ],
@@ -162,6 +167,11 @@
       "explorer/context": [
         {
           "command": "yonbip.project.initContext",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.home.startFromDirectory",
           "when": "explorerResourceIsFolder",
           "group": "navigation"
         }

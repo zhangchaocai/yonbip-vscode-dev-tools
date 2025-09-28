@@ -17,17 +17,17 @@ export class HomeDebugService {
     /**
      * 启动HOME服务（调试模式），模拟IDEA插件中的doAction方法
      */
-    public async debugHomeService(): Promise<void> {
+    public async debugHomeService(selectedPath?: string): Promise<void> {
         try {
             // 检查是否已有运行中的服务
             const isRunning = await this.isHomeServiceRunning();
-            
+
             if (isRunning) {
                 // 如果服务已在运行，重启服务
-                await this.restartHomeService();
+                await this.restartHomeService(selectedPath);
             } else {
                 // 启动新的服务
-                await this.startHomeService();
+                await this.startHomeService(selectedPath);
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`调试启动HOME服务失败: ${error.message}`);
@@ -47,15 +47,15 @@ export class HomeDebugService {
     /**
      * 重启HOME服务
      */
-    private async restartHomeService(): Promise<void> {
+    private async restartHomeService(selectedPath?: string): Promise<void> {
         // 停止当前服务
         await this.homeService.stopHomeService();
-        
+
         // 等待服务完全停止
         await this.waitForServiceStop(5000);
-        
+
         // 启动服务
-        await this.startHomeService();
+        await this.startHomeService(selectedPath);
     }
 
     /**
@@ -77,8 +77,8 @@ export class HomeDebugService {
     /**
      * 启动HOME服务
      */
-    private async startHomeService(): Promise<void> {
-        await this.homeService.startHomeService();
+    private async startHomeService(selectedPath?: string): Promise<void> {
+        await this.homeService.startHomeService(selectedPath);
     }
 
     /**

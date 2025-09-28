@@ -151,8 +151,8 @@ export class LibraryService {
             // 生成launch.json配置用于调试Java代码
             await this.generateLaunchConfiguration(targetPath, libDir);
 
-            // 生成Eclipse项目文件(.project和.classpath)
-            await this.generateEclipseProjectFiles(homePath, selectedPath);
+            // 修复：生成Eclipse项目文件时传递正确的路径参数
+            await this.generateEclipseProjectFiles(homePath, targetPath);
 
             this.outputChannel.appendLine('库初始化完成');
             vscode.window.showInformationMessage('Java项目库初始化完成');
@@ -500,10 +500,32 @@ export class LibraryService {
                 return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
             });
 
+        // 获取工作区根目录
+        const workspaceRoot = this.getWorkspaceFolder()?.uri.fsPath || '';
+
+        // 计算相对于工作区根目录的路径
+        let relativePath = '.';
+        if (targetPath && workspaceRoot) {
+            relativePath = path.relative(workspaceRoot, targetPath) || '.';
+        }
+
+        // 确保使用正斜杠路径分隔符
+        const normalizedRelativePath = relativePath.split(path.sep).join('/');
+
+        // 修复：正确设置源码路径和输出路径
+        // 如果是当前目录('.')，则使用默认路径；否则添加相对路径前缀
+        const sourcePaths = normalizedRelativePath === '.'
+            ? ['src/private', 'src/public']
+            : [`${normalizedRelativePath}/src/private`, `${normalizedRelativePath}/src/public`];
+
+        const outputPath = normalizedRelativePath === '.'
+            ? 'build/classes'
+            : `${normalizedRelativePath}/build/classes`;
+
         // 构建Java配置
         const javaConfig = {
-            'java.project.sourcePaths': ['src/private', 'src/public'],
-            'java.project.outputPath': 'build/classes',
+            'java.project.sourcePaths': sourcePaths,
+            'java.project.outputPath': outputPath,
             'java.project.referencedLibraries': libraryConfigs.flatMap((config: LibraryConfig) => config.paths)
         };
 
@@ -548,6 +570,24 @@ export class LibraryService {
      */
     private async generateLaunchConfiguration(workspacePath: string, libDir: string): Promise<void> {
         try {
+            // 获取工作区根目录
+            const workspaceRoot = this.getWorkspaceFolder()?.uri.fsPath || '';
+
+            // 计算相对于工作区根目录的路径
+            let relativePath = '.';
+            if (workspaceRoot) {
+                relativePath = path.relative(workspaceRoot, workspacePath) || '.';
+            }
+
+            // 确保使用正斜杠路径分隔符
+            const normalizedRelativePath = relativePath.split(path.sep).join('/');
+
+            // 修复：正确设置源码路径
+            // 如果是当前目录('.')，则使用默认路径；否则添加相对路径前缀
+            const sourcePath = normalizedRelativePath === '.'
+                ? '${workspaceFolder}/src'
+                : `\${workspaceFolder}/${normalizedRelativePath}/src`;
+
             // 获取所有库配置文件
             // const libraryConfigs = fs.readdirSync(libDir)
             //     .filter(file => file.endsWith('.json'))
@@ -560,7 +600,7 @@ export class LibraryService {
             //const classPaths = libraryConfigs.flatMap((config: LibraryConfig) => config.paths);
 
             // 添加项目源代码路径
-            //classPaths.push("${workspaceFolder}/src");
+            //classPaths.push(sourcePath);
 
             // 创建.vscode目录（如果不存在）
             const vscodeDir = path.join(workspacePath, '.vscode');
@@ -597,7 +637,7 @@ export class LibraryService {
                     port: config.debugPort || 8888,  // 使用获取到的调试端口
                     projectName: "${workspaceFolderBasename}",
                     sourcePaths: [
-                        "${workspaceFolder}/src"
+                        sourcePath
                     ]
                 }
                 // {
@@ -612,7 +652,7 @@ export class LibraryService {
                 //         `-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${config.debugPort || 8888}`  // 使用获取到的调试端口
                 //     ],
                 //     sourcePaths: [
-                //         "${workspaceFolder}/src"
+                //         sourcePath
                 //     ]
                 // }
             ];
@@ -733,13 +773,22 @@ export class LibraryService {
         // 获取所有jar文件路径
         const jarPaths = this.getAllJarPaths(homePath);
 
-        // 获取用户选择的目录名称，用于拼接src和bin路径
-        const selectedDirName = path.basename(workspacePath);
+        // 修复：正确计算相对于工作区的源码和输出路径
+        // 获取工作区根目录
+        const workspaceRoot = this.getWorkspaceFolder()?.uri.fsPath || '';
 
-        // 根据用户需求，将路径拼接上用户选择的目录
-        // 例如，如果用户选择yyyy目录，需要设置为 yyyy/src, yyyy/bin
-        const srcPath = selectedDirName ? `${selectedDirName}/src` : 'src';
-        const binPath = selectedDirName ? `${selectedDirName}/bin` : 'bin';
+        // 计算相对于工作区根目录的路径
+        let relativePath = '.';
+        if (workspaceRoot) {
+            relativePath = path.relative(workspaceRoot, workspacePath) || '.';
+        }
+
+        // 确保使用正斜杠路径分隔符
+        const normalizedRelativePath = relativePath.split(path.sep).join('/');
+
+        // 如果是当前目录('.')，则不添加前缀
+        const srcPath = normalizedRelativePath === '.' ? 'src' : `${normalizedRelativePath}/src`;
+        const binPath = normalizedRelativePath === '.' ? 'bin' : `${normalizedRelativePath}/bin`;
 
         // 生成 .classpath 文件内容
         let classpathContent = `<?xml version="1.0" encoding="UTF-8"?>

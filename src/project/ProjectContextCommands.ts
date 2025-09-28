@@ -3,16 +3,42 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { LibraryService } from './LibraryService';
 import { NCHomeConfigService } from './NCHomeConfigService';
+import { HomeService } from './HomeService';
+
+// 添加一个静态属性来存储context
+let extensionContext: vscode.ExtensionContext | undefined;
 
 /**
  * 项目上下文菜单命令
  */
 export class ProjectContextCommands {
 
+    // 添加静态属性来存储装饰器实例
+    private static decorationProvider: any = null;
+
+    /**
+     * 设置扩展上下文
+     * @param context 扩展上下文
+     */
+    public static setExtensionContext(context: vscode.ExtensionContext): void {
+        extensionContext = context;
+    }
+
+    /**
+     * 设置装饰器提供者实例
+     * @param provider 装饰器提供者实例
+     */
+    public static setDecorationProvider(provider: any): void {
+        this.decorationProvider = provider;
+    }
+
     /**
      * 注册所有项目上下文菜单相关命令
      */
     public static registerCommands(context: vscode.ExtensionContext): void {
+        // 设置扩展上下文
+        this.setExtensionContext(context);
+
         const ncHomeConfigService = new NCHomeConfigService(context);
         const libraryService = new LibraryService(context, ncHomeConfigService);
 
@@ -54,6 +80,8 @@ export class ProjectContextCommands {
             } else {
                 selectedPath = uri.fsPath;
             }
+
+            console.log(`用户选择的初始化目录: ${selectedPath}`);
 
             // 确认操作
             const confirm = await vscode.window.showWarningMessage(
@@ -119,8 +147,40 @@ export class ProjectContextCommands {
                 await libraryService.initLibrary(homePath!, needDbLibrary, driverLibPath, selectedPath);
             });
 
+            // 创建标记文件来标识已初始化的项目
+            const markerFilePath = path.join(selectedPath, '.yonbip-project');
+            fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+
+            // 添加项目目录标识
+            console.log(`准备标记目录为已初始化: ${selectedPath}`);
+            if (this.decorationProvider) {
+                console.log('装饰器提供者存在，开始标记');
+                this.decorationProvider.markAsInitialized(selectedPath);
+                console.log('目录标记完成');
+            } else {
+                console.log('装饰器提供者不存在');
+            }
+
+            // 询问用户是否立即启动HOME服务
+            const startService = await vscode.window.showInformationMessage(
+                `项目初始化完成！是否立即在目录 ${selectedPath} 中启动HOME服务？`,
+                '启动',
+                '取消'
+            );
+
+            if (startService === '启动') {
+                // 启动HOME服务
+                if (extensionContext) {
+                    const homeService = new HomeService(extensionContext, configService);
+                    await homeService.startHomeService(selectedPath);
+                } else {
+                    vscode.window.showErrorMessage('无法启动HOME服务：扩展上下文未初始化');
+                }
+            }
+
             vscode.window.showInformationMessage('项目初始化完成！');
         } catch (error: any) {
+            console.error('项目初始化失败:', error);
             vscode.window.showErrorMessage(`项目初始化失败: ${error.message}`);
         }
     }
@@ -130,18 +190,33 @@ export class ProjectContextCommands {
      */
     private static async createBuildDirectories(basePath: string): Promise<void> {
         try {
+            // 修复：确保正确创建相对于选定目录的build/classes路径
             const buildPath = path.join(basePath, 'build');
             const classesPath = path.join(buildPath, 'classes');
 
+            // 检查并创建build目录
             if (!fs.existsSync(buildPath)) {
                 fs.mkdirSync(buildPath, { recursive: true });
             }
 
+            // 检查并创建classes目录
             if (!fs.existsSync(classesPath)) {
                 fs.mkdirSync(classesPath, { recursive: true });
             }
+
+            // 同时创建src目录结构
+            const srcPrivatePath = path.join(basePath, 'src', 'private');
+            const srcPublicPath = path.join(basePath, 'src', 'public');
+
+            if (!fs.existsSync(srcPrivatePath)) {
+                fs.mkdirSync(srcPrivatePath, { recursive: true });
+            }
+
+            if (!fs.existsSync(srcPublicPath)) {
+                fs.mkdirSync(srcPublicPath, { recursive: true });
+            }
         } catch (error) {
-            console.error('Failed to create build/classes directory:', error);
+            console.error('Failed to create project directories:', error);
             throw new Error(`创建目录失败: ${error}`);
         }
     }

@@ -13,16 +13,11 @@ import { NCHomeConfigService } from './project/NCHomeConfigService';
 import { HomeCommands } from './project/HomeCommands';
 import { NCHomeConfigCommands } from './project/NCHomeConfigCommands';
 import { LibraryCommands } from './project/LibraryCommands';
-import { LibraryService } from './project/LibraryService';
 import { ProjectContextCommands } from './project/ProjectContextCommands';
 
-/**
- * 在项目根目录下创建 build/classes 目录
- */
-function createBuildDirectories(): void {
-	// 此功能已移至右键菜单命令中
-	// 不再在插件激活时自动创建目录
-}
+// 导入项目装饰器提供者
+import { ProjectDecorationProvider } from './project/ProjectDecorationProvider';
+
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -36,6 +31,16 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.env.openExternal(vscode.Uri.parse('https://community.yonyou.com'));
 			}
 		});
+
+	// 注册项目装饰器提供者
+	const projectDecorationProvider = new ProjectDecorationProvider(context);
+	context.subscriptions.push(projectDecorationProvider);
+
+	// 设置装饰器提供者实例
+	ProjectContextCommands.setDecorationProvider(projectDecorationProvider);
+
+	// 设置扩展上下文
+	ProjectContextCommands.setExtensionContext(context);
 
 	// 注册MCP命令
 	const mcpCommands = McpCommands.registerCommands(context);

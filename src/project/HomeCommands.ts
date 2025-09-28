@@ -22,13 +22,13 @@ export class HomeCommands {
         const homeCommands = new HomeCommands(context, configService);
 
         // 注册启动HOME服务命令
-        const startCommand = vscode.commands.registerCommand('yonbip.home.start', () => {
-            homeCommands.startHomeService();
+        const startCommand = vscode.commands.registerCommand('yonbip.home.start', (uri: vscode.Uri) => {
+            homeCommands.startHomeService(uri?.fsPath);
         });
 
         // 注册调试启动HOME服务命令
-        const debugCommand = vscode.commands.registerCommand('yonbip.home.debug', () => {
-            homeCommands.debugHomeService();
+        const debugCommand = vscode.commands.registerCommand('yonbip.home.debug', (uri: vscode.Uri) => {
+            homeCommands.debugHomeService(uri?.fsPath);
         });
 
         // 注册停止HOME服务命令
@@ -46,32 +46,70 @@ export class HomeCommands {
             homeCommands.showLogs();
         });
 
+        // 注册从指定目录启动HOME服务命令
+        const startFromDirectoryCommand = vscode.commands.registerCommand(
+            'yonbip.home.startFromDirectory',
+            (uri: vscode.Uri) => {
+                homeCommands.startHomeServiceFromDirectory(uri);
+            }
+        );
+
         context.subscriptions.push(
             startCommand,
             debugCommand,
             stopCommand,
             statusCommand,
-            logsCommand
+            logsCommand,
+            startFromDirectoryCommand
         );
     }
 
     /**
      * 启动HOME服务
      */
-    public async startHomeService(): Promise<void> {
+    public async startHomeService(selectedPath?: string): Promise<void> {
         try {
-            await this.homeService.startHomeService();
+            await this.homeService.startHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`启动HOME服务失败: ${error.message}`);
         }
     }
 
     /**
+     * 从指定目录启动HOME服务
+     */
+    public async startHomeServiceFromDirectory(uri: vscode.Uri): Promise<void> {
+        try {
+            let selectedPath: string;
+            if (!uri) {
+                const result = await vscode.window.showOpenDialog({
+                    canSelectFiles: false,
+                    canSelectFolders: true,
+                    canSelectMany: false,
+                    openLabel: '选择项目目录'
+                });
+
+                if (!result || result.length === 0) {
+                    return;
+                }
+
+                selectedPath = result[0].fsPath;
+            } else {
+                selectedPath = uri.fsPath;
+            }
+
+            await this.homeService.startHomeService(selectedPath);
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`从指定目录启动HOME服务失败: ${error.message}`);
+        }
+    }
+
+    /**
      * 调试启动HOME服务
      */
-    public async debugHomeService(): Promise<void> {
+    public async debugHomeService(selectedPath?: string): Promise<void> {
         try {
-            await this.homeDebugService.debugHomeService();
+            await this.homeDebugService.debugHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`调试启动HOME服务失败: ${error.message}`);
         }
@@ -94,7 +132,7 @@ export class HomeCommands {
     public showStatus(): void {
         const status = this.homeService.getStatus();
         let statusText = '';
-        
+
         switch (status) {
             case 'stopped':
                 statusText = '已停止';
@@ -114,7 +152,7 @@ export class HomeCommands {
             default:
                 statusText = '未知';
         }
-        
+
         vscode.window.showInformationMessage(`NC HOME服务状态: ${statusText}`);
     }
 

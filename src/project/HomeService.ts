@@ -283,7 +283,7 @@ export class HomeService {
      * 启动NC HOME服务 (对应IDEA插件中的ServerDebugAction)
      * 修改为直接运行jar包的方式，而不是执行脚本
      */
-    public async startHomeService(): Promise<void> {
+    public async startHomeService(selectedPath?: string): Promise<void> {
         if (this.status === HomeStatus.RUNNING || this.status === HomeStatus.STARTING) {
             vscode.window.showWarningMessage('NC HOME服务已在运行中');
             return;
@@ -292,19 +292,28 @@ export class HomeService {
         // 提前获取配置以避免变量作用域问题
         const config = this.configService.getConfig();
 
-        // 获取当前工作区根目录
+        // 获取当前工作区根目录或使用用户选择的目录
         let workspaceFolder = '';
-        if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-            workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
-            this.outputChannel.appendLine(`📂 当前工作区: ${workspaceFolder}`);
-
+        if (selectedPath) {
+            // 使用用户选择的目录作为工作目录
+            workspaceFolder = selectedPath;
+            this.outputChannel.appendLine(`📂 用户选择的初始化目录: ${workspaceFolder}`);
             // 编译项目源代码
             const compileSuccess = await this.compileProject(workspaceFolder);
             if (!compileSuccess) {
                 vscode.window.showErrorMessage('项目编译失败，请检查代码错误');
                 return;
             }
-
+        } else if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            // 使用默认工作区目录
+            workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
+            this.outputChannel.appendLine(`📂 当前工作区: ${workspaceFolder}`);
+            // 编译项目源代码
+            const compileSuccess = await this.compileProject(workspaceFolder);
+            if (!compileSuccess) {
+                vscode.window.showErrorMessage('项目编译失败，请检查代码错误');
+                return;
+            }
         } else {
             this.outputChannel.appendLine('⚠️ 未检测到工作区，跳过项目编译和resources目录复制步骤');
         }
