@@ -29,6 +29,7 @@ export class ProjectContextCommands {
      * @param provider 装饰器提供者实例
      */
     public static setDecorationProvider(provider: any): void {
+        console.log('设置装饰器提供者:', provider ? '成功' : '失败');
         this.decorationProvider = provider;
     }
 
@@ -100,7 +101,7 @@ export class ProjectContextCommands {
                 title: '正在创建项目目录...',
                 cancellable: false
             }, async () => {
-                await this.createBuildDirectories(selectedPath);
+                await this.createProjectStructure(selectedPath);
             });
 
             // 获取HOME路径配置
@@ -125,31 +126,33 @@ export class ProjectContextCommands {
                 }
             }
 
-            // 确认是否包含数据库驱动
-            const needDbLibrary = await vscode.window.showQuickPick(
-                ['是', '否'],
-                {
-                    placeHolder: '是否需要包含数据库驱动库？'
-                }
-            ) === '是';
-
-            let driverLibPath: string | undefined;
-            if (needDbLibrary) {
-                driverLibPath = await this.selectDriverLibPath();
-            }
-
-            // 初始化库
+            // 初始化库（移除了数据库驱动选择功能）
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: '正在初始化Java项目库...',
                 cancellable: false
             }, async () => {
-                await libraryService.initLibrary(homePath!, needDbLibrary, driverLibPath, selectedPath);
+                // 移除了needDbLibrary和driverLibPath参数
+                await libraryService.initLibrary(homePath!, false, undefined, selectedPath);
             });
 
             // 创建标记文件来标识已初始化的项目
             const markerFilePath = path.join(selectedPath, '.yonbip-project');
-            fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+            console.log(`创建标记文件: ${markerFilePath}`);
+
+            try {
+                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+                console.log('标记文件创建成功');
+
+                // 验证文件是否真的创建了
+                if (fs.existsSync(markerFilePath)) {
+                    console.log('标记文件存在验证成功');
+                } else {
+                    console.log('警告：标记文件创建后不存在');
+                }
+            } catch (error) {
+                console.error('创建标记文件失败:', error);
+            }
 
             // 添加项目目录标识
             console.log(`准备标记目录为已初始化: ${selectedPath}`);
@@ -186,9 +189,9 @@ export class ProjectContextCommands {
     }
 
     /**
-     * 在指定目录下创建 build/classes 目录
+     * 在指定目录下创建符合项目结构的目录
      */
-    private static async createBuildDirectories(basePath: string): Promise<void> {
+    private static async createProjectStructure(basePath: string): Promise<void> {
         try {
             // 修复：确保正确创建相对于选定目录的build/classes路径
             const buildPath = path.join(basePath, 'build');
@@ -207,13 +210,35 @@ export class ProjectContextCommands {
             // 同时创建src目录结构
             const srcPrivatePath = path.join(basePath, 'src', 'private');
             const srcPublicPath = path.join(basePath, 'src', 'public');
-
+            const srcClientPath = path.join(basePath, 'src', 'client');
             if (!fs.existsSync(srcPrivatePath)) {
                 fs.mkdirSync(srcPrivatePath, { recursive: true });
             }
-
             if (!fs.existsSync(srcPublicPath)) {
                 fs.mkdirSync(srcPublicPath, { recursive: true });
+            }
+            if (!fs.existsSync(srcClientPath)) {
+                fs.mkdirSync(srcClientPath, { recursive: true });
+            }
+
+            // 创建META-INF目录和module.xml文件
+            const metaInfPath = path.join(basePath, 'META-INF');
+            if (!fs.existsSync(metaInfPath)) {
+                fs.mkdirSync(metaInfPath, { recursive: true });
+            }
+
+            // 获取目录名称作为模块名称
+            const dirName = path.basename(basePath);
+            const moduleXmlPath = path.join(metaInfPath, 'module.xml');
+
+            // 只有当module.xml文件不存在时才创建
+            if (!fs.existsSync(moduleXmlPath)) {
+                const moduleXmlContent = `<?xml version="1.0" encoding="gb2312"?>
+<module name="${dirName}">
+    <public></public>
+    <private></private>
+</module>`;
+                fs.writeFileSync(moduleXmlPath, moduleXmlContent, 'utf-8');
             }
         } catch (error) {
             console.error('Failed to create project directories:', error);

@@ -19,9 +19,8 @@ import { ProjectContextCommands } from './project/ProjectContextCommands';
 import { ProjectDecorationProvider } from './project/ProjectDecorationProvider';
 
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+
 
 	// 显示插件加载成功的提示信息
 	vscode.window.showInformationMessage('🚀 YonBIP高级版开发者工具加载成功', '了解更多')

@@ -573,6 +573,9 @@ export class LibraryService {
             // 获取工作区根目录
             const workspaceRoot = this.getWorkspaceFolder()?.uri.fsPath || '';
 
+            // 如果没有工作区根目录，使用传入的工作区路径
+            const targetWorkspacePath = workspaceRoot || workspacePath;
+
             // 计算相对于工作区根目录的路径
             let relativePath = '.';
             if (workspaceRoot) {
@@ -584,9 +587,12 @@ export class LibraryService {
 
             // 修复：正确设置源码路径
             // 如果是当前目录('.')，则使用默认路径；否则添加相对路径前缀
+            // const sourcePath = normalizedRelativePath === '.'
+            //     ? '${workspaceFolder}/src'
+            //     : `\${workspaceFolder}/${normalizedRelativePath}/src`;
             const sourcePath = normalizedRelativePath === '.'
                 ? '${workspaceFolder}/src'
-                : `\${workspaceFolder}/${normalizedRelativePath}/src`;
+                : `\${workspaceFolder}/src`;
 
             // 获取所有库配置文件
             // const libraryConfigs = fs.readdirSync(libDir)
@@ -602,8 +608,8 @@ export class LibraryService {
             // 添加项目源代码路径
             //classPaths.push(sourcePath);
 
-            // 创建.vscode目录（如果不存在）
-            const vscodeDir = path.join(workspacePath, '.vscode');
+            // 创建.vscode目录（如果不存在）- 现在在工作区根目录下创建
+            const vscodeDir = path.join(targetWorkspacePath, '.vscode');
             if (!fs.existsSync(vscodeDir)) {
                 fs.mkdirSync(vscodeDir, { recursive: true });
             }
@@ -787,15 +793,17 @@ export class LibraryService {
         const normalizedRelativePath = relativePath.split(path.sep).join('/');
 
         // 如果是当前目录('.')，则不添加前缀
-        const srcPath = normalizedRelativePath === '.' ? 'src' : `${normalizedRelativePath}/src`;
-        const binPath = normalizedRelativePath === '.' ? 'bin' : `${normalizedRelativePath}/bin`;
-
+        // const srcPath = normalizedRelativePath === '.' ? 'src' : `${normalizedRelativePath}/src`;
+        // const binPath = normalizedRelativePath === '.' ? 'bin' : `${normalizedRelativePath}/bin`;
+        const srcPath = normalizedRelativePath === '.' ? 'src' : `src`;
         // 生成 .classpath 文件内容
         let classpathContent = `<?xml version="1.0" encoding="UTF-8"?>
 <classpath>
     <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-    <classpathentry kind="src" path="${srcPath}"/>
-    <classpathentry kind="output" path="${binPath}"/>`;
+    <classpathentry kind="src" path="${srcPath}/client"/>
+    <classpathentry kind="src" path="${srcPath}/private"/>
+    <classpathentry kind="src" path="${srcPath}/public"/>
+    <classpathentry kind="output" path="build/classes"/>`;
 
         // 添加所有jar文件
         for (const jarPath of jarPaths) {

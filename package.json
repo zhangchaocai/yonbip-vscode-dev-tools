@@ -134,7 +134,7 @@
       },
       {
         "command": "yonbip.home.startFromDirectory",
-        "title": "从目录启动HOME服务",
+        "title": "启动YONBIP中间件",
         "category": "YonBIP/HOME"
       },
       {
