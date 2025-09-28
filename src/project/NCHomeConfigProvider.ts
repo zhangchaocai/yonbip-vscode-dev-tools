@@ -463,7 +463,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 const config = this.configService.getConfig();
                 config.exportPatchPath = exportPath;
                 await this.configService.saveConfig(config);
-                
+
                 this._view?.webview.postMessage({
                     type: 'exportPathSelected',
                     exportPath,
@@ -890,12 +890,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         </button>
                         <button class="secondary" onclick="openSysConfig()">
                             <span style="margin-right: 6px;">🔧</span> 启动SysConfig
-                        </button>
-                        <button class="secondary" onclick="stopHomeService()">
-                            <span style="margin-right: 6px;">✋</span> 停止HOME服务
-                        </button>
-                        <button class="secondary" onclick="debugHomeService()">
-                            <span style="margin-right: 6px;">🐞</span> 调试启动HOME服务
                         </button>
                         <button class="secondary" onclick="showOutput()">
                             <span style="margin-right: 6px;">📝</span> 查看日志
