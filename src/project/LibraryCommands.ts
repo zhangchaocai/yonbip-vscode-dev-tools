@@ -7,7 +7,7 @@ import { LibraryService } from './LibraryService';
  * 库管理命令
  */
 export class LibraryCommands {
-    
+
     /**
      * 注册所有库相关命令
      */
@@ -44,22 +44,22 @@ export class LibraryCommands {
             async () => {
                 const config = vscode.workspace.getConfiguration('yonbip');
                 const homePath = config.get<string>('homePath');
-                
+
                 console.log('=== 配置调试信息 ===');
                 console.log('yonbip.homePath:', homePath);
                 console.log('所有yonbip配置:', config);
-                
+
                 // 检查配置来源
                 const inspect = config.inspect('homePath');
                 console.log('homePath配置详情:', inspect);
-                
+
                 let message = `当前HOME路径: ${homePath || '未配置'}\n`;
                 if (inspect) {
                     message += `全局: ${inspect.globalValue || '未设置'}\n`;
                     message += `工作区: ${inspect.workspaceValue || '未设置'}\n`;
                     message += `工作区文件夹: ${inspect.workspaceFolderValue || '未设置'}`;
                 }
-                
+
                 vscode.window.showInformationMessage(message);
             }
         );
@@ -113,6 +113,9 @@ export class LibraryCommands {
                 await libraryService.initLibrary(homePath!, needDbLibrary, driverLibPath);
             });
 
+            // 显示成功消息
+            vscode.window.showInformationMessage('Java项目库初始化完成！');
+
         } catch (error: any) {
             vscode.window.showErrorMessage(`初始化库失败: ${error.message}`);
         }
@@ -141,13 +144,23 @@ export class LibraryCommands {
                 return;
             }
 
+            // 获取当前工作区文件夹路径作为默认路径
+            let selectedPath: string | undefined;
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (workspaceFolder) {
+                selectedPath = workspaceFolder.uri.fsPath;
+            }
+
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: '正在重新初始化Java项目库...',
                 cancellable: false
             }, async () => {
-                await libraryService.initLibrary(homePath, false);
+                await libraryService.initLibrary(homePath, false, undefined, selectedPath);
             });
+
+            // 显示成功消息
+            vscode.window.showInformationMessage('Java项目库重新初始化完成！');
 
         } catch (error: any) {
             vscode.window.showErrorMessage(`重新初始化库失败: ${error.message}`);
@@ -166,14 +179,14 @@ export class LibraryCommands {
             }
 
             const libDir = path.join(workspaceFolder.uri.fsPath, '.lib');
-            
+
             if (!fs.existsSync(libDir)) {
                 vscode.window.showInformationMessage('库尚未初始化');
                 return;
             }
 
             const files = fs.readdirSync(libDir).filter(file => file.endsWith('.json'));
-            
+
             if (files.length === 0) {
                 vscode.window.showInformationMessage('库配置为空');
                 return;

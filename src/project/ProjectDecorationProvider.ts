@@ -6,48 +6,40 @@ import * as fs from 'fs';
  * 项目目录装饰提供者
  * 用于为已初始化的YonBIP项目目录添加图标标识
  */
-export class ProjectDecorationProvider implements vscode.Disposable {
+export class ProjectDecorationProvider implements vscode.Disposable, vscode.FileDecorationProvider {
     private disposables: vscode.Disposable[] = [];
     private initializedPaths: Set<string> = new Set();
     private context: vscode.ExtensionContext;
-    private fileDecorationProvider: vscode.Disposable;
+    private fileDecorationProvider?: vscode.Disposable;
     private fileWatcher: vscode.FileSystemWatcher | null = null;
+    private _onDidChangeFileDecorations: vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined> = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
+    readonly onDidChangeFileDecorations: vscode.Event<vscode.Uri | vscode.Uri[] | undefined> = this._onDidChangeFileDecorations.event;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         console.log('ProjectDecorationProvider 构造函数被调用');
 
-        // 注册文件装饰器
-        this.fileDecorationProvider = vscode.window.registerFileDecorationProvider({
-            provideFileDecoration: (uri: vscode.Uri, token: vscode.CancellationToken) => {
-                console.log(`检查装饰器: ${uri.fsPath}`);
-                console.log(`已初始化路径列表: ${Array.from(this.initializedPaths).join(', ')}`);
-                
-                // 检查是否为已初始化的项目目录
-                for (const initializedPath of this.initializedPaths) {
-                    if (uri.fsPath === initializedPath) {
-                        console.log(`找到匹配路径，返回装饰器: ${initializedPath}`);
-                        return {
-                            badge: 'Y',
-                            tooltip: 'YonBIP项目已初始化 - 点击查看详情',
-                            propagate: false,
-                            color: new vscode.ThemeColor('charts.blue'),
-                            iconPath: this.context.asAbsolutePath('resources/icons/project/initialized-icon.png')
-                        };
-                    }
-                }
-                return undefined;
+        // 先初始化扫描，再注册装饰器
+        this.initialize().then(() => {
+            // 注册文件装饰器，实现FileDecorationProvider接口
+            this.fileDecorationProvider = vscode.window.registerFileDecorationProvider(this);
+
+            console.log('文件装饰器提供者已注册');
+            if (this.fileDecorationProvider) {
+                this.disposables.push(this.fileDecorationProvider);
             }
+
+            // 创建文件观察器来监视标记文件的创建
+            this.setupFileWatcher();
         });
+    }
 
-        console.log('文件装饰器提供者已注册');
-        this.disposables.push(this.fileDecorationProvider);
-
+    /**
+     * 初始化装饰器提供者
+     */
+    private async initialize(): Promise<void> {
         // 初始化时扫描已存在的标记文件
-        this.scanForExistingMarkers();
-
-        // 创建文件观察器来监视标记文件的创建
-        this.setupFileWatcher();
+        await this.scanForExistingMarkers();
     }
 
     /**
@@ -83,30 +75,52 @@ export class ProjectDecorationProvider implements vscode.Disposable {
         }
 
         console.log(`扫描完成，共找到 ${this.initializedPaths.size} 个已初始化项目`);
-        // 刷新UI
-        this.refresh();
     }
 
     /**
      * 设置文件观察器
      */
     private setupFileWatcher(): void {
-        // 监视所有工作区中的.yonbip-project文件
+        // 创建文件观察器来监视标记文件的创建、删除和修改
         this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/.yonbip-project');
 
-        this.fileWatcher.onDidCreate((uri) => {
-            const projectPath = path.dirname(uri.fsPath);
-            this.initializedPaths.add(projectPath);
+        // 监听文件创建事件
+        const createDisposable = this.fileWatcher.onDidCreate((uri) => {
+            const dirPath = path.dirname(uri.fsPath);
+            console.log(`检测到标记文件创建: ${uri.fsPath}, 目录: ${dirPath}`);
+            this.initializedPaths.add(dirPath);
+
+            // 触发装饰器变更事件
+            this._onDidChangeFileDecorations.fire(vscode.Uri.file(dirPath));
             this.refresh();
         });
 
-        this.fileWatcher.onDidDelete((uri) => {
-            const projectPath = path.dirname(uri.fsPath);
-            this.initializedPaths.delete(projectPath);
+        // 监听文件删除事件
+        const deleteDisposable = this.fileWatcher.onDidDelete((uri) => {
+            const dirPath = path.dirname(uri.fsPath);
+            console.log(`检测到标记文件删除: ${uri.fsPath}, 目录: ${dirPath}`);
+            this.initializedPaths.delete(dirPath);
+
+            // 触发装饰器变更事件
+            this._onDidChangeFileDecorations.fire(vscode.Uri.file(dirPath));
+            this.refresh();
+        });
+
+        // 监听文件修改事件
+        const changeDisposable = this.fileWatcher.onDidChange((uri) => {
+            const dirPath = path.dirname(uri.fsPath);
+            console.log(`检测到标记文件修改: ${uri.fsPath}, 目录: ${dirPath}`);
+
+            // 触发装饰器变更事件
+            this._onDidChangeFileDecorations.fire(vscode.Uri.file(dirPath));
             this.refresh();
         });
 
         this.disposables.push(this.fileWatcher);
+        this.disposables.push(createDisposable);
+        this.disposables.push(deleteDisposable);
+        this.disposables.push(changeDisposable);
+        console.log('文件观察器已设置，监视 .yonbip-project 文件');
     }
 
     /**
@@ -116,11 +130,14 @@ export class ProjectDecorationProvider implements vscode.Disposable {
     public markAsInitialized(path: string): void {
         console.log(`标记目录为已初始化: ${path}`);
         console.log(`标记前的路径集合: ${Array.from(this.initializedPaths).join(', ')}`);
-        
+
         this.initializedPaths.add(path);
-        
+
         console.log(`标记后的路径集合: ${Array.from(this.initializedPaths).join(', ')}`);
-        
+
+        // 触发装饰器变更事件，通知VS Code重新计算装饰器
+        this._onDidChangeFileDecorations.fire(vscode.Uri.file(path));
+
         // 触发UI更新
         this.refresh();
     }
@@ -130,38 +147,35 @@ export class ProjectDecorationProvider implements vscode.Disposable {
      */
     private refresh(): void {
         console.log('开始刷新装饰器显示');
-        
-        // 立即触发装饰器更新
-        this.initializedPaths.forEach(path => {
-            const uri = vscode.Uri.file(path);
-            console.log(`触发装饰器更新: ${path}`);
-            
-            // 使用onDidChangeFileDecorations事件来强制刷新
-            vscode.window.onDidChangeActiveTextEditor(() => {
-                // 这会触发装饰器重新计算
-            });
-        });
-        
-        // 延迟刷新文件资源管理器
-        setTimeout(() => {
-            console.log('刷新文件资源管理器');
-            // 触发文件资源管理器刷新
-            vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-        }, 200);
-        
-        // 再次延迟触发装饰器更新
-         setTimeout(() => {
-             console.log('强制触发装饰器更新');
-             this.initializedPaths.forEach(path => {
-                 const uri = vscode.Uri.file(path);
-                 // 触发装饰器重新计算
-                 vscode.workspace.fs.stat(uri).then(() => {
-                     console.log(`装饰器更新完成: ${path}`);
-                 }, (err: any) => {
-                     console.error(`装饰器更新失败: ${path}`, err);
-                 });
-             });
-         }, 500);
+        console.log(`当前已初始化路径: ${Array.from(this.initializedPaths).join(', ')}`);
+
+        // 触发装饰器变更事件，通知VS Code重新计算装饰器
+        this._onDidChangeFileDecorations.fire(undefined);
+
+        // 使用VS Code的内置刷新机制
+        vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+    }
+
+    /**
+     * 提供文件装饰器
+     */
+    provideFileDecoration(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FileDecoration> {
+        console.log(`检查装饰器: ${uri.fsPath}`);
+        console.log(`已初始化路径列表: ${Array.from(this.initializedPaths).join(', ')}`);
+
+        // 检查是否为已初始化的项目目录
+        for (const initializedPath of this.initializedPaths) {
+            if (uri.fsPath === initializedPath) {
+                console.log(`找到匹配路径，返回装饰器: ${initializedPath}`);
+                return {
+                    badge: '📁',
+                    tooltip: 'YonBIP项目已初始化 - 点击查看详情',
+                    propagate: false,
+                    color: new vscode.ThemeColor('charts.blue')
+                };
+            }
+        }
+        return undefined;
     }
 
     /**
@@ -184,7 +198,25 @@ export class ProjectDecorationProvider implements vscode.Disposable {
      * 实现Disposable接口
      */
     public dispose(): void {
-        this.disposables.forEach(d => d.dispose());
+        console.log('正在清理ProjectDecorationProvider资源');
+
+        // 清理事件发射器
+        this._onDidChangeFileDecorations.dispose();
+
+        // 清理文件观察器
+        if (this.fileWatcher) {
+            this.fileWatcher.dispose();
+            this.fileWatcher = null;
+        }
+
+        // 清理所有disposables
+        this.disposables.forEach(disposable => disposable.dispose());
         this.disposables = [];
     }
 }
+
+
+
+
+
+
