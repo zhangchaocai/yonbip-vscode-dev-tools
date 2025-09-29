@@ -5,10 +5,6 @@ src/**
 .vscode/**
 
 # 排除开发文件
-node_modules/**
-!node_modules/axios/**
-!node_modules/ws/**
-!node_modules/follow-redirects/**
 .gitignore
 .git/**
 .eslintrc.json

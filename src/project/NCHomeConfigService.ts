@@ -1,10 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as mysql from 'mysql2/promise';
-import * as pg from 'pg';
-import * as mssql from 'mssql';
-import * as oracledb from 'oracledb';
 import * as iconv from 'iconv-lite';
 import { NCHomeConfig, DataSourceMeta, ConnectionTestResult, AutoParseResult, DRIVER_INFO_MAP } from './NCHomeConfigTypes';
 import { PasswordEncryptor } from '../utils/PasswordEncryptor';
@@ -31,14 +27,14 @@ export class NCHomeConfigService {
     public getConfig(): NCHomeConfig {
         // 创建配置的深拷贝，避免修改原始配置
         const configCopy: NCHomeConfig = JSON.parse(JSON.stringify(this.config));
-        
+
         // 如果存在数据源，对密码进行解密处理
         if (configCopy.dataSources && configCopy.dataSources.length > 0) {
             for (const dataSource of configCopy.dataSources) {
                 if (dataSource.password) {
                     // 使用PasswordEncryptor解密密码
                     const decryptedPassword = PasswordEncryptor.getSecurePassword(dataSource.password);
-                    
+
                     // 检查解密结果是否包含大量乱码字符
                     // 如果解密后包含多个连续的替换字符，说明解密可能失败
                     const replacementCharCount = (decryptedPassword.match(/\uFFFD/g) || []).length;
@@ -52,7 +48,7 @@ export class NCHomeConfigService {
                 }
             }
         }
-        
+
         return configCopy;
     }
 
@@ -369,6 +365,9 @@ export class NCHomeConfigService {
      */
     private async testMySQLConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
+            // 动态导入mysql2驱动
+            const mysql = await import('mysql2/promise');
+
             const connectionConfig = {
                 host: dataSource.host,
                 port: dataSource.port,
@@ -406,6 +405,9 @@ export class NCHomeConfigService {
      */
     private async testPostgreSQLConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
+            // 动态导入pg驱动
+            const pg = await import('pg');
+
             const connectionConfig = {
                 host: dataSource.host,
                 port: dataSource.port,
@@ -444,6 +446,9 @@ export class NCHomeConfigService {
      */
     private async testSQLServerConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
+            // 动态导入mssql驱动
+            const mssql = await import('mssql');
+
             const connectionConfig = {
                 server: dataSource.host,
                 port: dataSource.port,
@@ -486,6 +491,9 @@ export class NCHomeConfigService {
      */
     private async testOracleConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
+            // 动态导入oracledb驱动
+            const oracledb = await import('oracledb');
+
             // 构建连接字符串
             const connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
 
@@ -595,6 +603,9 @@ export class NCHomeConfigService {
      */
     private async testOracleLegacyCompatibility(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
+            // 动态导入oracledb驱动
+            const oracledb = await import('oracledb');
+
             this.outputChannel.appendLine(`🔄 尝试Oracle旧版本兼容模式...`);
 
             // 尝试多种连接格式

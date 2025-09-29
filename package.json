@@ -108,6 +108,11 @@
         "category": "YonBIP/OpenAPI"
       },
       {
+        "command": "yonbip.test.webview",
+        "title": "测试Webview界面",
+        "category": "YonBIP/测试"
+      },
+      {
         "command": "yonbip.home.start",
         "title": "启动HOME服务",
         "category": "YonBIP/HOME"
@@ -243,7 +248,8 @@
       "resources/**/*",
       "package.json",
       "README.md",
-      "CHANGELOG.md"
+      "CHANGELOG.md",
+      "LICENSE"
     ]
   },
   "scripts": {
@@ -262,7 +268,7 @@
     "@types/oracledb": "^6.9.1",
     "@types/pg": "^8.15.5",
     "@types/sinon": "^17.0.4",
-    "@types/vscode": "^1.104.0",
+    "@types/vscode": "^1.75.0",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
     "@vscode/test-electron": "^2.3.0",

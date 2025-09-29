@@ -39,6 +39,9 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
 
         this.setupMessageHandlers();
 
+        // 设置HTML内容
+        this.panel.webview.html = this._getHtmlForWebview();
+
         // 初始化时加载配置数据
         this.handleGetConfig();
 
@@ -107,6 +110,13 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
                         break;
                     case 'checkSystemConfig':
                         this.handleCheckSystemConfig();
+                        break;
+                    case 'test':
+                        // 处理测试消息
+                        this.panel?.webview.postMessage({
+                            type: 'testResponse',
+                            message: '收到测试消息: ' + message.message
+                        });
                         break;
                 }
             } catch (error: any) {
@@ -321,5 +331,114 @@ export class NCHomeConfigWebviewProvider implements vscode.Disposable {
         if (this.panel) {
             this.panel.dispose();
         }
+    }
+
+    /**
+     * 生成简单的HTML内容用于测试
+     */
+    private _getHtmlForWebview(): string {
+        return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NC Home配置</title>
+    <style>
+        body {
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            color: var(--vscode-foreground);
+            background-color: var(--vscode-editor-background);
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: var(--vscode-foreground);
+            margin-bottom: 20px;
+        }
+        .test-message {
+            background-color: var(--vscode-input-background);
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NC Home配置 - 测试界面</h1>
+        <div class="test-message">
+            <p>这是一个简单的测试界面，用于验证webview是否能正常显示。</p>
+            <p>如果你能看到这个界面，说明webview配置正确。</p>
+        </div>
+        <button onclick="testMessage()">测试消息</button>
+        <button onclick="loadConfig()">加载配置</button>
+        <div id="status" class="test-message" style="display:none;">
+            <p id="statusText">等待操作...</p>
+        </div>
+    </div>
+    
+    <script>
+        const vscode = acquireVsCodeApi();
+        
+        function testMessage() {
+            document.getElementById('status').style.display = 'block';
+            document.getElementById('statusText').textContent = '测试消息已发送';
+            vscode.postMessage({
+                type: 'test',
+                message: 'Hello from webview!'
+            });
+        }
+        
+        function loadConfig() {
+            document.getElementById('status').style.display = 'block';
+            document.getElementById('statusText').textContent = '正在加载配置...';
+            vscode.postMessage({
+                type: 'getConfig'
+            });
+        }
+        
+        // 监听来自扩展的消息
+        window.addEventListener('message', event => {
+            const message = event.data;
+            const statusDiv = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            
+            statusDiv.style.display = 'block';
+            
+            switch (message.type) {
+                case 'configLoaded':
+                    statusText.textContent = '配置加载成功: ' + JSON.stringify(message.config, null, 2);
+                    break;
+                case 'testResponse':
+                    statusText.textContent = message.message;
+                    break;
+                case 'error':
+                    statusText.textContent = '错误: ' + message.message;
+                    break;
+                default:
+                    statusText.textContent = '收到消息: ' + JSON.stringify(message);
+            }
+        });
+    </script>
+</body>
+</html>`;
     }
 }

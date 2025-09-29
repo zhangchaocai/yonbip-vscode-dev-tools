@@ -503,16 +503,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      * 生成WebView HTML内容
      */
     private _getHtmlForWebview(webview: vscode.Webview) {
-        // 尝试加载外部HTML文件
-        const fs = require('fs');
-        const path = require('path');
-
-        const htmlPath = path.join(__dirname, 'nc-home-config.html');
-        if (fs.existsSync(htmlPath)) {
-            return fs.readFileSync(htmlPath, 'utf-8');
-        }
-
-        // 如果外部文件不存在，使用内嵌的HTML
+        // 直接返回内嵌的HTML，避免使用fs和path模块
+        // 在生产环境中，Webview中不能使用Node.js内置模块
         return this.getNCHomeConfigHTML();
     }
 
