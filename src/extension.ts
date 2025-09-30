@@ -16,6 +16,7 @@ import { HomeCommands } from './project/HomeCommands';
 import { NCHomeConfigCommands } from './project/NCHomeConfigCommands';
 import { LibraryCommands } from './project/LibraryCommands';
 import { ProjectContextCommands } from './project/ProjectContextCommands';
+import { ProjectCommands } from './project/ProjectCommands';
 
 // 导入项目装饰器提供者
 import { ProjectDecorationProvider } from './project/ProjectDecorationProvider';
@@ -88,6 +89,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 注册项目上下文菜单命令
 	ProjectContextCommands.registerCommands(context);
+
+	// 注册项目管理命令
+	ProjectCommands.registerCommands(context);
 
 	// 注册NC Home配置界面
 	const ncHomeConfigProvider = new NCHomeConfigProvider(context.extensionUri, context);

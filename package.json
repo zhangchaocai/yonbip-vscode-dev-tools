@@ -166,6 +166,11 @@
         "command": "yonbip.home.stop",
         "title": "🚫 HOME 服务停用",
         "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.scaffold.download",
+        "title": "📦 下载YonBIP脚手架",
+        "category": "YonBIP/项目管理"
       }
     ],
     "submenus": [
@@ -189,14 +194,19 @@
           "group": "1@1"
         },
         {
-          "command": "yonbip.home.startFromDirectory",
+          "command": "yonbip.scaffold.download",
           "when": "explorerResourceIsFolder",
           "group": "1@2"
         },
         {
-          "command": "yonbip.home.stop",
+          "command": "yonbip.home.startFromDirectory",
           "when": "explorerResourceIsFolder",
           "group": "1@3"
+        },
+        {
+          "command": "yonbip.home.stop",
+          "when": "explorerResourceIsFolder",
+          "group": "1@4"
         }
       ]
     },

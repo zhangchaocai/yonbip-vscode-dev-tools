@@ -67,9 +67,9 @@ export class NCHomeConfigCommands {
             await vscode.commands.executeCommand('workbench.view.extension.yonbip-tools');
 
             // 通过发送消息来刷新配置显示
-            setTimeout(() => {
-                vscode.commands.executeCommand('yonbip.nchome.config');
-            }, 500);
+            // setTimeout(() => {
+            //     vscode.commands.executeCommand('yonbip.nchome.config');
+            // }, 500);
         } catch (error: any) {
             vscode.window.showErrorMessage(`打开NC Home配置失败: ${error.message}`);
         }

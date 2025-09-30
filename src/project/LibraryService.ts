@@ -94,6 +94,63 @@ export class LibraryService {
     }
 
     /**
+     * 复制脚手架文件到目标目录
+     * @param scaffoldPath 脚手架源路径
+     * @param targetPath 目标路径
+     */
+    private async copyScaffold(scaffoldPath: string, targetPath: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            try {
+                // 确保目标目录存在
+                if (!fs.existsSync(targetPath)) {
+                    fs.mkdirSync(targetPath, { recursive: true });
+                }
+
+                // 递归复制目录
+                this.copyDirectoryRecursive(scaffoldPath, targetPath);
+
+                this.outputChannel.appendLine(`脚手架复制完成: ${scaffoldPath} -> ${targetPath}`);
+                resolve();
+            } catch (error) {
+                this.outputChannel.appendLine(`复制脚手架失败: ${error}`);
+                reject(error);
+            }
+        });
+    }
+
+    /**
+     * 递归复制目录
+     * @param source 源目录
+     * @param target 目标目录
+     */
+    private copyDirectoryRecursive(source: string, target: string): void {
+        if (!fs.existsSync(source)) {
+            return;
+        }
+
+        if (!fs.existsSync(target)) {
+            fs.mkdirSync(target, { recursive: true });
+        }
+
+        const files = fs.readdirSync(source);
+
+        for (const file of files) {
+            const sourcePath = path.join(source, file);
+            const targetPath = path.join(target, file);
+
+            const stat = fs.statSync(sourcePath);
+
+            if (stat.isDirectory()) {
+                // 递归复制子目录
+                this.copyDirectoryRecursive(sourcePath, targetPath);
+            } else {
+                // 复制文件
+                fs.copyFileSync(sourcePath, targetPath);
+            }
+        }
+    }
+
+    /**
      * 初始化库
      */
     public async initLibrary(homePath: string, needDbLibrary: boolean = false, driverLibPath?: string, selectedPath?: string): Promise<void> {
@@ -116,6 +173,16 @@ export class LibraryService {
                     throw new Error('未找到工作区文件夹');
                 }
                 targetPath = workspaceFolder.uri.fsPath;
+            }
+
+            // 根据HOME版本获取对应的脚手架路径
+            const scaffoldPath = this.getScaffoldPathByHomeVersion(homePath);
+            if (scaffoldPath && fs.existsSync(scaffoldPath)) {
+                // 如果有版本对应的脚手架，则复制对应的脚手架
+                this.outputChannel.appendLine(`复制版本对应的脚手架: ${scaffoldPath}`);
+                await this.copyScaffold(scaffoldPath, targetPath);
+            } else {
+                this.outputChannel.appendLine('使用默认脚手架处理逻辑');
             }
 
             // 创建.lib目录用于存储库配置
@@ -942,6 +1009,81 @@ export class LibraryService {
         } catch (error) {
             this.outputChannel.appendLine(`读取配置文件失败: ${error}`);
             return undefined;
+        }
+    }
+
+    /**
+     * 从setup.ini文件中获取HOME版本信息
+     * @param homePath NC HOME路径
+     * @returns 版本号，如果无法获取则返回null
+     */
+    private getHomeVersion(homePath: string): string | null {
+        try {
+            // 构建setup.ini文件路径
+            const setupIniPath = path.join(homePath, 'ncscript', 'uapServer', 'setup.ini');
+
+            // 检查文件是否存在
+            if (!fs.existsSync(setupIniPath)) {
+                this.outputChannel.appendLine(`setup.ini文件不存在: ${setupIniPath}`);
+                return null;
+            }
+
+            // 读取文件内容
+            const content = fs.readFileSync(setupIniPath, 'utf-8');
+
+            // 解析版本信息
+            // 查找version=开头的行
+            const versionMatch = content.match(/^version\s*=\s*(.+)$/m);
+            if (!versionMatch) {
+                this.outputChannel.appendLine('未在setup.ini中找到版本信息');
+                return null;
+            }
+
+            const versionLine = versionMatch[1];
+            this.outputChannel.appendLine(`从setup.ini中读取到版本信息: ${versionLine}`);
+
+            // 解析版本字符串 "YonBIP V3 (R2_2311_1 Premium) 20230830171835"
+            // 提取其中的 "2311" 部分
+            const versionPattern = /R2_(\d+)_\d+/;
+            const versionParts = versionLine.match(versionPattern);
+
+            if (versionParts && versionParts[1]) {
+                const version = versionParts[1];
+                this.outputChannel.appendLine(`提取到版本号: ${version}`);
+                return version;
+            } else {
+                this.outputChannel.appendLine('无法从版本字符串中提取版本号');
+                return null;
+            }
+        } catch (error: any) {
+            this.outputChannel.appendLine(`读取setup.ini文件失败: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * 根据HOME版本获取对应的脚手架路径
+     * @param homePath NC HOME路径
+     * @returns 脚手架路径
+     */
+    private getScaffoldPathByHomeVersion(homePath: string): string | null {
+        const version = this.getHomeVersion(homePath);
+
+        if (!version) {
+            this.outputChannel.appendLine('无法获取HOME版本，使用默认脚手架路径');
+            return null;
+        }
+
+        // 根据版本号确定脚手架路径
+        // 这里可以根据实际需求进行调整
+        const scaffoldPath = path.join(homePath, 'scaffolds', `v${version}`);
+
+        if (fs.existsSync(scaffoldPath)) {
+            this.outputChannel.appendLine(`使用版本对应的脚手架路径: ${scaffoldPath}`);
+            return scaffoldPath;
+        } else {
+            this.outputChannel.appendLine(`版本对应的脚手架路径不存在: ${scaffoldPath}，使用默认脚手架路径`);
+            return null;
         }
     }
 
