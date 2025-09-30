@@ -17,10 +17,18 @@ import { NCHomeConfigCommands } from './project/NCHomeConfigCommands';
 import { LibraryCommands } from './project/LibraryCommands';
 import { ProjectContextCommands } from './project/ProjectContextCommands';
 import { ProjectCommands } from './project/ProjectCommands';
+import { ProjectService } from './project/ProjectService';
+import { McpService } from './mcp/McpService';
+import { LibraryService } from './project/LibraryService';
 
 // 导入项目装饰器提供者
 import { ProjectDecorationProvider } from './project/ProjectDecorationProvider';
 
+// 全局变量用于在deactivate时释放资源
+let ncHomeConfigService: NCHomeConfigService | undefined;
+let projectService: ProjectService | undefined;
+let mcpService: McpService | undefined;
+let libraryService: LibraryService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -45,7 +53,8 @@ export function activate(context: vscode.ExtensionContext) {
 	ProjectContextCommands.setExtensionContext(context);
 
 	// 注册MCP命令
-	const mcpCommands = McpCommands.registerCommands(context);
+	mcpService = new McpService(context);
+	const mcpCommands = McpCommands.registerCommands(context, mcpService);
 
 	// 注册MCP界面
 	const mcpProvider = new McpProvider(context.extensionUri, context);
@@ -77,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 	// 注册NC Home配置界面和命令
-	const ncHomeConfigService = new NCHomeConfigService(context);
+	ncHomeConfigService = new NCHomeConfigService(context);
 	const ncHomeConfigCommands = new NCHomeConfigCommands(context);
 	// NCHomeConfigCommands类没有实现dispose方法，因此不能添加到context.subscriptions中
 
@@ -91,7 +100,8 @@ export function activate(context: vscode.ExtensionContext) {
 	ProjectContextCommands.registerCommands(context);
 
 	// 注册项目管理命令
-	ProjectCommands.registerCommands(context);
+	projectService = new ProjectService(context);
+	ProjectCommands.registerCommands(context, projectService);
 
 	// 注册NC Home配置界面
 	const ncHomeConfigProvider = new NCHomeConfigProvider(context.extensionUri, context);
@@ -132,7 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
 				retainContextWhenHidden: true
 			}
 		);
-		
+
 		panel.webview.html = `
 			<!DOCTYPE html>
 			<html lang="zh-CN">
@@ -140,31 +150,6 @@ export function activate(context: vscode.ExtensionContext) {
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<title>测试Webview</title>
-				<style>
-					body {
-						font-family: var(--vscode-font-family);
-						color: var(--vscode-foreground);
-						background-color: var(--vscode-editor-background);
-						padding: 20px;
-					}
-					.test-container {
-						text-align: center;
-						margin-top: 50px;
-					}
-					.test-button {
-						background-color: var(--vscode-button-background);
-						color: var(--vscode-button-foreground);
-						border: none;
-						padding: 10px 20px;
-						border-radius: 4px;
-						cursor: pointer;
-						font-size: 14px;
-						margin: 10px;
-					}
-					.test-button:hover {
-						background-color: var(--vscode-button-hoverBackground);
-					}
-				</style>
 			</head>
 			<body>
 				<div class="test-container">
@@ -185,7 +170,7 @@ export function activate(context: vscode.ExtensionContext) {
 			</body>
 			</html>
 		`;
-		
+
 		panel.webview.onDidReceiveMessage(
 			message => {
 				switch (message.command) {
@@ -198,7 +183,7 @@ export function activate(context: vscode.ExtensionContext) {
 			context.subscriptions
 		);
 	});
-	
+
 	context.subscriptions.push(testWebviewCommand);
 
 }
@@ -206,4 +191,23 @@ export function activate(context: vscode.ExtensionContext) {
 // this method is called when your extension is deactivated
 export function deactivate() {
 	console.log('YonBIP高级版开发者工具已停用');
+	// 释放NC Home配置服务资源
+	if (ncHomeConfigService) {
+		ncHomeConfigService.dispose();
+	}
+
+	// 释放项目管理服务资源
+	if (projectService) {
+		projectService.dispose();
+	}
+
+	// 释放MCP服务资源
+	if (mcpService) {
+		mcpService.dispose();
+	}
+
+	// 释放库管理服务资源
+	if (libraryService) {
+		libraryService.dispose();
+	}
 }

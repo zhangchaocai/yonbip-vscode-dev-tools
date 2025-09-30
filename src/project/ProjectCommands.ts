@@ -14,8 +14,8 @@ export class ProjectCommands {
     private configService: NCHomeConfigService;
     private context: vscode.ExtensionContext;
 
-    constructor(context: vscode.ExtensionContext) {
-        this.projectService = new ProjectService(context);
+    constructor(context: vscode.ExtensionContext, projectService: ProjectService) {
+        this.projectService = projectService;
         this.configService = new NCHomeConfigService(context);
         this.context = context;
     }
@@ -23,8 +23,8 @@ export class ProjectCommands {
     /**
      * 注册所有项目相关命令
      */
-    public static registerCommands(context: vscode.ExtensionContext): void {
-        const projectCommands = new ProjectCommands(context);
+    public static registerCommands(context: vscode.ExtensionContext, projectService: ProjectService): void {
+        const projectCommands = new ProjectCommands(context, projectService);
 
         // 注册创建项目命令
         const createCommand = vscode.commands.registerCommand('yonbip.project.create', () => {
@@ -84,8 +84,7 @@ export class ProjectCommands {
                 progress.report({ increment: 0, message: "开始复制文件..." });
 
                 // 获取HOME路径
-                const configService = new NCHomeConfigService(this.context);
-                const config = configService.getConfig();
+                const config = this.configService.getConfig();
                 const homePath = config.homePath;
 
                 // 根据HOME版本选择对应的脚手架文件

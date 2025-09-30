@@ -9,15 +9,15 @@ import { McpService, McpConfig, McpStatus } from './McpService';
 export class McpCommands {
     private mcpService: McpService;
 
-    constructor(context: vscode.ExtensionContext) {
-        this.mcpService = new McpService(context);
+    constructor(context: vscode.ExtensionContext, mcpService: McpService) {
+        this.mcpService = mcpService;
     }
 
     /**
      * 注册所有MCP相关命令
      */
-    public static registerCommands(context: vscode.ExtensionContext): McpCommands {
-        const mcpCommands = new McpCommands(context);
+    public static registerCommands(context: vscode.ExtensionContext, mcpService: McpService): McpCommands {
+        const mcpCommands = new McpCommands(context, mcpService);
 
         // 注册启动命令
         const startCommand = vscode.commands.registerCommand('yonbip.mcp.start', () => {
@@ -86,16 +86,16 @@ export class McpCommands {
         const config = this.mcpService.getConfig();
         const builtinJarPath = path.join(this.mcpService.getContext().extensionPath, 'resources', 'yonyou-mcp.jar');
         const isUsingBuiltin = config.jarPath === builtinJarPath;
-        
+
         // 创建QuickPick选择配置项
         const quickPick = vscode.window.createQuickPick();
         quickPick.title = 'MCP服务配置';
         quickPick.items = [
             { label: '$(gear) 端口配置', description: `当前: ${config.port}`, detail: '配置MCP服务端口' },
-            { 
-                label: '$(file-binary) JAR文件路径', 
-                description: isUsingBuiltin ? '内置JAR (推荐)' : (config.jarPath || '未配置'), 
-                detail: '配置MCP JAR文件路径' 
+            {
+                label: '$(file-binary) JAR文件路径',
+                description: isUsingBuiltin ? '内置JAR (推荐)' : (config.jarPath || '未配置'),
+                detail: '配置MCP JAR文件路径'
             },
             { label: '$(terminal) Java路径', description: config.javaPath, detail: '配置Java可执行文件路径' },
             { label: '$(memory) 最大内存', description: config.maxMemory, detail: '配置JVM最大内存' },
@@ -106,7 +106,7 @@ export class McpCommands {
             if (selection.length > 0) {
                 const selected = selection[0];
                 quickPick.hide();
-                
+
                 switch (selected.label) {
                     case '$(gear) 端口配置':
                         await this.configurePort();
@@ -161,16 +161,16 @@ export class McpCommands {
         const config = this.mcpService.getConfig();
         const builtinJarPath = path.join(this.mcpService.getContext().extensionPath, 'resources', 'yonyou-mcp.jar');
         const isUsingBuiltin = config.jarPath === builtinJarPath;
-        
+
         const choice = await vscode.window.showQuickPick([
-            { 
-                label: '使用内置JAR文件', 
+            {
+                label: '使用内置JAR文件',
                 description: builtinJarPath,
                 detail: isUsingBuiltin ? '当前正在使用' : '推荐选项，插件内置',
                 isBuiltin: true
             },
-            { 
-                label: '选择自定义JAR文件', 
+            {
+                label: '选择自定义JAR文件',
                 description: '浏览选择JAR文件',
                 detail: '使用自定义的JAR文件路径',
                 isBuiltin: false
@@ -267,7 +267,7 @@ export class McpCommands {
             } else {
                 config.maxMemory = memory.label;
             }
-            
+
             await this.mcpService.saveConfig(config);
             vscode.window.showInformationMessage(`最大内存已设置为: ${config.maxMemory}`);
         }
@@ -280,10 +280,10 @@ export class McpCommands {
         const config = this.mcpService.getConfig();
         config.enableDebug = !config.enableDebug;
         await this.mcpService.saveConfig(config);
-        
+
         const status = config.enableDebug ? '已启用' : '已禁用';
         vscode.window.showInformationMessage(`调试模式${status}`);
-        
+
         if (config.enableDebug) {
             vscode.window.showInformationMessage(
                 '调试模式已启用，调试端口: 5005',
@@ -308,7 +308,7 @@ export class McpCommands {
         const config = this.mcpService.getConfig();
         const builtinJarPath = path.join(this.mcpService.getContext().extensionPath, 'resources', 'yonyou-mcp.jar');
         const isUsingBuiltin = config.jarPath === builtinJarPath;
-        
+
         const statusMap = {
             [McpStatus.STOPPED]: '已停止',
             [McpStatus.STARTING]: '启动中',
@@ -318,13 +318,13 @@ export class McpCommands {
         };
 
         const jarInfo = isUsingBuiltin ? '内置JAR (推荐)' : path.basename(config.jarPath || '未配置');
-        
+
         const message = `MCP服务状态: ${statusMap[status]}\n` +
-                       `端口: ${config.port}\n` +
-                       `Java: ${config.javaPath}\n` +
-                       `JAR: ${jarInfo}\n` +
-                       `内存: ${config.maxMemory}\n` +
-                       `调试: ${config.enableDebug ? '已启用' : '已禁用'}`;
+            `端口: ${config.port}\n` +
+            `Java: ${config.javaPath}\n` +
+            `JAR: ${jarInfo}\n` +
+            `内存: ${config.maxMemory}\n` +
+            `调试: ${config.enableDebug ? '已启用' : '已禁用'}`;
 
         vscode.window.showInformationMessage(message);
     }

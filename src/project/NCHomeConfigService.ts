@@ -10,13 +10,18 @@ import { PasswordEncryptor } from '../utils/PasswordEncryptor';
  */
 export class NCHomeConfigService {
     private context: vscode.ExtensionContext;
+    private static outputChannelInstance: vscode.OutputChannel | null = null;
     private outputChannel: vscode.OutputChannel;
     private config: NCHomeConfig;
     private configFilePath: string;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
-        this.outputChannel = vscode.window.createOutputChannel('YonBIP NC Home配置');
+        // 确保outputChannel只初始化一次
+        if (!NCHomeConfigService.outputChannelInstance) {
+            NCHomeConfigService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP NC Home配置');
+        }
+        this.outputChannel = NCHomeConfigService.outputChannelInstance;
         this.configFilePath = path.join(context.globalStoragePath, 'nc-home-config.json');
         this.config = this.loadConfig();
     }
@@ -1006,7 +1011,11 @@ export class NCHomeConfigService {
      * 释放资源
      */
     public dispose(): void {
-        this.outputChannel.dispose();
+        // 只有在扩展完全停用时才应该dispose outputChannel
+        if (NCHomeConfigService.outputChannelInstance) {
+            NCHomeConfigService.outputChannelInstance.dispose();
+            NCHomeConfigService.outputChannelInstance = null;
+        }
     }
 
     /**

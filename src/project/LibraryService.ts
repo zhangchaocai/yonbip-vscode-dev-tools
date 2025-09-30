@@ -48,6 +48,7 @@ export class LibraryService {
         RESOURCES_LIBRARY: 'resources'
     };
 
+    private static outputChannelInstance: vscode.OutputChannel | null = null;
     private outputChannel: vscode.OutputChannel;
 
     private context?: vscode.ExtensionContext;
@@ -55,7 +56,11 @@ export class LibraryService {
     private configService: NCHomeConfigService;
 
     constructor(context?: vscode.ExtensionContext, configService?: NCHomeConfigService) {
-        this.outputChannel = vscode.window.createOutputChannel('YonBIP Library Service');
+        // 确保outputChannel只初始化一次
+        if (!LibraryService.outputChannelInstance) {
+            LibraryService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP Library Service');
+        }
+        this.outputChannel = LibraryService.outputChannelInstance;
         this.context = context;
         this.configService = configService || new NCHomeConfigService(context!);
     }
@@ -1138,6 +1143,17 @@ export class LibraryService {
             this.outputChannel.appendLine('库自动初始化完成');
         } catch (error: any) {
             this.outputChannel.appendLine(`自动初始化库失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 释放资源
+     */
+    public dispose(): void {
+        // 只有在扩展完全停用时才应该dispose outputChannel
+        if (LibraryService.outputChannelInstance) {
+            LibraryService.outputChannelInstance.dispose();
+            LibraryService.outputChannelInstance = null;
         }
     }
 }

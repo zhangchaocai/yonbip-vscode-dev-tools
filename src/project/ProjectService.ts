@@ -34,11 +34,16 @@ export interface PatchInfo {
  */
 export class ProjectService {
     private context: vscode.ExtensionContext;
+    private static outputChannelInstance: vscode.OutputChannel | null = null;
     private outputChannel: vscode.OutputChannel;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
-        this.outputChannel = vscode.window.createOutputChannel('YonBIP 项目管理');
+        // 确保outputChannel只初始化一次
+        if (!ProjectService.outputChannelInstance) {
+            ProjectService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP 项目管理');
+        }
+        this.outputChannel = ProjectService.outputChannelInstance;
     }
 
     /**
@@ -152,14 +157,14 @@ ${config.type === 'yonbip' ? `
                 cancellable: false
             }, async (progress) => {
                 progress.report({ increment: 20, message: '收集文件...' });
-                
+
                 const files = await this.collectPatchFiles(
-                    selectedPath || workspaceFolder.uri.fsPath, 
+                    selectedPath || workspaceFolder.uri.fsPath,
                     patchInfo
                 );
 
                 progress.report({ increment: 60, message: '创建补丁包...' });
-                
+
                 const outputPath = await this.createPatchZip(files, patchInfo);
 
                 progress.report({ increment: 100, message: '导出完成' });
@@ -264,7 +269,7 @@ ${config.type === 'yonbip' ? `
             'lib',
             'docs'
         ];
-        
+
         for (const dir of structure) {
             const fullPath = path.join(projectPath, dir);
             if (!fs.existsSync(fullPath)) {
@@ -486,7 +491,7 @@ temp/
             // YonBIP项目特有配置
             settings["java.project.sourcePaths"] = [
                 "src/main/java",
-                "client/src/main/java", 
+                "client/src/main/java",
                 "public/src/main/java"
             ];
         }
@@ -505,8 +510,8 @@ temp/
                     "type": "java",
                     "name": `Launch ${config.name}`,
                     "request": "launch",
-                    "mainClass": config.type === 'yonbip' ? 
-                        `com.yonyou.${config.name.toLowerCase()}.Main` : 
+                    "mainClass": config.type === 'yonbip' ?
+                        `com.yonyou.${config.name.toLowerCase()}.Main` :
                         `com.example.${config.name.toLowerCase()}.Main`,
                     "projectName": config.name,
                     "classPaths": [
@@ -625,15 +630,15 @@ ${sourcePaths}
      * 创建示例代码
      */
     private async createSampleCode(projectPath: string, config: ProjectConfig): Promise<void> {
-        const packagePath = config.type === 'yonbip' ? 
-            `com/yonyou/${config.name.toLowerCase()}` : 
+        const packagePath = config.type === 'yonbip' ?
+            `com/yonyou/${config.name.toLowerCase()}` :
             `com/example/${config.name.toLowerCase()}`;
 
         const mainDir = path.join(projectPath, 'src/main/java', packagePath);
         fs.mkdirSync(mainDir, { recursive: true });
 
-        const mainContent = config.type === 'yonbip' ? 
-            this.generateYonBipSample(config) : 
+        const mainContent = config.type === 'yonbip' ?
+            this.generateYonBipSample(config) :
             this.generateStandardSample(config);
 
         fs.writeFileSync(path.join(mainDir, 'Main.java'), mainContent, 'utf-8');
@@ -728,16 +733,16 @@ public class Main {
      */
     private async collectPatchFiles(basePath: string, patchInfo: PatchInfo): Promise<string[]> {
         const files: string[] = [];
-        
+
         const scanDir = (dirPath: string) => {
             if (!fs.existsSync(dirPath)) return;
-            
+
             const items = fs.readdirSync(dirPath);
-            
+
             for (const item of items) {
                 const fullPath = path.join(dirPath, item);
                 const stat = fs.statSync(fullPath);
-                
+
                 if (stat.isDirectory()) {
                     // 跳过一些目录
                     if (item === 'node_modules' || item === '.git' || item === 'target') {
@@ -746,11 +751,11 @@ public class Main {
                     scanDir(fullPath);
                 } else {
                     const ext = path.extname(item).toLowerCase();
-                    const shouldInclude = 
+                    const shouldInclude =
                         (patchInfo.includeSource && ['.java', '.js', '.ts'].includes(ext)) ||
                         (patchInfo.includeResources && ['.xml', '.properties', '.json'].includes(ext)) ||
                         (patchInfo.includeConfig && ['.yml', '.yaml', '.conf'].includes(ext));
-                    
+
                     if (shouldInclude) {
                         files.push(fullPath);
                     }
@@ -777,7 +782,7 @@ public class Main {
         }
 
         const outputPath = path.join(outputDir, `${patchInfo.name}_${patchInfo.version}.zip`);
-        
+
         // 这里应该使用archiver库创建ZIP文件
         // 由于简化，我们创建一个简单的文件列表
         const manifestContent = `补丁包信息:
@@ -790,9 +795,9 @@ ${files.map(f => `- ${f}`).join('\n')}
 `;
 
         fs.writeFileSync(outputPath.replace('.zip', '_manifest.txt'), manifestContent, 'utf-8');
-        
+
         this.outputChannel.appendLine(`补丁清单已生成: ${outputPath.replace('.zip', '_manifest.txt')}`);
-        
+
         return outputPath.replace('.zip', '_manifest.txt');
     }
 
@@ -801,5 +806,16 @@ ${files.map(f => `- ${f}`).join('\n')}
      */
     public showOutput(): void {
         this.outputChannel.show();
+    }
+
+    /**
+     * 释放资源
+     */
+    public dispose(): void {
+        // 只有在扩展完全停用时才应该dispose outputChannel
+        if (ProjectService.outputChannelInstance) {
+            ProjectService.outputChannelInstance.dispose();
+            ProjectService.outputChannelInstance = null;
+        }
     }
 }
