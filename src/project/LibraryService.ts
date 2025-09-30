@@ -723,10 +723,7 @@ export class LibraryService {
                     request: "attach",
                     hostName: "localhost",
                     port: config.debugPort || 8888,  // 使用获取到的调试端口
-                    projectName: "${workspaceFolderBasename}",
-                    sourcePaths: [
-                        sourcePath
-                    ]
+                    projectName: "${workspaceFolderBasename}"
                 }
                 // {
                 //     type: "java",

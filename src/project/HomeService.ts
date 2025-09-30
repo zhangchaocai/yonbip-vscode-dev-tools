@@ -661,7 +661,7 @@ export class HomeService {
         // 首先添加工作区编译输出目录
         if (workspaceFolder) {
             const targetClasses = path.join(workspaceFolder, 'target', 'classes'); // Maven项目
-            const buildClasses = path.join(workspaceFolder, 'build', 'classes'); // Gradle项目
+            const buildClasses = path.join(workspaceFolder, 'build', 'classes'); // YonBIP项目
             const binClasses = path.join(workspaceFolder, 'bin'); // 普通项目
             if (fs.existsSync(targetClasses)) {
                 classpathEntries.push(targetClasses);
@@ -670,7 +670,7 @@ export class HomeService {
 
             if (fs.existsSync(buildClasses)) {
                 classpathEntries.push(buildClasses);
-                this.outputChannel.appendLine(`📁 添加Gradle编译输出目录: ${buildClasses}`);
+                this.outputChannel.appendLine(`📁 添加YonBIP编译输出目录: ${buildClasses}`);
             }
             if (fs.existsSync(binClasses)) {
                 classpathEntries.push(binClasses);
