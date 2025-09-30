@@ -123,11 +123,6 @@
         "category": "YonBIP/HOME"
       },
       {
-        "command": "yonbip.home.stop",
-        "title": "停止HOME服务",
-        "category": "YonBIP/HOME"
-      },
-      {
         "command": "yonbip.home.status",
         "title": "查看HOME服务状态",
         "category": "YonBIP/HOME"
@@ -135,11 +130,6 @@
       {
         "command": "yonbip.home.logs",
         "title": "查看HOME服务日志",
-        "category": "YonBIP/HOME"
-      },
-      {
-        "command": "yonbip.home.startFromDirectory",
-        "title": "启动YONBIP中间件",
         "category": "YonBIP/HOME"
       },
       {
@@ -164,26 +154,49 @@
       },
       {
         "command": "yonbip.project.initContext",
-        "title": "初始化YONBIP项目工程",
+        "title": "🚀 YONBIP 工程初始化",
         "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.home.startFromDirectory",
+        "title": "⚙️ YONBIP 中间件启动",
+        "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.home.stop",
+        "title": "🚫 HOME 服务停用",
+        "category": "YonBIP/HOME"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "yonbip.project.submenu",
+        "label": "YonBIP项目管理"
       }
     ],
     "menus": {
       "explorer/context": [
         {
-          "command": "yonbip.project.initContext",
+          "submenu": "yonbip.project.submenu",
           "when": "explorerResourceIsFolder",
           "group": "navigation"
+        }
+      ],
+      "yonbip.project.submenu": [
+        {
+          "command": "yonbip.project.initContext",
+          "when": "explorerResourceIsFolder",
+          "group": "1@1"
         },
         {
           "command": "yonbip.home.startFromDirectory",
           "when": "explorerResourceIsFolder",
-          "group": "navigation"
+          "group": "1@2"
         },
         {
           "command": "yonbip.home.stop",
           "when": "explorerResourceIsFolder",
-          "group": "navigation"
+          "group": "1@3"
         }
       ]
     },

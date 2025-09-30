@@ -527,6 +527,7 @@ export class HomeService {
                     this.outputChannel.appendLine('💡 尝试在终端中手动运行以下命令来获取更详细的错误信息:');
                     this.outputChannel.appendLine(`   java ${vmParameters.join(' ')} -cp "[类路径]" ${mainClass}`);
                 } else if (code !== 0 && !this.isManualStop) {
+                    // 只有在非手动停止且退出码非0时才视为错误
                     this.outputChannel.appendLine(`❌ 服务异常退出，退出码: ${code}`);
                     this.outputChannel.appendLine('💡 建议检查完整的日志输出，特别是STDERR中的错误信息');
                 } else if (this.isManualStop) {
@@ -553,7 +554,9 @@ export class HomeService {
                 console.log(`进程关闭，退出码: ${code}, 信号: ${signal}`);
                 this.outputChannel.appendLine(`\nHOME服务进程已关闭，退出码: ${code}${signal ? `, 信号: ${signal}` : ''}`);
 
-                if (code !== 0 && code !== null) {
+                // 退出码143表示进程被SIGTERM信号终止，这是正常停止的结果
+                // 只有在非手动停止且退出码不是0或143时才视为异常
+                if (code !== 0 && code !== null && code !== 143 && !this.isManualStop) {
                     this.outputChannel.appendLine('⚠️ 服务异常退出，请检查日志文件或终端手动启动输出！');
                     if (code === 255) {
                         this.outputChannel.appendLine('💡 退出码255通常与以下问题有关:');
@@ -561,6 +564,10 @@ export class HomeService {
                         this.outputChannel.appendLine('   - JDK版本兼容性问题');
                         this.outputChannel.appendLine('   - 必要的系统属性未正确设置');
                     }
+                } else if (code === 143 || this.isManualStop) {
+                    // 退出码143表示进程被SIGTERM信号终止，这是正常停止的结果
+                    // 或者是手动停止的情况
+                    this.outputChannel.appendLine('✅ 服务已正常停止（进程被终止信号关闭）');
                 }
 
                 this.process = null;
@@ -1267,6 +1274,8 @@ export class HomeService {
 
             // 检查停止脚本是否存在
             if (fs.existsSync(stopScriptPath)) {
+                this.outputChannel.appendLine(`🔍 找到停止脚本: ${stopScriptPath}`);
+
                 // 在Unix系统（macOS/Linux）上添加执行权限
                 if (process.platform !== 'win32') {
                     try {
@@ -1278,15 +1287,37 @@ export class HomeService {
                 }
 
                 // 执行停止脚本
+                this.outputChannel.appendLine(`正在执行停止脚本: ${stopScriptPath}`);
                 const stopProcess = spawn(stopScriptPath, {
                     cwd: path.dirname(stopScriptPath),
                     stdio: ['pipe', 'pipe', 'pipe'],
                     detached: false
                 });
 
+                // // 监听标准输出
+                // stopProcess.stdout?.on('data', (data: Buffer) => {
+                //     const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
+                //     this.outputChannel.appendLine(`[STDOUT] ${output}`);
+                // });
+
+                // // 监听标准错误输出
+                // stopProcess.stderr?.on('data', (data: Buffer) => {
+                //     const stderrOutput = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
+                //     this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
+                // });
+
                 stopProcess.on('close', (code: any) => {
                     this.outputChannel.appendLine(`停止脚本执行完成，退出码: ${code}`);
                     if (code === 0) {
+                        this.setStatus(HomeStatus.STOPPED);
+                        this.isManualStop = false;
+                        this.outputChannel.appendLine('✅ HOME服务已成功停止');
+                    } else if (code === 127) {
+                        // 对于退出码127，我们已经尝试了修复但仍失败，直接kill进程
+                        this.outputChannel.appendLine('⚠️ 停止脚本执行失败(退出码127)，直接终止进程');
+                        this.killProcess();
+                    } else if (code === 143) {
+                        // 退出码143表示进程被SIGTERM信号终止，这是正常停止的结果
                         this.setStatus(HomeStatus.STOPPED);
                         this.isManualStop = false;
                         this.outputChannel.appendLine('✅ HOME服务已成功停止');
@@ -1299,6 +1330,8 @@ export class HomeService {
 
                 stopProcess.on('error', (error: any) => {
                     this.outputChannel.appendLine(`执行停止脚本失败: ${error.message}`);
+                    this.outputChannel.appendLine(`错误代码: ${error.code}`);
+                    this.outputChannel.appendLine(`错误路径: ${error.path}`);
                     // 如果脚本执行失败，则强制终止进程
                     this.killProcess();
                 });
@@ -1327,9 +1360,6 @@ export class HomeService {
     /**
      * 强制终止进程
      */
-    /**
-     * 强制终止进程
-     */
     private killProcess(): void {
         if (this.process && !this.process.killed) {
             try {
@@ -1354,7 +1384,7 @@ export class HomeService {
 
         // 设置状态为已停止
         this.setStatus(HomeStatus.STOPPED);
-        this.isManualStop = false;
+        // 注意：这里不重置isManualStop标志，因为它在stopHomeService方法中管理
         this.outputChannel.appendLine('✅ HOME服务已停止');
     }
 
