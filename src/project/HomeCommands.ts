@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { HomeService } from './HomeService';
 import { HomeDebugService } from './HomeDebugService';
 import { NCHomeConfigService } from './NCHomeConfigService';
@@ -96,6 +98,13 @@ export class HomeCommands {
                 selectedPath = result[0].fsPath;
             } else {
                 selectedPath = uri.fsPath;
+            }
+
+            // 检查目录是否包含.yonbip-project标记文件
+            const markerFilePath = path.join(selectedPath, '.yonbip-project');
+            if (!fs.existsSync(markerFilePath)) {
+                vscode.window.showErrorMessage('只有已初始化的YonBIP项目目录才能启动中间件服务。请先使用"🚀 YONBIP 工程初始化"命令初始化项目或者创建YonBIP项目进行启动。');
+                return;
             }
 
             await this.homeService.startHomeService(selectedPath);

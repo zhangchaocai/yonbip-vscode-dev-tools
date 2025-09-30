@@ -87,7 +87,7 @@ ${config.type === 'yonbip' ? `
     /**
      * 创建YonBIP项目
      */
-    public async createYonBipProject(): Promise<void> {
+    public async createYonBipProject(projectPath?: string): Promise<void> {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
             vscode.window.showWarningMessage('请先打开一个工作区文件夹');
@@ -105,17 +105,20 @@ ${config.type === 'yonbip' ? `
                 title: '正在创建YonBIP项目...',
                 cancellable: false
             }, async (progress) => {
-                const workspaceRoot = workspaceFolders[0].uri.fsPath;
-                const projectPath = path.join(workspaceRoot, projectInfo.name);
+                // 如果提供了projectPath，则使用它作为项目根目录，否则使用工作区根目录
+                const workspaceRoot = projectPath || workspaceFolders[0].uri.fsPath;
+                const finalProjectPath = projectPath ?
+                    path.join(workspaceRoot, projectInfo.name) :
+                    path.join(workspaceRoot, projectInfo.name);
 
                 progress.report({ increment: 20, message: '创建项目目录结构...' });
-                await this.createProjectStructure(projectPath, projectInfo);
+                await this.createProjectStructure(finalProjectPath, projectInfo);
 
                 progress.report({ increment: 40, message: '生成项目配置文件...' });
-                await this.generateProjectFiles(projectPath, projectInfo);
+                await this.generateProjectFiles(finalProjectPath, projectInfo);
 
                 progress.report({ increment: 70, message: '创建示例代码...' });
-                await this.createSampleCode(projectPath, projectInfo);
+                await this.createSampleCode(finalProjectPath, projectInfo);
 
                 progress.report({ increment: 100, message: '完成项目初始化...' });
 
@@ -124,7 +127,7 @@ ${config.type === 'yonbip' ? `
                     '打开项目'
                 ).then(choice => {
                     if (choice === '打开项目') {
-                        vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(projectPath));
+                        vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(finalProjectPath));
                     }
                 });
             });

@@ -131,61 +131,6 @@ export function activate(context: vscode.ExtensionContext) {
 		)
 	);
 
-	// 注册测试webview命令
-	const testWebviewCommand = vscode.commands.registerCommand('yonbip.test.webview', () => {
-		const panel = vscode.window.createWebviewPanel(
-			'testWebview',
-			'测试Webview',
-			vscode.ViewColumn.One,
-			{
-				enableScripts: true,
-				retainContextWhenHidden: true
-			}
-		);
-
-		panel.webview.html = `
-			<!DOCTYPE html>
-			<html lang="zh-CN">
-			<head>
-				<meta charset="UTF-8">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>测试Webview</title>
-			</head>
-			<body>
-				<div class="test-container">
-					<h1>🎉 Webview 测试成功！</h1>
-					<p>如果你能看到这个界面，说明webview已经正常工作了。</p>
-					<button class="test-button" onclick="testMessage()">发送测试消息</button>
-				</div>
-				<script>
-					const vscode = acquireVsCodeApi();
-					
-					function testMessage() {
-						vscode.postMessage({
-							command: 'test',
-							text: 'Hello from webview!'
-						});
-					}
-				</script>
-			</body>
-			</html>
-		`;
-
-		panel.webview.onDidReceiveMessage(
-			message => {
-				switch (message.command) {
-					case 'test':
-						vscode.window.showInformationMessage('收到来自webview的消息: ' + message.text);
-						return;
-				}
-			},
-			undefined,
-			context.subscriptions
-		);
-	});
-
-	context.subscriptions.push(testWebviewCommand);
-
 }
 
 // this method is called when your extension is deactivated

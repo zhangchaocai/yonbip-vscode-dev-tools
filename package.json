@@ -171,6 +171,21 @@
         "command": "yonbip.scaffold.download",
         "title": "📦 下载YonBIP脚手架",
         "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.create",
+        "title": "📁 创建YonBIP模块项目",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.createMultiModule",
+        "title": "🧩 创建YonBIP多模块项目",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.createComponent",
+        "title": "🔧 创建业务组件",
+        "category": "YonBIP/项目管理"
       }
     ],
     "submenus": [
@@ -189,24 +204,39 @@
       ],
       "yonbip.project.submenu": [
         {
-          "command": "yonbip.project.initContext",
+          "command": "yonbip.project.createMultiModule",
           "when": "explorerResourceIsFolder",
           "group": "1@1"
         },
         {
-          "command": "yonbip.scaffold.download",
+          "command": "yonbip.project.create",
           "when": "explorerResourceIsFolder",
           "group": "1@2"
         },
         {
-          "command": "yonbip.home.startFromDirectory",
+          "command": "yonbip.project.initContext",
           "when": "explorerResourceIsFolder",
           "group": "1@3"
         },
         {
-          "command": "yonbip.home.stop",
+          "command": "yonbip.project.createComponent",
           "when": "explorerResourceIsFolder",
           "group": "1@4"
+        },
+        {
+          "command": "yonbip.scaffold.download",
+          "when": "explorerResourceIsFolder",
+          "group": "1@5"
+        },
+        {
+          "command": "yonbip.home.startFromDirectory",
+          "when": "explorerResourceIsFolder",
+          "group": "1@6"
+        },
+        {
+          "command": "yonbip.home.stop",
+          "when": "explorerResourceIsFolder",
+          "group": "1@7"
         }
       ]
     },

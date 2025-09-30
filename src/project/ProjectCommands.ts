@@ -5,6 +5,7 @@ import * as https from 'https';
 import * as StreamZip from 'node-stream-zip';
 import { ProjectService } from './ProjectService';
 import { NCHomeConfigService } from './NCHomeConfigService';
+import { LibraryService } from './LibraryService';
 
 /**
  * 项目相关命令类
@@ -27,8 +28,18 @@ export class ProjectCommands {
         const projectCommands = new ProjectCommands(context, projectService);
 
         // 注册创建项目命令
-        const createCommand = vscode.commands.registerCommand('yonbip.project.create', () => {
-            projectCommands.createProject();
+        const createCommand = vscode.commands.registerCommand('yonbip.project.create', (uri: vscode.Uri) => {
+            projectCommands.createProject(uri?.fsPath);
+        });
+
+        // 注册创建多模块项目命令
+        const createMultiModuleCommand = vscode.commands.registerCommand('yonbip.project.createMultiModule', (uri: vscode.Uri) => {
+            projectCommands.createMultiModuleProject(uri?.fsPath);
+        });
+
+        // 注册创建业务组件命令
+        const createComponentCommand = vscode.commands.registerCommand('yonbip.project.createComponent', (uri: vscode.Uri) => {
+            projectCommands.createComponent(uri?.fsPath);
         });
 
         // 注册导出补丁命令
@@ -43,6 +54,8 @@ export class ProjectCommands {
 
         context.subscriptions.push(
             createCommand,
+            createMultiModuleCommand,
+            createComponentCommand,
             exportPatchCommand,
             downloadScaffoldCommand
         );
@@ -51,8 +64,399 @@ export class ProjectCommands {
     /**
      * 创建项目
      */
-    public async createProject(): Promise<void> {
-        await this.projectService.createYonBipProject();
+    public async createProject(projectPath?: string): Promise<void> {
+        // 获取当前工作区文件夹
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            vscode.window.showWarningMessage('请先打开一个工作区文件夹');
+            return;
+        }
+
+        const workspacePath = workspaceFolder.uri.fsPath;
+
+        // 确定项目的创建路径
+        // 如果提供了projectPath（来自右键菜单），则使用该路径作为父目录
+        // 否则使用工作区根目录
+        let parentPath = workspacePath;
+        if (projectPath) {
+            // 检查提供的路径是否是目录
+            try {
+                const stat = fs.statSync(projectPath);
+                if (stat.isDirectory()) {
+                    parentPath = projectPath;
+                }
+            } catch (error) {
+                // 如果路径不存在或无法访问，使用工作区路径
+                parentPath = workspacePath;
+            }
+        }
+
+        // 检查是否在多模块项目下创建模块项目
+        const isMultiModuleProject = this.isMultiModuleProject(parentPath);
+        const isModuleProject = this.isModuleProject(parentPath);
+        const isInMultiModuleRoot = this.isMultiModuleProject(workspacePath) && parentPath === workspacePath;
+
+        // 如果是在模块项目下创建项目，提示不允许
+        if (isModuleProject) {
+            vscode.window.showErrorMessage('模块项目下不允许再创建项目');
+            return;
+        }
+
+        // 如果是在多模块项目下（不是根目录），允许创建模块项目
+        // 如果是在多模块项目根目录下，可以创建模块项目
+        // 如果是在普通项目下，可以创建普通项目
+
+        // 让用户输入文件夹名称
+        const folderName = await vscode.window.showInputBox({
+            prompt: isMultiModuleProject || isInMultiModuleRoot ? '请输入要创建的模块项目文件夹名称' : '请输入要创建的项目文件夹名称',
+            value: isMultiModuleProject || isInMultiModuleRoot ? 'new-yonbip-module' : 'new-yonbip-project',
+            validateInput: (value) => {
+                if (!value || value.trim() === '') {
+                    return '文件夹名称不能为空';
+                }
+                // 检查是否包含非法字符
+                if (/[<>:"/\\|?*\x00-\x1F]/.test(value)) {
+                    return '文件夹名称包含非法字符';
+                }
+                // 检查文件夹是否已存在
+                const targetPath = path.join(parentPath, value.trim());
+                if (fs.existsSync(targetPath)) {
+                    return '该文件夹已存在，请输入其他名称';
+                }
+                return null;
+            }
+        });
+
+        if (!folderName) {
+            // 用户取消了操作
+            return;
+        }
+
+        const selectedPath = path.join(parentPath, folderName.trim());
+
+        // 确认操作
+        const confirm = await vscode.window.showWarningMessage(
+            isMultiModuleProject || isInMultiModuleRoot ?
+                `将在多模块项目下创建模块项目文件夹：${folderName}\n\n完整路径：${selectedPath}\n这将创建build/classes目录并初始化Java项目库。是否继续？` :
+                `将在以下目录创建项目文件夹：${folderName}\n\n完整路径：${selectedPath}\n这将创建build/classes目录并初始化Java项目库。是否继续？`,
+            '继续',
+            '取消'
+        );
+
+        if (confirm !== '继续') {
+            return;
+        }
+
+        try {
+            // 创建项目结构
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: isMultiModuleProject || isInMultiModuleRoot ? '正在创建模块项目目录...' : '正在创建项目目录...',
+                cancellable: false
+            }, async () => {
+                // 如果是在多模块项目下创建，使用模块项目结构创建方法
+                if (isMultiModuleProject || isInMultiModuleRoot) {
+                    await this.createModuleProjectStructure(selectedPath);
+                } else {
+                    await this.createProjectStructure(selectedPath);
+                }
+            });
+
+            // 获取HOME路径配置
+            const config = this.configService.getConfig();
+            const homePath = config.homePath;
+
+            // 检查HOME路径配置
+            if (!homePath) {
+                const result = await vscode.window.showInformationMessage(
+                    '未配置HOME路径，是否现在配置？',
+                    '是',
+                    '否'
+                );
+
+                if (result === '是') {
+                    // 打开NC Home配置界面
+                    await vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
+                    return;
+                } else {
+                    vscode.window.showWarningMessage('请先配置NC HOME路径');
+                    return;
+                }
+            }
+
+            // 初始化库（使用LibraryService的逻辑）
+            const libraryService = new LibraryService(this.context, this.configService);
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '正在初始化Java项目库...',
+                cancellable: false
+            }, async () => {
+                // 使用LibraryService的初始化逻辑，传入选定的路径
+                await libraryService.initLibrary(homePath, false, undefined, selectedPath);
+            });
+
+            // 创建标记文件来标识已初始化的项目
+            const markerFilePath = path.join(selectedPath, '.yonbip-project');
+            try {
+                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+            } catch (error) {
+                console.error('创建标记文件失败:', error);
+            }
+
+            vscode.window.showInformationMessage(isMultiModuleProject || isInMultiModuleRoot ?
+                `YonBIP模块项目 "${folderName}" 创建完成！` :
+                `YonBIP项目 "${folderName}" 创建完成！`);
+        } catch (error: any) {
+            console.error('项目初始化失败:', error);
+            vscode.window.showErrorMessage(`项目初始化失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 创建多模块项目
+     */
+    public async createMultiModuleProject(projectPath?: string): Promise<void> {
+        // 获取当前工作区文件夹
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            vscode.window.showWarningMessage('请先打开一个工作区文件夹');
+            return;
+        }
+
+        const workspacePath = workspaceFolder.uri.fsPath;
+
+        // 多模块项目只能创建到工作区根目录下
+        if (projectPath && projectPath !== workspacePath) {
+            vscode.window.showErrorMessage('多模块项目只能创建到工作区根目录下');
+            return;
+        }
+
+        // 让用户输入文件夹名称
+        const folderName = await vscode.window.showInputBox({
+            prompt: '请输入要创建的多模块项目文件夹名称',
+            value: 'new-yonbip-multimodule-project',
+            validateInput: (value) => {
+                if (!value || value.trim() === '') {
+                    return '文件夹名称不能为空';
+                }
+                // 检查是否包含非法字符
+                if (/[<>:"/\\|?*\x00-\x1F]/.test(value)) {
+                    return '文件夹名称包含非法字符';
+                }
+                // 检查文件夹是否已存在
+                const targetPath = path.join(workspacePath, value.trim());
+                if (fs.existsSync(targetPath)) {
+                    return '该文件夹已存在，请输入其他名称';
+                }
+                return null;
+            }
+        });
+
+        if (!folderName) {
+            // 用户取消了操作
+            return;
+        }
+
+        const selectedPath = path.join(workspacePath, folderName.trim());
+
+        // 确认操作
+        const confirm = await vscode.window.showWarningMessage(
+            `将在工作区下创建多模块项目文件夹：${folderName}\n\n完整路径：${selectedPath}\n这将创建build/classes目录。是否继续？`,
+            '继续',
+            '取消'
+        );
+
+        if (confirm !== '继续') {
+            return;
+        }
+
+        try {
+            // 创建项目结构（不包含META-INF和module.xml）
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '正在创建多模块项目目录...',
+                cancellable: false
+            }, async () => {
+                await this.createMultiModuleProjectStructure(selectedPath);
+            });
+
+            // 获取HOME路径配置
+            const config = this.configService.getConfig();
+            const homePath = config.homePath;
+
+            // 检查HOME路径配置
+            if (!homePath) {
+                const result = await vscode.window.showInformationMessage(
+                    '未配置HOME路径，是否现在配置？',
+                    '是',
+                    '否'
+                );
+
+                if (result === '是') {
+                    // 打开NC Home配置界面
+                    await vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
+                    return;
+                } else {
+                    vscode.window.showWarningMessage('请先配置NC HOME路径');
+                    return;
+                }
+            }
+
+            // 初始化库（使用LibraryService的逻辑）
+            const libraryService = new LibraryService(this.context, this.configService);
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '正在初始化Java项目库...',
+                cancellable: false
+            }, async () => {
+                // 使用LibraryService的初始化逻辑
+                await libraryService.initLibrary(homePath, false, undefined, selectedPath);
+            });
+
+            // 创建标记文件来标识已初始化的项目
+            const markerFilePath = path.join(selectedPath, '.yonbip-project');
+            try {
+                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+            } catch (error) {
+                console.error('创建标记文件失败:', error);
+            }
+
+            vscode.window.showInformationMessage(`YonBIP多模块项目 "${folderName}" 创建完成！`);
+        } catch (error: any) {
+            console.error('多模块项目初始化失败:', error);
+            vscode.window.showErrorMessage(`多模块项目初始化失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 创建业务组件
+     */
+    public async createComponent(componentPath?: string): Promise<void> {
+        // 如果没有提供路径，则提示用户选择目录
+        let selectedPath: string;
+        if (!componentPath) {
+            const result = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: '选择要创建业务组件的目录'
+            });
+
+            if (!result || result.length === 0) {
+                return;
+            }
+
+            selectedPath = result[0].fsPath;
+        } else {
+            selectedPath = componentPath;
+        }
+
+        // 检查目录是否包含.yonbip-project标记文件（即是否为已初始化的YonBIP项目）
+        const markerFilePath = path.join(selectedPath, '.yonbip-project');
+        if (!fs.existsSync(markerFilePath)) {
+            vscode.window.showErrorMessage('只有已初始化的YonBIP项目目录才能创建业务组件。请先使用"🚀 YONBIP 工程初始化"命令初始化项目。');
+            return;
+        }
+
+        // 让用户输入业务组件名称
+        const componentName = await vscode.window.showInputBox({
+            prompt: '请输入业务组件名称',
+            validateInput: (value) => {
+                if (!value || value.trim() === '') {
+                    return '业务组件名称不能为空';
+                }
+                // 检查是否包含非法字符
+                if (/[<>:"/\\|?*\x00-\x1F]/.test(value)) {
+                    return '业务组件名称包含非法字符';
+                }
+                // 检查业务组件是否已存在
+                const targetPath = path.join(selectedPath, value.trim());
+                if (fs.existsSync(targetPath)) {
+                    return '该业务组件已存在，请输入其他名称';
+                }
+                return null;
+            }
+        });
+
+        if (!componentName) {
+            // 用户取消了操作
+            return;
+        }
+
+        const targetPath = path.join(selectedPath, componentName.trim());
+
+        // 确认操作
+        const confirm = await vscode.window.showWarningMessage(
+            `将在以下目录创建业务组件：${targetPath}\n\n是否继续？`,
+            '继续',
+            '取消'
+        );
+
+        if (confirm !== '继续') {
+            return;
+        }
+
+        try {
+            // 创建业务组件目录结构
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '正在创建业务组件目录...',
+                cancellable: false
+            }, async () => {
+                await this.createComponentStructure(targetPath, componentName.trim());
+            });
+
+            vscode.window.showInformationMessage(`业务组件 "${componentName}" 创建完成！`);
+        } catch (error: any) {
+            console.error('创建业务组件失败:', error);
+            vscode.window.showErrorMessage(`创建业务组件失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 创建业务组件目录结构
+     */
+    private async createComponentStructure(componentPath: string, componentName: string): Promise<void> {
+        try {
+            // 创建业务组件目录
+            fs.mkdirSync(componentPath, { recursive: true });
+
+            // 创建子目录
+            const srcPath = path.join(componentPath, 'src');
+            const resourcesPath = path.join(componentPath, 'resources');
+            const scriptPath = path.join(componentPath, 'script');
+            const metadataPath = path.join(componentPath, 'METADATA');
+            const metaInfPath = path.join(componentPath, 'META-INF');
+
+            fs.mkdirSync(srcPath, { recursive: true });
+            fs.mkdirSync(resourcesPath, { recursive: true });
+            fs.mkdirSync(scriptPath, { recursive: true });
+            fs.mkdirSync(metadataPath, { recursive: true });
+            fs.mkdirSync(metaInfPath, { recursive: true });
+
+            // 在src目录下创建子目录
+            const publicPath = path.join(srcPath, 'public');
+            const privatePath = path.join(srcPath, 'private');
+            const clientPath = path.join(srcPath, 'client');
+
+            fs.mkdirSync(publicPath, { recursive: true });
+            fs.mkdirSync(privatePath, { recursive: true });
+            fs.mkdirSync(clientPath, { recursive: true });
+
+            // 创建component.xml文件
+            const componentXmlPath = path.join(componentPath, 'component.xml');
+            const componentXmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<module name="${componentName}" displayname="${componentName}">
+    <dependencies>
+    </dependencies>
+</module>`;
+            fs.writeFileSync(componentXmlPath, componentXmlContent, 'utf-8');
+
+
+        } catch (error) {
+            console.error('创建业务组件目录结构失败:', error);
+            throw new Error(`创建业务组件目录结构失败: ${error}`);
+        }
     }
 
     /**
@@ -626,6 +1030,164 @@ export class ProjectCommands {
 
             readStream.pipe(writeStream);
         });
+    }
+
+    /**
+     * 在指定目录下创建符合项目结构的目录
+     */
+    private async createProjectStructure(basePath: string): Promise<void> {
+        try {
+            // 创建build/classes目录
+            const buildPath = path.join(basePath, 'build');
+            const classesPath = path.join(buildPath, 'classes');
+
+            if (!fs.existsSync(buildPath)) {
+                fs.mkdirSync(buildPath, { recursive: true });
+            }
+
+            if (!fs.existsSync(classesPath)) {
+                fs.mkdirSync(classesPath, { recursive: true });
+            }
+
+            // 创建src目录结构
+            // const srcPrivatePath = path.join(basePath, 'src', 'private');
+            // const srcPublicPath = path.join(basePath, 'src', 'public');
+            // const srcClientPath = path.join(basePath, 'src', 'client');
+            // if (!fs.existsSync(srcPrivatePath)) {
+            //     fs.mkdirSync(srcPrivatePath, { recursive: true });
+            // }
+            // if (!fs.existsSync(srcPublicPath)) {
+            //     fs.mkdirSync(srcPublicPath, { recursive: true });
+            // }
+            // if (!fs.existsSync(srcClientPath)) {
+            //     fs.mkdirSync(srcClientPath, { recursive: true });
+            // }
+
+            // 创建META-INF目录和module.xml文件
+            const metaInfPath = path.join(basePath, 'META-INF');
+            if (!fs.existsSync(metaInfPath)) {
+                fs.mkdirSync(metaInfPath, { recursive: true });
+            }
+
+            // 获取目录名称作为模块名称
+            const dirName = path.basename(basePath);
+            const moduleXmlPath = path.join(metaInfPath, 'module.xml');
+
+            // 只有当module.xml文件不存在时才创建
+            if (!fs.existsSync(moduleXmlPath)) {
+                const moduleXmlContent = `<?xml version="1.0" encoding="gb2312"?>
+<module name="${dirName}">
+    <public></public>
+    <private></private>
+</module>`;
+                fs.writeFileSync(moduleXmlPath, moduleXmlContent, 'utf-8');
+            }
+        } catch (error) {
+            console.error('Failed to create project directories:', error);
+            throw new Error(`创建目录失败: ${error}`);
+        }
+    }
+
+    /**
+     * 创建多模块项目结构（不包含META-INF和module.xml）
+     */
+    private async createMultiModuleProjectStructure(basePath: string): Promise<void> {
+        try {
+            // 创建build/classes目录
+            const buildPath = path.join(basePath, 'build');
+            const classesPath = path.join(buildPath, 'classes');
+
+            if (!fs.existsSync(buildPath)) {
+                fs.mkdirSync(buildPath, { recursive: true });
+            }
+
+            if (!fs.existsSync(classesPath)) {
+                fs.mkdirSync(classesPath, { recursive: true });
+            }
+
+            // 注意：不创建META-INF目录和module.xml文件
+        } catch (error) {
+            console.error('Failed to create multi-module project directories:', error);
+            throw new Error(`创建多模块项目目录失败: ${error}`);
+        }
+    }
+
+    /**
+     * 检查是否为多模块项目
+     */
+    private isMultiModuleProject(projectPath: string): boolean {
+        // 检查目录是否包含.yonbip-project标记文件且不包含META-INF目录
+        const markerFilePath = path.join(projectPath, '.yonbip-project');
+        const metaInfPath = path.join(projectPath, 'META-INF');
+
+        return fs.existsSync(markerFilePath) && !fs.existsSync(metaInfPath);
+    }
+
+    /**
+     * 检查是否为模块项目
+     */
+    private isModuleProject(projectPath: string): boolean {
+        // 检查目录是否包含.yonbip-project标记文件且包含META-INF目录
+        const markerFilePath = path.join(projectPath, '.yonbip-project');
+        const metaInfPath = path.join(projectPath, 'META-INF');
+
+        return fs.existsSync(markerFilePath) && fs.existsSync(metaInfPath);
+    }
+
+    /**
+     * 创建模块项目结构（用于多模块项目下的模块）
+     */
+    private async createModuleProjectStructure(basePath: string): Promise<void> {
+        try {
+            // 创建build/classes目录
+            const buildPath = path.join(basePath, 'build');
+            const classesPath = path.join(buildPath, 'classes');
+
+            if (!fs.existsSync(buildPath)) {
+                fs.mkdirSync(buildPath, { recursive: true });
+            }
+
+            if (!fs.existsSync(classesPath)) {
+                fs.mkdirSync(classesPath, { recursive: true });
+            }
+
+            // 创建src目录结构
+            const srcPrivatePath = path.join(basePath, 'src', 'private');
+            const srcPublicPath = path.join(basePath, 'src', 'public');
+            const srcClientPath = path.join(basePath, 'src', 'client');
+            if (!fs.existsSync(srcPrivatePath)) {
+                fs.mkdirSync(srcPrivatePath, { recursive: true });
+            }
+            if (!fs.existsSync(srcPublicPath)) {
+                fs.mkdirSync(srcPublicPath, { recursive: true });
+            }
+            if (!fs.existsSync(srcClientPath)) {
+                fs.mkdirSync(srcClientPath, { recursive: true });
+            }
+
+            // 创建META-INF目录和module.xml文件
+            const metaInfPath = path.join(basePath, 'META-INF');
+            if (!fs.existsSync(metaInfPath)) {
+                fs.mkdirSync(metaInfPath, { recursive: true });
+            }
+
+            // 获取目录名称作为模块名称
+            const dirName = path.basename(basePath);
+            const moduleXmlPath = path.join(metaInfPath, 'module.xml');
+
+            // 只有当module.xml文件不存在时才创建
+            if (!fs.existsSync(moduleXmlPath)) {
+                const moduleXmlContent = `<?xml version="1.0" encoding="gb2312"?>
+<module name="${dirName}">
+    <public></public>
+    <private></private>
+</module>`;
+                fs.writeFileSync(moduleXmlPath, moduleXmlContent, 'utf-8');
+            }
+        } catch (error) {
+            console.error('Failed to create module project directories:', error);
+            throw new Error(`创建模块项目目录失败: ${error}`);
+        }
     }
 
     /**
