@@ -24,6 +24,9 @@ import { LibraryService } from './project/LibraryService';
 // 导入项目装饰器提供者
 import { ProjectDecorationProvider } from './project/ProjectDecorationProvider';
 
+// 导入密码加密解密工具类
+import { PasswordEncryptor } from './utils/PasswordEncryptor';
+
 // 全局变量用于在deactivate时释放资源
 let ncHomeConfigService: NCHomeConfigService | undefined;
 let projectService: ProjectService | undefined;
@@ -41,6 +44,9 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.env.openExternal(vscode.Uri.parse('https://community.yonyou.com'));
 			}
 		});
+
+	// 设置PasswordEncryptor的扩展路径
+	PasswordEncryptor.setExtensionPath(context.extensionPath);
 
 	// 注册项目装饰器提供者
 	const projectDecorationProvider = new ProjectDecorationProvider(context);
