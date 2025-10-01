@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
-const WebSocket = require('ws');
 
 /**
  * MCP服务配置
@@ -38,7 +37,6 @@ export class McpService {
     private isManualStop: boolean = false; // 标记是否为手动停止
     // private statusBarItem: vscode.StatusBarItem;  // 注释掉状态栏，由WebView显示
     private outputChannel: vscode.OutputChannel;
-    private websocket: any = null;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
@@ -157,15 +155,21 @@ export class McpService {
 
             // 启动Java进程
             this.outputChannel.appendLine('正在创建Java进程...');
+
+            // 添加环境变量确保Java进程独立运行
+            const env = {
+                ...process.env,
+                JAVA_OPTS: '-Dfile.encoding=UTF-8',
+                // 避免Java进程继承VSCode的一些环境变量
+                ELECTRON_RUN_AS_NODE: undefined
+            };
+
+            // 确保在独立的会话中运行进程
             this.process = spawn(this.config.javaPath, args, {
                 stdio: ['pipe', 'pipe', 'pipe'],
-                detached: false,
-                env: {
-                    ...process.env,
-                    JAVA_OPTS: '-Dfile.encoding=UTF-8',
-                    // 避免Java进程继承VSCode的一些环境变量
-                    ELECTRON_RUN_AS_NODE: undefined
-                }
+                detached: true, // 独立进程
+                env: env,
+                cwd: path.dirname(this.config.jarPath) // 设置工作目录为JAR文件所在目录
             });
 
             if (!this.process.pid) {
@@ -193,10 +197,9 @@ export class McpService {
                     this.setStatus(McpStatus.RUNNING);
                     vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
 
-                    // 延迟连接WebSocket，确保服务完全启动
-                    setTimeout(() => {
-                        this.connectWebSocket();
-                    }, 2000);
+                    // 启动成功后自动切换到MCP服务面板
+                    vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
+
                 }
 
                 // 检查常见错误模式
@@ -237,7 +240,6 @@ export class McpService {
 
                 this.setStatus(McpStatus.STOPPED);
                 this.process = null;
-                this.closeWebSocket();
 
                 // 只有在非正常停止时才显示错误消息
                 if (code !== 0 && code !== null && code !== 143 && !this.isManualStop) {
@@ -257,11 +259,18 @@ export class McpService {
             // 设置启动超时
             setTimeout(() => {
                 if (this.status === McpStatus.STARTING) {
-                    this.outputChannel.appendLine('MCP服务启动超时');
-                    this.stop();
-                    vscode.window.showErrorMessage('MCP服务启动超时，请检查配置和日志');
+                    // 检查进程是否仍在运行
+                    if (this.process && !this.process.killed) {
+                        this.outputChannel.appendLine('MCP服务启动超时，但进程仍在运行，检查是否启动成功');
+                        // 进程仍在运行，可能是启动成功但未输出启动成功标识
+                        this.checkProcessAliveAndSetStatus();
+                    } else {
+                        this.outputChannel.appendLine('MCP服务启动超时');
+                        this.stop();
+                        vscode.window.showErrorMessage('MCP服务启动超时，请检查配置和日志');
+                    }
                 }
-            }, 30000);
+            }, 60000); // 增加超时时间到60秒
 
         } catch (error: any) {
             this.setStatus(McpStatus.ERROR);
@@ -269,6 +278,62 @@ export class McpService {
             this.outputChannel.appendLine(message);
             vscode.window.showErrorMessage(message);
         }
+    }
+
+    /**
+     * 检查进程是否存活并设置状态
+     */
+    private async checkProcessAliveAndSetStatus(): Promise<void> {
+        try {
+            // 检查HTTP服务是否可用
+            const isAvailable = await this.checkHttpServiceAvailability();
+            if (isAvailable) {
+                this.outputChannel.appendLine('✓ 检测到MCP服务HTTP接口可用，设置为运行状态');
+                this.setStatus(McpStatus.RUNNING);
+                vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
+
+                // 启动成功后自动切换到MCP服务面板
+                vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
+
+            } else {
+                this.outputChannel.appendLine('❌ MCP服务HTTP接口不可用，设置为错误状态');
+                this.setStatus(McpStatus.ERROR);
+                this.stop();
+            }
+        } catch (error: any) {
+            this.outputChannel.appendLine(`检查进程状态失败: ${error.message}`);
+            this.setStatus(McpStatus.ERROR);
+        }
+    }
+
+    /**
+     * 检查HTTP服务是否可用
+     */
+    private async checkHttpServiceAvailability(): Promise<boolean> {
+        return new Promise((resolve) => {
+            const http = require('http');
+            const options = {
+                hostname: 'localhost',
+                port: this.config.port,
+                path: '/tool/stats', // 健康检查端点
+                timeout: 5000
+            };
+
+            const req = http.get(options, (res: any) => {
+                // 如果能收到响应，说明服务可用
+                resolve(res.statusCode >= 200 && res.statusCode < 500);
+            });
+
+            req.on('error', () => {
+                // 连接失败，服务不可用
+                resolve(false);
+            });
+
+            req.on('timeout', () => {
+                req.destroy();
+                resolve(false);
+            });
+        });
     }
 
     /**
@@ -283,9 +348,6 @@ export class McpService {
         this.isManualStop = true; // 标记为手动停止
         this.setStatus(McpStatus.STOPPING);
         this.outputChannel.appendLine('正在停止MCP服务...');
-
-        // 先关闭WebSocket连接
-        this.closeWebSocket();
 
         if (this.process) {
             return new Promise<void>((resolve) => {
@@ -485,23 +547,33 @@ export class McpService {
 
                 if (result) {
                     this.outputChannel.appendLine(`发现占用端口的进程PID: ${result}`);
-                    vscode.window.showWarningMessage(
+                    const choice = await vscode.window.showWarningMessage(
                         `端口${this.config.port}被进程${result}占用，需要先停止该进程`,
                         '自动停止', '取消'
-                    ).then(choice => {
-                        if (choice === '自动停止') {
+                    );
+
+                    if (choice === '自动停止') {
+                        await new Promise<void>((resolve, reject) => {
                             exec(`kill -TERM ${result}`, (error: any) => {
                                 if (error) {
                                     this.outputChannel.appendLine(`停止进程失败: ${error.message}`);
+                                    reject(error);
                                 } else {
                                     this.outputChannel.appendLine(`已停止占用端口的进程: ${result}`);
+                                    resolve();
                                 }
                             });
-                        }
-                    });
+                        });
+
+                        // 等待进程完全停止
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    } else {
+                        throw new Error(`端口${this.config.port}已被占用，请更换端口或停止占用进程`);
+                    }
                 }
             } catch (error: any) {
                 this.outputChannel.appendLine(`检查端口占用失败: ${error.message}`);
+                // 不抛出错误，继续尝试启动
             }
         }
 
@@ -539,10 +611,37 @@ export class McpService {
         args.push(
             '-jar',
             this.config.jarPath,
-            '--server.port=' + this.config.port
+            '--server.port=' + this.config.port,
+            '--solon.env=prod'
         );
 
+        // 添加home路径参数（参考IDEA插件实现）
+        const homePath = this.getHomePath();
+        if (homePath) {
+            args.push('--homepath=' + homePath);
+        }
+
         return args;
+    }
+
+    /**
+     * 获取HOME路径
+     */
+    private getHomePath(): string | null {
+        // 尝试从全局状态获取HOME路径
+        const homeConfig = this.context.globalState.get<any>('nchome.config');
+        if (homeConfig && homeConfig.homePath) {
+            return homeConfig.homePath;
+        }
+
+        // 尝试从配置中获取
+        const config = vscode.workspace.getConfiguration('yonbip');
+        const homePath = config.get<string>('homePath');
+        if (homePath) {
+            return homePath;
+        }
+
+        return null;
     }
 
     /**
@@ -553,87 +652,7 @@ export class McpService {
         // this.updateStatusBar();  // 注释掉状态栏更新，避免重复显示
     }
 
-    /**
-     * 更新状态栏 (已禁用)
-     */
-    private updateStatusBar(): void {
-        // 注释掉状态栏显示，避免与WebView面板重复
-        /*
-        const statusMap = {
-            [McpStatus.STOPPED]: { text: '$(circle-large-outline) MCP已停止', color: undefined },
-            [McpStatus.STARTING]: { text: '$(loading~spin) MCP启动中', color: 'yellow' },
-            [McpStatus.RUNNING]: { text: '$(circle-large-filled) MCP运行中', color: 'green' },
-            [McpStatus.STOPPING]: { text: '$(loading~spin) MCP停止中', color: 'yellow' },
-            [McpStatus.ERROR]: { text: '$(error) MCP错误', color: 'red' }
-        };
 
-        const statusInfo = statusMap[this.status];
-        this.statusBarItem.text = statusInfo.text;
-        this.statusBarItem.color = statusInfo.color;
-        this.statusBarItem.tooltip = `YonBIP MCP服务状态: ${this.status}`;
-        
-        if (this.status === McpStatus.RUNNING) {
-            this.statusBarItem.command = 'yonbip.mcp.stop';
-        } else if (this.status === McpStatus.STOPPED) {
-            this.statusBarItem.command = 'yonbip.mcp.start';
-        } else {
-            this.statusBarItem.command = undefined;
-        }
-        */
-    }
-
-    /**
-     * 连接WebSocket
-     */
-    private connectWebSocket(): void {
-        try {
-            const wsUrl = `ws://localhost:${this.config.port}/ws`;
-            this.websocket = new WebSocket(wsUrl);
-
-            if (this.websocket) {
-                this.websocket.on('open', () => {
-                    this.outputChannel.appendLine('WebSocket连接已建立');
-                });
-
-                this.websocket.on('message', (data: any) => {
-                    this.outputChannel.appendLine(`WebSocket消息: ${data}`);
-                });
-
-                this.websocket.on('error', (error: any) => {
-                    this.outputChannel.appendLine(`WebSocket错误: ${error.message}`);
-                });
-
-                this.websocket.on('close', () => {
-                    this.outputChannel.appendLine('WebSocket连接已关闭');
-                    this.websocket = null;
-                });
-            }
-
-        } catch (error: any) {
-            this.outputChannel.appendLine(`WebSocket连接失败: ${error.message}`);
-        }
-    }
-
-    /**
-     * 关闭WebSocket
-     */
-    private closeWebSocket(): void {
-        if (this.websocket) {
-            this.websocket.close();
-            this.websocket = null;
-        }
-    }
-
-    /**
-     * 发送WebSocket消息
-     */
-    public sendMessage(message: any): boolean {
-        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-            this.websocket.send(JSON.stringify(message));
-            return true;
-        }
-        return false;
-    }
 
     /**
      * 检查端口是否可用
@@ -693,19 +712,20 @@ export class McpService {
                     );
 
                     if (choice === '清理') {
-                        await new Promise<void>((resolve) => {
+                        await new Promise<void>((resolve, reject) => {
                             exec(`kill -TERM ${pids}`, (error: any) => {
                                 if (error) {
                                     this.outputChannel.appendLine(`清理失败: ${error.message}`);
+                                    reject(error);
                                 } else {
                                     this.outputChannel.appendLine('✓ 端口清理成功');
+                                    resolve();
                                 }
-                                resolve();
                             });
                         });
 
                         // 等待端口释放
-                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await new Promise(resolve => setTimeout(resolve, 3000));
                         const nowAvailable = await this.isPortAvailable(this.config.port);
                         if (nowAvailable) {
                             this.outputChannel.appendLine('✓ 端口现在可用');
@@ -725,7 +745,7 @@ export class McpService {
                 }
             } catch (error: any) {
                 this.outputChannel.appendLine(`端口检查失败: ${error.message}`);
-                hasError = true;
+                // 不设置错误标志，继续尝试启动
             }
         } else {
             this.outputChannel.appendLine(`✓ 端口${this.config.port}可用`);
@@ -789,6 +809,5 @@ export class McpService {
             McpService.outputChannelInstance.dispose();
             McpService.outputChannelInstance = null;
         }
-        this.closeWebSocket();
     }
 }

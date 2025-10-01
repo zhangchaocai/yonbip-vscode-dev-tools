@@ -143,14 +143,35 @@ export class McpProvider implements vscode.WebviewViewProvider {
      */
     private async handleStart() {
         try {
+            // 显示启动中状态
+            this._view?.webview.postMessage({
+                type: 'statusLoaded',
+                status: {
+                    isRunning: false,
+                    message: '正在启动服务...'
+                }
+            });
+
             await this.mcpService.start();
             await this.handleGetStatus();
+
+            // 启动成功后自动切换到MCP服务面板
+            vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
 
             this._view?.webview.postMessage({
                 type: 'mcpStarted',
                 success: true
             });
         } catch (error: any) {
+            // 更新状态为错误
+            this._view?.webview.postMessage({
+                type: 'statusLoaded',
+                status: {
+                    isRunning: false,
+                    message: `启动失败: ${error.message}`
+                }
+            });
+
             this._view?.webview.postMessage({
                 type: 'mcpStarted',
                 success: false,
@@ -629,7 +650,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
         <div class="tabs">
             <button class="tab active" onclick="switchTab('status')">📊 服务状态</button>
             <button class="tab" onclick="switchTab('config')">⚙️ 配置管理</button>
-            <button class="tab" onclick="switchTab('logs')">📋 日志查看</button>
         </div>
 
         <!-- 服务状态选项卡 -->
@@ -717,30 +737,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
-        <!-- 日志查看选项卡 -->
-        <div id="logs-tab" class="tab-content">
-            <div class="section">
-                <div class="section-title">
-                    服务日志
-                    <button onclick="clearLogs()" style="float: right;" class="secondary">🗑️ 清空日志</button>
-                </div>
-                
-                <div id="logsContent" style="
-                    background-color: var(--vscode-editor-background);
-                    border: 1px solid var(--vscode-input-border);
-                    border-radius: 4px;
-                    padding: 15px;
-                    font-family: monospace;
-                    font-size: 12px;
-                    white-space: pre-wrap;
-                    overflow-y: auto;
-                    max-height: 400px;
-                    min-height: 200px;
-                ">
-                    暂无日志信息...
-                </div>
-            </div>
-        </div>
+
     </div>
 
     <script>
@@ -816,10 +813,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 });
         }
         
-        // 清空日志
-        function clearLogs() {
-            document.getElementById('logsContent').textContent = '日志已清空...';
-        }
+
         
         // 更新配置显示
         function updateConfigDisplay(config) {

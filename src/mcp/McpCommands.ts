@@ -61,6 +61,8 @@ export class McpCommands {
     public async startMcp(): Promise<void> {
         try {
             await this.mcpService.start();
+            // 启动成功后自动切换到MCP服务面板
+            vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
         } catch (error: any) {
             vscode.window.showErrorMessage(`启动MCP服务失败: ${error.message}`);
         }
