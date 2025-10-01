@@ -15,17 +15,17 @@ export class ProjectCommands {
     private configService: NCHomeConfigService;
     private context: vscode.ExtensionContext;
 
-    constructor(context: vscode.ExtensionContext, projectService: ProjectService) {
+    constructor(context: vscode.ExtensionContext, projectService: ProjectService, configService: NCHomeConfigService) {
         this.projectService = projectService;
-        this.configService = new NCHomeConfigService(context);
+        this.configService = configService;  // 使用传入的配置服务实例
         this.context = context;
     }
 
     /**
      * 注册所有项目相关命令
      */
-    public static registerCommands(context: vscode.ExtensionContext, projectService: ProjectService): void {
-        const projectCommands = new ProjectCommands(context, projectService);
+    public static registerCommands(context: vscode.ExtensionContext, projectService: ProjectService, configService: NCHomeConfigService): void {
+        const projectCommands = new ProjectCommands(context, projectService, configService);
 
         // 注册创建项目命令
         const createCommand = vscode.commands.registerCommand('yonbip.project.create', (uri: vscode.Uri) => {
@@ -162,7 +162,8 @@ export class ProjectCommands {
                 }
             });
 
-            // 获取HOME路径配置
+            // 强制重新加载配置以确保获取最新配置
+            this.configService.reloadConfig();
             const config = this.configService.getConfig();
             const homePath = config.homePath;
 
@@ -280,7 +281,8 @@ export class ProjectCommands {
                 await this.createMultiModuleProjectStructure(selectedPath);
             });
 
-            // 获取HOME路径配置
+            // 强制重新加载配置以确保获取最新配置
+            this.configService.reloadConfig();
             const config = this.configService.getConfig();
             const homePath = config.homePath;
 

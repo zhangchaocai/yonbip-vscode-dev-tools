@@ -36,18 +36,17 @@ export class ProjectContextCommands {
     /**
      * 注册所有项目上下文菜单相关命令
      */
-    public static registerCommands(context: vscode.ExtensionContext): void {
+    public static registerCommands(context: vscode.ExtensionContext, configService: NCHomeConfigService): void {
         // 设置扩展上下文
         this.setExtensionContext(context);
 
-        const ncHomeConfigService = new NCHomeConfigService(context);
-        const libraryService = new LibraryService(context, ncHomeConfigService);
+        const libraryService = new LibraryService(context, configService);
 
         // 初始化项目目录命令（右键菜单）
         const initProjectContextCommand = vscode.commands.registerCommand(
             'yonbip.project.initContext',
             async (uri: vscode.Uri) => {
-                await this.handleInitProjectContext(uri, libraryService, ncHomeConfigService);
+                await this.handleInitProjectContext(uri, libraryService, configService);
             }
         );
 
@@ -104,6 +103,8 @@ export class ProjectContextCommands {
                 await this.createProjectStructure(selectedPath);
             });
 
+            // 强制重新加载配置以确保获取最新配置
+            configService.reloadConfig();
             // 获取HOME路径配置 - 使用NCHomeConfigService获取工作区特定的配置
             const config = configService.getConfig();
             let homePath = config.homePath;

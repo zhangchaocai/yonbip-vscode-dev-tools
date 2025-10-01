@@ -20,6 +20,7 @@ import { ProjectCommands } from './project/ProjectCommands';
 import { ProjectService } from './project/ProjectService';
 import { McpService } from './mcp/McpService';
 import { LibraryService } from './project/LibraryService';
+import { HomeService } from './project/HomeService';
 
 // 导入项目装饰器提供者
 import { ProjectDecorationProvider } from './project/ProjectDecorationProvider';
@@ -32,6 +33,7 @@ let ncHomeConfigService: NCHomeConfigService | undefined;
 let projectService: ProjectService | undefined;
 let mcpService: McpService | undefined;
 let libraryService: LibraryService | undefined;
+let homeService: HomeService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -100,14 +102,14 @@ export function activate(context: vscode.ExtensionContext) {
 	HomeCommands.registerCommands(context, ncHomeConfigService);
 
 	// 注册库管理命令
-	LibraryCommands.registerCommands(context);
+	LibraryCommands.registerCommands(context, ncHomeConfigService);
 
 	// 注册项目上下文菜单命令
-	ProjectContextCommands.registerCommands(context);
+	ProjectContextCommands.registerCommands(context, ncHomeConfigService);
 
 	// 注册项目管理命令
 	projectService = new ProjectService(context);
-	ProjectCommands.registerCommands(context, projectService);
+	ProjectCommands.registerCommands(context, projectService, ncHomeConfigService);
 
 	// 注册NC Home配置界面
 	const ncHomeConfigProvider = new NCHomeConfigProvider(context.extensionUri, context);
@@ -160,5 +162,10 @@ export function deactivate() {
 	// 释放库管理服务资源
 	if (libraryService) {
 		libraryService.dispose();
+	}
+
+	// 释放HOME服务资源
+	if (homeService) {
+		homeService.dispose();
 	}
 }

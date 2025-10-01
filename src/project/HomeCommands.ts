@@ -76,8 +76,7 @@ export class HomeCommands {
     public async startHomeService(selectedPath?: string): Promise<void> {
         try {
             // 重新加载配置以确保使用当前工作区的配置
-            this.configService = new NCHomeConfigService(this.context);
-            this.homeService = new HomeService(this.context, this.configService);
+            this.configService.reloadConfig();
             await this.homeService.startHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`启动HOME服务失败: ${error.message}`);
@@ -115,8 +114,7 @@ export class HomeCommands {
             }
 
             // 重新加载配置以确保使用当前工作区的配置
-            this.configService = new NCHomeConfigService(this.context);
-            this.homeService = new HomeService(this.context, this.configService);
+            this.configService.reloadConfig();
             await this.homeService.startHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`从指定目录启动HOME服务失败: ${error.message}`);
@@ -129,9 +127,7 @@ export class HomeCommands {
     public async debugHomeService(selectedPath?: string): Promise<void> {
         try {
             // 重新加载配置以确保使用当前工作区的配置
-            this.configService = new NCHomeConfigService(this.context);
-            this.homeService = new HomeService(this.context, this.configService);
-            this.homeDebugService = new HomeDebugService(this.context, this.configService, this.homeService);
+            this.configService.reloadConfig();
             await this.homeDebugService.debugHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`调试启动HOME服务失败: ${error.message}`);

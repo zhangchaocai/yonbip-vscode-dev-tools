@@ -994,7 +994,7 @@ export class LibraryService {
      */
     private getHomePathFromConfigFile(): string | undefined {
         try {
-            // 优先检查工作区目录下的配置文件
+            // 只检查工作区目录下的配置文件
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (workspaceFolders && workspaceFolders.length > 0) {
                 const workspaceConfigPath = path.join(workspaceFolders[0].uri.fsPath, '.nc-home-config.json');
@@ -1008,19 +1008,7 @@ export class LibraryService {
                 }
             }
 
-            // 如果工作区目录下没有配置文件，检查全局存储路径的配置文件
-            const globalStoragePath = this.context?.globalStoragePath ||
-                path.join(require('os').homedir(), '.vscode', 'yonbip-devtool');
-            const configFilePath = path.join(globalStoragePath, 'nc-home-config.json');
-
-            if (fs.existsSync(configFilePath)) {
-                const config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
-                this.outputChannel.appendLine(`从全局配置文件获取HOME路径: ${config.homePath || '未找到'}`);
-                return config.homePath;
-            } else {
-                this.outputChannel.appendLine(`全局配置文件不存在: ${configFilePath}`);
-            }
-
+            // 不再检查全局存储路径的配置文件
             return undefined;
         } catch (error) {
             this.outputChannel.appendLine(`读取配置文件失败: ${error}`);
@@ -1109,30 +1097,29 @@ export class LibraryService {
     public async autoInitLibrary(): Promise<void> {
         this.outputChannel.appendLine('=== 开始检查HOME路径配置 ===');
 
-        // 检查不同作用域的配置
+        // 只检查工作区配置，不使用全局配置
         const config = vscode.workspace.getConfiguration('yonbip');
         const homePath = config.get<string>('homePath');
 
         // 详细调试信息
         this.outputChannel.appendLine(`从yonbip配置获取的homePath: ${homePath || '未找到'}`);
 
-        // 检查配置详情
+        // 检查配置详情（只关注工作区配置）
         const inspect = config.inspect('homePath');
         if (inspect) {
-            this.outputChannel.appendLine(`全局配置: ${inspect.globalValue || '未设置'}`);
             this.outputChannel.appendLine(`工作区配置: ${inspect.workspaceValue || '未设置'}`);
             this.outputChannel.appendLine(`工作区文件夹配置: ${inspect.workspaceFolderValue || '未设置'}`);
         }
 
-        // 从配置文件获取HOME路径
+        // 从配置文件获取HOME路径（只检查工作区目录下的配置文件）
         const configFileHomePath = this.getHomePathFromConfigFile();
 
-        // 优先使用任何可用的配置
+        // 优先使用工作区配置
         let actualHomePath = homePath ||
             configFileHomePath ||
             inspect?.workspaceValue ||
-            inspect?.workspaceFolderValue ||
-            inspect?.globalValue;
+            inspect?.workspaceFolderValue;
+        // 不再使用全局配置 inspect?.globalValue
 
         if (!actualHomePath) {
             this.outputChannel.appendLine('未找到任何HOME路径配置，跳过库初始化');

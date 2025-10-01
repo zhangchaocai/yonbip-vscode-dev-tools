@@ -119,22 +119,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
             // 如果prop.xml中有数据源信息，更新到配置中
             if (portsAndDataSourcesFromProp.dataSources.length > 0) {
-                // 合并数据源信息，避免重复
+                // 优先使用从prop.xml读取的数据源信息，避免重复
                 const existingDataSources = config.dataSources || [];
-                const newDataSources = portsAndDataSourcesFromProp.dataSources;
+                const propDataSources = portsAndDataSourcesFromProp.dataSources;
 
-                // 创建一个映射来跟踪已存在的数据源
-                const existingDataSourceNames = new Set(existingDataSources.map(ds => ds.name));
+                // 创建一个映射来跟踪从prop.xml读取的数据源
+                const propDataSourceNames = new Set(propDataSources.map(ds => ds.name));
 
-                // 添加新的数据源（不覆盖已存在的）
-                for (const newDataSource of newDataSources) {
-                    if (!existingDataSourceNames.has(newDataSource.name)) {
-                        existingDataSources.push(newDataSource);
-                        existingDataSourceNames.add(newDataSource.name);
-                    }
-                }
+                // 过滤掉已存在于prop.xml中的现有数据源
+                const filteredExistingDataSources = existingDataSources.filter(ds => !propDataSourceNames.has(ds.name));
 
-                config.dataSources = existingDataSources;
+                // 合并数据源：prop.xml中的数据源 + 过滤后的现有数据源
+                config.dataSources = [...propDataSources, ...filteredExistingDataSources];
             }
         }
 

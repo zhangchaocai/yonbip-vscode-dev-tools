@@ -12,9 +12,8 @@ export class LibraryCommands {
     /**
      * 注册所有库相关命令
      */
-    public static registerCommands(context: vscode.ExtensionContext): void {
-        const libraryService = new LibraryService(context);
-        const configService = new NCHomeConfigService(context);
+    public static registerCommands(context: vscode.ExtensionContext, configService: NCHomeConfigService): void {
+        const libraryService = new LibraryService(context, configService);
 
         // 初始化库命令
         const initLibraryCommand = vscode.commands.registerCommand(
@@ -55,7 +54,7 @@ export class LibraryCommands {
                 const inspect = config.inspect('homePath');
                 console.log('homePath配置详情:', inspect);
 
-                let message = `当前HOME路径: ${homePath || '未配置'}\n`;
+                let message = `当前HOME路径: ${homePath || '未设置'}\n`;
                 if (inspect) {
                     message += `全局: ${inspect.globalValue || '未设置'}\n`;
                     message += `工作区: ${inspect.workspaceValue || '未设置'}\n`;
@@ -74,6 +73,8 @@ export class LibraryCommands {
      */
     private static async handleInitLibrary(libraryService: LibraryService, configService: NCHomeConfigService): Promise<void> {
         try {
+            // 强制重新加载配置以确保获取最新配置
+            configService.reloadConfig();
             // 使用NCHomeConfigService获取工作区特定的配置
             const config = configService.getConfig();
             let homePath = config.homePath;
@@ -129,6 +130,8 @@ export class LibraryCommands {
      */
     private static async handleReinitLibrary(libraryService: LibraryService, configService: NCHomeConfigService): Promise<void> {
         try {
+            // 强制重新加载配置以确保获取最新配置
+            configService.reloadConfig();
             // 使用NCHomeConfigService获取工作区特定的配置
             const config = configService.getConfig();
             const homePath = config.homePath;

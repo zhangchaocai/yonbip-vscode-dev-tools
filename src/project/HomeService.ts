@@ -25,13 +25,18 @@ export class HomeService {
     private process: ChildProcess | null = null;
     private status: HomeStatus = HomeStatus.STOPPED;
     private outputChannel: vscode.OutputChannel;
+    private static outputChannelInstance: vscode.OutputChannel | null = null;
     private isManualStop: boolean = false;
     private startupCheckTimer: NodeJS.Timeout | null = null;
 
     constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService) {
         this.context = context;
         this.configService = configService;
-        this.outputChannel = vscode.window.createOutputChannel('YonBIP NC HOME服务');
+        // 确保outputChannel只初始化一次
+        if (!HomeService.outputChannelInstance) {
+            HomeService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP NC HOME服务');
+        }
+        this.outputChannel = HomeService.outputChannelInstance;
     }
 
     /**
@@ -334,6 +339,8 @@ export class HomeService {
             this.setStatus(HomeStatus.STARTING);
             this.outputChannel.clear();
             this.outputChannel.appendLine('正在启动NC HOME服务...');
+            // 自动切换到YonBIP NC HOME服务任务栏
+            this.outputChannel.show();
 
             // 添加控制台乱码补丁逻辑
             await this.applyConsoleEncodingPatch(config.homePath);
@@ -342,6 +349,7 @@ export class HomeService {
             const portsAndDataSourcesFromProp = this.configService.getPortFromPropXml();
             const serverPort = portsAndDataSourcesFromProp.port || config.port || 8077;
             const wsPort = portsAndDataSourcesFromProp.wsPort || config.wsPort || 8080;
+
 
             this.outputChannel.appendLine(`🔍 检查端口占用情况...`);
             await this.checkAndKillPortProcesses(serverPort, wsPort);
@@ -1450,7 +1458,11 @@ export class HomeService {
             this.process.kill();
         }
 
-        this.outputChannel.dispose();
+        // 只有在扩展完全停用时才应该dispose outputChannel
+        if (HomeService.outputChannelInstance) {
+            HomeService.outputChannelInstance.dispose();
+            HomeService.outputChannelInstance = null;
+        }
     }
 
     /**

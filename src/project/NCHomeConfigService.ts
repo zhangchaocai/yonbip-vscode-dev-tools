@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as iconv from 'iconv-lite';
 import { NCHomeConfig, DataSourceMeta, ConnectionTestResult, AutoParseResult, DRIVER_INFO_MAP } from './NCHomeConfigTypes';
 import { PasswordEncryptor } from '../utils/PasswordEncryptor';
+import { PropXmlUpdater } from '../utils/PropXmlUpdater';
 
 /**
  * NC Home配置服务
@@ -28,18 +29,32 @@ export class NCHomeConfigService {
 
     /**
      * 获取配置文件路径
-     * 优先使用工作区目录下的配置文件，如果不存在则使用全局配置文件
+     * 只使用工作区目录下的配置文件
      */
     private getConfigFilePath(): string {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (workspaceFolders && workspaceFolders.length > 0) {
-            // 如果有工作区，优先使用工作区根目录下的配置文件
+            // 使用工作区根目录下的配置文件
             const workspaceConfigPath = path.join(workspaceFolders[0].uri.fsPath, '.nc-home-config.json');
             return workspaceConfigPath;
         } else {
-            // 如果没有工作区，使用全局存储路径
-            return path.join(this.context.globalStoragePath, 'nc-home-config.json');
+            // 如果没有工作区，仍然使用工作区目录下的配置文件（这种情况理论上不应该发生）
+            // 但为了防止错误，我们使用一个默认路径
+            const defaultPath = path.join(this.context.extensionPath, '.nc-home-config.json');
+            this.outputChannel.appendLine(`警告：没有工作区，使用默认路径: ${defaultPath}`);
+            return defaultPath;
         }
+    }
+
+    /**
+     * 重新加载配置
+     */
+    public reloadConfig(): void {
+        // 重新计算配置文件路径
+        this.configFilePath = this.getConfigFilePath();
+        // 重新加载配置
+        this.config = this.loadConfig();
+        this.outputChannel.appendLine(`配置已重新加载，使用路径: ${this.configFilePath}`);
     }
 
     /**
@@ -888,6 +903,17 @@ export class NCHomeConfigService {
         this.config.dataSources.push(dataSource);
         await this.saveConfig(this.config);
 
+        // 同时更新prop.xml文件
+        if (this.config.homePath) {
+            try {
+                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
+                this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 写入prop.xml文件`);
+            } catch (error: any) {
+                this.outputChannel.appendLine(`写入prop.xml文件失败: ${error.message}`);
+                throw new Error(`数据源已添加到配置中，但写入prop.xml文件失败: ${error.message}`);
+            }
+        }
+
         this.outputChannel.appendLine(`添加数据源: ${dataSource.name}`);
     }
 
@@ -907,6 +933,17 @@ export class NCHomeConfigService {
 
         this.config.dataSources[index] = dataSource;
         await this.saveConfig(this.config);
+
+        // 同时更新prop.xml文件
+        if (this.config.homePath) {
+            try {
+                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, true);
+                this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 更新到prop.xml文件`);
+            } catch (error: any) {
+                this.outputChannel.appendLine(`更新prop.xml文件失败: ${error.message}`);
+                throw new Error(`数据源已更新到配置中，但更新prop.xml文件失败: ${error.message}`);
+            }
+        }
 
         this.outputChannel.appendLine(`更新数据源: ${dataSource.name}`);
     }
@@ -937,6 +974,17 @@ export class NCHomeConfigService {
         }
 
         await this.saveConfig(this.config);
+
+        // 同时从prop.xml文件中删除数据源
+        if (this.config.homePath) {
+            try {
+                PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, dataSourceName);
+                this.outputChannel.appendLine(`已从prop.xml文件中删除数据源 "${dataSourceName}"`);
+            } catch (error: any) {
+                this.outputChannel.appendLine(`从prop.xml文件中删除数据源失败: ${error.message}`);
+                // 注意：这里不抛出异常，因为删除操作在配置中已经成功执行
+            }
+        }
 
         this.outputChannel.appendLine(`删除数据源: ${dataSourceName}`);
     }
