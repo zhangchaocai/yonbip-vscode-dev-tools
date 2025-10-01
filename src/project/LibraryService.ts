@@ -994,17 +994,31 @@ export class LibraryService {
      */
     private getHomePathFromConfigFile(): string | undefined {
         try {
-            // 检查全局存储路径的配置文件
+            // 优先检查工作区目录下的配置文件
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                const workspaceConfigPath = path.join(workspaceFolders[0].uri.fsPath, '.nc-home-config.json');
+
+                if (fs.existsSync(workspaceConfigPath)) {
+                    const config = JSON.parse(fs.readFileSync(workspaceConfigPath, 'utf-8'));
+                    this.outputChannel.appendLine(`从工作区配置文件获取HOME路径: ${config.homePath || '未找到'}`);
+                    return config.homePath;
+                } else {
+                    this.outputChannel.appendLine(`工作区配置文件不存在: ${workspaceConfigPath}`);
+                }
+            }
+
+            // 如果工作区目录下没有配置文件，检查全局存储路径的配置文件
             const globalStoragePath = this.context?.globalStoragePath ||
                 path.join(require('os').homedir(), '.vscode', 'yonbip-devtool');
             const configFilePath = path.join(globalStoragePath, 'nc-home-config.json');
 
             if (fs.existsSync(configFilePath)) {
                 const config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
-                this.outputChannel.appendLine(`从配置文件获取HOME路径: ${config.homePath || '未找到'}`);
+                this.outputChannel.appendLine(`从全局配置文件获取HOME路径: ${config.homePath || '未找到'}`);
                 return config.homePath;
             } else {
-                this.outputChannel.appendLine(`配置文件不存在: ${configFilePath}`);
+                this.outputChannel.appendLine(`全局配置文件不存在: ${configFilePath}`);
             }
 
             return undefined;

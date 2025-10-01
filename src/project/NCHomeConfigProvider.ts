@@ -10,11 +10,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private configService: NCHomeConfigService;
+    private readonly context: vscode.ExtensionContext;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly context: vscode.ExtensionContext
+        context: vscode.ExtensionContext
     ) {
+        this.context = context;
         this.configService = new NCHomeConfigService(context);
     }
 
@@ -100,6 +102,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      * 处理加载配置
      */
     private async handleLoadConfig() {
+        // 重新加载配置以确保使用当前工作区的配置
+        this.configService = new NCHomeConfigService(this.context);
+
         const config = this.configService.getConfig();
 
         // 如果homePath已配置，尝试从prop.xml中获取端口信息和数据源信息

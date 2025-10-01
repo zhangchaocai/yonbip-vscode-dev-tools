@@ -104,9 +104,9 @@ export class ProjectContextCommands {
                 await this.createProjectStructure(selectedPath);
             });
 
-            // 获取HOME路径配置
-            const config = vscode.workspace.getConfiguration('yonbip');
-            let homePath = config.get<string>('homePath');
+            // 获取HOME路径配置 - 使用NCHomeConfigService获取工作区特定的配置
+            const config = configService.getConfig();
+            let homePath = config.homePath;
 
             // 如果未配置HOME路径，提示用户选择
             if (!homePath) {

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { LibraryService } from './LibraryService';
+import { NCHomeConfigService } from './NCHomeConfigService';
 
 /**
  * 库管理命令
@@ -13,12 +14,13 @@ export class LibraryCommands {
      */
     public static registerCommands(context: vscode.ExtensionContext): void {
         const libraryService = new LibraryService(context);
+        const configService = new NCHomeConfigService(context);
 
         // 初始化库命令
         const initLibraryCommand = vscode.commands.registerCommand(
             'yonbip.library.init',
             async () => {
-                await this.handleInitLibrary(libraryService);
+                await this.handleInitLibrary(libraryService, configService);
             }
         );
 
@@ -26,7 +28,7 @@ export class LibraryCommands {
         const reinitLibraryCommand = vscode.commands.registerCommand(
             'yonbip.library.reinit',
             async () => {
-                await this.handleReinitLibrary(libraryService);
+                await this.handleReinitLibrary(libraryService, configService);
             }
         );
 
@@ -70,10 +72,11 @@ export class LibraryCommands {
     /**
      * 处理初始化库
      */
-    private static async handleInitLibrary(libraryService: LibraryService): Promise<void> {
+    private static async handleInitLibrary(libraryService: LibraryService, configService: NCHomeConfigService): Promise<void> {
         try {
-            const config = vscode.workspace.getConfiguration('yonbip');
-            let homePath = config.get<string>('homePath');
+            // 使用NCHomeConfigService获取工作区特定的配置
+            const config = configService.getConfig();
+            let homePath = config.homePath;
 
             // 如果未配置HOME路径，提示用户选择
             if (!homePath) {
@@ -124,10 +127,11 @@ export class LibraryCommands {
     /**
      * 处理重新初始化库
      */
-    private static async handleReinitLibrary(libraryService: LibraryService): Promise<void> {
+    private static async handleReinitLibrary(libraryService: LibraryService, configService: NCHomeConfigService): Promise<void> {
         try {
-            const config = vscode.workspace.getConfiguration('yonbip');
-            const homePath = config.get<string>('homePath');
+            // 使用NCHomeConfigService获取工作区特定的配置
+            const config = configService.getConfig();
+            const homePath = config.homePath;
 
             if (!homePath) {
                 vscode.window.showWarningMessage('请先配置HOME路径');

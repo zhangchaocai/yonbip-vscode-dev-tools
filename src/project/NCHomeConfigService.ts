@@ -22,8 +22,24 @@ export class NCHomeConfigService {
             NCHomeConfigService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP NC Home配置');
         }
         this.outputChannel = NCHomeConfigService.outputChannelInstance;
-        this.configFilePath = path.join(context.globalStoragePath, 'nc-home-config.json');
+        this.configFilePath = this.getConfigFilePath();
         this.config = this.loadConfig();
+    }
+
+    /**
+     * 获取配置文件路径
+     * 优先使用工作区目录下的配置文件，如果不存在则使用全局配置文件
+     */
+    private getConfigFilePath(): string {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            // 如果有工作区，优先使用工作区根目录下的配置文件
+            const workspaceConfigPath = path.join(workspaceFolders[0].uri.fsPath, '.nc-home-config.json');
+            return workspaceConfigPath;
+        } else {
+            // 如果没有工作区，使用全局存储路径
+            return path.join(this.context.globalStoragePath, 'nc-home-config.json');
+        }
     }
 
     /**
