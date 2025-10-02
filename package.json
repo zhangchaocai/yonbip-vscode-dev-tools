@@ -339,6 +339,7 @@
     "@types/pg": "^8.15.5",
     "@types/sinon": "^17.0.4",
     "@types/vscode": "^1.75.0",
+    "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
     "@vscode/test-electron": "^2.3.0",
@@ -361,6 +362,7 @@
     "node-stream-zip": "^1.15.0",
     "oracledb": "^6.9.0",
     "pg": "^8.16.3",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "xml2js": "^0.6.2"
   }
 }
