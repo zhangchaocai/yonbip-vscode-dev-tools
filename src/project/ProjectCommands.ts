@@ -465,8 +465,20 @@ export class ProjectCommands {
      * 导出补丁
      */
     public async exportPatch(selectedPath?: string): Promise<void> {
+        // 将选择的路径存储到工作区状态中
+        if (selectedPath) {
+            this.context.workspaceState.update('selectedExportPath', selectedPath);
+        } else {
+            this.context.workspaceState.update('selectedExportPath', undefined);
+        }
+
         // 显示补丁导出配置界面
         await vscode.commands.executeCommand('yonbip.patchExportConfig.focus');
+
+        // 触发文件列表刷新
+        setTimeout(() => {
+            vscode.commands.executeCommand('yonbip.patchExportConfig.refresh');
+        }, 500);
     }
 
     /**

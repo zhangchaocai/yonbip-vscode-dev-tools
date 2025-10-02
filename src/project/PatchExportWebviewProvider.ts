@@ -18,6 +18,13 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         private readonly _context: vscode.ExtensionContext
     ) {
         this.configService = new NCHomeConfigService(_context);
+
+        // 注册刷新命令
+        this._context.subscriptions.push(
+            vscode.commands.registerCommand('yonbip.patchExportConfig.refresh', () => {
+                this._refreshExportableFiles();
+            })
+        );
     }
 
     public resolveWebviewView(
@@ -61,17 +68,14 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                             vscode.window.showInformationMessage(message.message);
                         }
                         break;
-                    case 'refreshFiles':
-                        this._refreshExportableFiles();
-                        break;
                 }
             },
             undefined,
             this._context.subscriptions
         );
 
-        // 初始化时自动刷新可导出文件列表
-        this._refreshExportableFiles();
+        // 初始化时清空可导出文件列表
+        this._clearExportableFiles();
     }
 
     private async _handleSelectOutputPath(): Promise<void> {
@@ -162,9 +166,19 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         });
 
         try {
-            // 收集文件
-            console.log('开始收集文件...');
-            const files = await this._collectExportableFiles(basePath);
+            // 获取用户右键选择的路径
+            const selectedPath = this._context.workspaceState.get<string>('selectedExportPath');
+
+            let files: { path: string, type: string, relativePath: string }[] = [];
+
+            if (!selectedPath) {
+                // 如果没有选择路径，使用工作区根目录
+                files = await this._collectExportableFiles(basePath);
+            } else {
+                // 仅使用用户选择目录下的文件
+                files = await this._collectExportableFiles(selectedPath);
+            }
+
             console.log('收集到的文件数量:', files.length);
 
             if (files.length === 0) {
@@ -201,52 +215,81 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
     private async _refreshExportableFiles(): Promise<void> {
         try {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (!workspaceFolder) {
-                return;
-            }
+            // 获取用户右键选择的路径
+            const selectedPath = this._context.workspaceState.get<string>('selectedExportPath');
 
-            const files = await this._collectExportableFiles(workspaceFolder.uri.fsPath);
+            if (!selectedPath) {
+                // 如果没有选择路径，使用工作区根目录
+                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                if (!workspaceFolder) {
+                    return;
+                }
 
-            // 发送文件列表到webview
-            if (this._view) {
-                this._view.webview.postMessage({
-                    type: 'updateExportableFiles',
-                    files: files
-                });
+                const files = await this._collectExportableFiles(workspaceFolder.uri.fsPath);
+
+                // 发送文件列表到webview
+                if (this._view) {
+                    this._view.webview.postMessage({
+                        type: 'filesRefreshed',
+                        files: this._groupFilesByType(files)
+                    });
+                }
+            } else {
+                // 仅扫描用户选择的目录
+                const files = await this._collectExportableFiles(selectedPath);
+
+                // 发送文件列表到webview
+                if (this._view) {
+                    this._view.webview.postMessage({
+                        type: 'filesRefreshed',
+                        files: this._groupFilesByType(files)
+                    });
+                }
             }
         } catch (error) {
             console.error('刷新可导出文件失败:', error);
         }
     }
 
-
+    private _clearExportableFiles(): void {
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: 'filesRefreshed',
+                files: {
+                    source: [],
+                    resources: [],
+                    config: [],
+                    libraries: []
+                }
+            });
+        }
+    }
 
     private async _collectExportableFiles(basePath: string): Promise<{ path: string, type: string, relativePath: string }[]> {
         const files: { path: string, type: string, relativePath: string }[] = [];
         const fs = require('fs');
         const path = require('path');
 
-        const scanDir = (dirPath: string, relativePath: string = '') => {
-            if (!fs.existsSync(dirPath)) return;
-
+        // 使用异步方式扫描目录，避免阻塞UI
+        const scanDir = async (dirPath: string, relativePath: string = ''): Promise<void> => {
             try {
-                const items = fs.readdirSync(dirPath);
+                const items = await fs.promises.readdir(dirPath);
 
-                for (const item of items) {
+                // 创建所有子任务的Promise数组
+                const tasks = items.map(async (item: string) => {
                     const fullPath = path.join(dirPath, item);
                     const itemRelativePath = relativePath ? path.join(relativePath, item) : item;
 
                     try {
-                        const stat = fs.statSync(fullPath);
+                        const stat = await fs.promises.stat(fullPath);
 
                         if (stat.isDirectory()) {
                             // 跳过一些目录
                             if (item === 'node_modules' || item === '.git' || item === 'target' ||
                                 item === 'build' || item === 'out' || item.startsWith('.')) {
-                                continue;
+                                return;
                             }
-                            scanDir(fullPath, itemRelativePath);
+                            await scanDir(fullPath, itemRelativePath);
                         } else {
                             const ext = path.extname(item).toLowerCase();
                             let fileType = '';
@@ -272,16 +315,19 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                         }
                     } catch (statError) {
                         // 忽略无法访问的文件
-                        continue;
+                        return;
                     }
-                }
+                });
+
+                // 等待所有子任务完成
+                await Promise.all(tasks);
             } catch (readError) {
                 // 忽略无法读取的目录
                 return;
             }
         };
 
-        scanDir(basePath);
+        await scanDir(basePath);
         return files;
     }
 
@@ -772,11 +818,23 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 case 'initForm':
                     initializeForm(message.data);
                     break;
-                case 'outputDirSelected':
-                    document.getElementById('outputDir').value = message.outputDir;
+                case 'setOutputPath':
+                    document.getElementById('outputDir').value = message.path;
                     break;
                 case 'filesRefreshed':
                     displayFiles(message.files);
+                    break;
+                case 'showMessage':
+                    if (message.level === 'error') {
+                        vscode.window.showErrorMessage(message.message);
+                    } else if (message.level === 'success') {
+                        vscode.window.showInformationMessage(message.message);
+                    } else {
+                        vscode.window.showInformationMessage(message.message);
+                    }
+                    break;
+                case 'outputDirSelected':
+                    document.getElementById('outputDir').value = message.outputDir;
                     break;
             }
         });
@@ -1435,5 +1493,33 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 ==============================================================================
 
 `;
+    }
+
+    private _groupFilesByType(files: { path: string, type: string, relativePath: string }[]): any {
+        const grouped: any = {
+            source: [],
+            resources: [],
+            config: [],
+            libraries: []
+        };
+
+        files.forEach(file => {
+            switch (file.type) {
+                case 'source':
+                    grouped.source.push(file.relativePath);
+                    break;
+                case 'resource':
+                    grouped.resources.push(file.relativePath);
+                    break;
+                case 'config':
+                    grouped.config.push(file.relativePath);
+                    break;
+                case 'library':
+                    grouped.libraries.push(file.relativePath);
+                    break;
+            }
+        });
+
+        return grouped;
     }
 }
