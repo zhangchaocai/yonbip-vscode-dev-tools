@@ -10,6 +10,7 @@ import { McpProvider } from './mcp/McpProvider';
 import { ProjectProvider } from './project/ProjectProvider';
 import { NCHomeConfigProvider } from './project/NCHomeConfigProvider';
 import { NCHomeConfigWebviewProvider } from './project/NCHomeConfigWebviewProvider';
+import { PatchExportWebviewProvider } from './project/PatchExportWebviewProvider';
 import { OpenApiProvider } from './openapi/OpenApiProvider';
 import { NCHomeConfigService } from './project/NCHomeConfigService';
 import { HomeCommands } from './project/HomeCommands';
@@ -131,6 +132,20 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.registerWebviewViewProvider(
 			OpenApiProvider.viewType,
 			openApiProvider,
+			{
+				webviewOptions: {
+					retainContextWhenHidden: true,
+				},
+			}
+		)
+	);
+
+	// 注册补丁导出配置界面
+	const patchExportProvider = new PatchExportWebviewProvider(context.extensionUri, context);
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(
+			PatchExportWebviewProvider.viewType,
+			patchExportProvider,
 			{
 				webviewOptions: {
 					retainContextWhenHidden: true,

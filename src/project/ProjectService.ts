@@ -784,7 +784,7 @@ public class Main {
             fs.mkdirSync(outputDir, { recursive: true });
         }
 
-        const outputPath = path.join(outputDir, `${patchInfo.name}_${patchInfo.version}.zip`);
+        const outputPath = path.join(outputDir, `patch_${patchInfo.name}_${patchInfo.version}.zip`);
 
         // 这里应该使用archiver库创建ZIP文件
         // 由于简化，我们创建一个简单的文件列表

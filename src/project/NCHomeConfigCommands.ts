@@ -179,11 +179,6 @@ export class NCHomeConfigCommands {
 
         const setting = await vscode.window.showQuickPick([
             {
-                label: '$(folder) 补丁输出目录',
-                description: config.exportPatchPath || './patches',
-                detail: '设置补丁包的输出目录'
-            },
-            {
                 label: '$(check) 标准模式',
                 description: config.standardMode ? '已启用' : '已禁用',
                 detail: '是否使用标准模式'
@@ -199,9 +194,6 @@ export class NCHomeConfigCommands {
 
         if (setting) {
             switch (setting.label) {
-                case '$(folder) 补丁输出目录':
-                    await this.configurePatchOutputDir();
-                    break;
                 case '$(check) 标准模式':
                     await this.toggleStandardMode();
                     break;
@@ -212,28 +204,7 @@ export class NCHomeConfigCommands {
         }
     }
 
-    /**
-     * 配置补丁输出目录
-     */
-    private async configurePatchOutputDir(): Promise<void> {
-        const config = this.service.getConfig();
-        const newPath = await vscode.window.showInputBox({
-            prompt: '请输入补丁输出目录',
-            value: config.exportPatchPath || './patches',
-            validateInput: (value) => {
-                if (!value.trim()) {
-                    return '路径不能为空';
-                }
-                return null;
-            }
-        });
 
-        if (newPath) {
-            config.exportPatchPath = newPath;
-            await this.service.saveConfig(config);
-            vscode.window.showInformationMessage(`补丁输出目录已设置为: ${newPath}`);
-        }
-    }
 
     /**
      * 切换标准模式

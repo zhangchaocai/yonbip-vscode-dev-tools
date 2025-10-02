@@ -465,7 +465,8 @@ export class ProjectCommands {
      * 导出补丁
      */
     public async exportPatch(selectedPath?: string): Promise<void> {
-        await this.projectService.exportPatch(selectedPath);
+        // 显示补丁导出配置界面
+        await vscode.commands.executeCommand('yonbip.patchExportConfig.focus');
     }
 
     /**

@@ -68,6 +68,12 @@
           "name": "OpenAPI测试",
           "icon": "resources/icons/views/openapi-icon.svg",
           "type": "webview"
+        },
+        {
+          "id": "yonbip.patchExportConfig",
+          "name": "补丁导出配置",
+          "icon": "resources/icons/views/openapi-icon.svg",
+          "type": "webview"
         }
       ]
     },
@@ -186,6 +192,11 @@
         "command": "yonbip.project.createComponent",
         "title": "🔧 创建业务组件",
         "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.exportPatch",
+        "title": "📦 导出补丁",
+        "category": "YonBIP/项目管理"
       }
     ],
     "submenus": [
@@ -224,19 +235,24 @@
           "group": "1@4"
         },
         {
-          "command": "yonbip.scaffold.download",
-          "when": "explorerResourceIsFolder",
+          "command": "yonbip.project.exportPatch",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
           "group": "1@5"
         },
         {
-          "command": "yonbip.home.startFromDirectory",
+          "command": "yonbip.scaffold.download",
           "when": "explorerResourceIsFolder",
           "group": "1@6"
         },
         {
-          "command": "yonbip.home.stop",
+          "command": "yonbip.home.startFromDirectory",
           "when": "explorerResourceIsFolder",
           "group": "1@7"
+        },
+        {
+          "command": "yonbip.home.stop",
+          "when": "explorerResourceIsFolder",
+          "group": "1@8"
         }
       ]
     },
@@ -314,6 +330,7 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.3",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",
     "@types/mssql": "^9.1.8",
@@ -332,8 +349,11 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/axios": "^0.9.36",
     "@types/ws": "^8.18.1",
+    "adm-zip": "^0.5.16",
+    "archiver": "^7.0.1",
     "axios": "^1.12.2",
     "iconv-lite": "^0.7.0",
     "mssql": "^11.0.1",

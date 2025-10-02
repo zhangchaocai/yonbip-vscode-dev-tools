@@ -166,7 +166,7 @@ export class NCHomeConfigService {
             autoChangeJdk: false,
             standardMode: true,
             dataSources: [],
-            exportPatchPath: './patches',
+
             port: 9999,
             wsPort: 8080,
             debugMode: true,  // 默认启用调试模式

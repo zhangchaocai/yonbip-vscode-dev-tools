@@ -4,6 +4,7 @@ import * as path from 'path';
 import { LibraryService } from './LibraryService';
 import { NCHomeConfigService } from './NCHomeConfigService';
 import { HomeService } from './HomeService';
+import { ProjectService } from './ProjectService';
 
 // 添加一个静态属性来存储context
 let extensionContext: vscode.ExtensionContext | undefined;

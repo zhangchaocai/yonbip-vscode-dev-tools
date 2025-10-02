@@ -6,7 +6,7 @@ import { ProjectService } from './ProjectService';
  */
 export class ProjectProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'yonbip.project';
-    
+
     private _view?: vscode.WebviewView;
     private projectService: ProjectService;
 
@@ -88,10 +88,10 @@ export class ProjectProvider implements vscode.WebviewViewProvider {
             if (!workspaceFolder) {
                 throw new Error('请先打开一个工作区');
             }
-            
+
             // 简化的结构分析
             const structure = `项目结构分析\n项目路径: ${workspaceFolder.uri.fsPath}\n分析时间: ${new Date().toLocaleString()}`;
-            
+
             this._view?.webview.postMessage({
                 type: 'structureAnalyzed',
                 success: true,
@@ -201,7 +201,8 @@ export class ProjectProvider implements vscode.WebviewViewProvider {
         function createProject() { vscode.postMessage({ type: 'createProject' }); }
         function exportPatch() {
             const path = document.getElementById('exportPath').value;
-            vscode.postMessage({ type: 'exportPatch', selectedPath: path });
+            // 如果路径为空，则传递undefined而不是空字符串
+            vscode.postMessage({ type: 'exportPatch', selectedPath: path || undefined });
         }
         function analyzeStructure() { vscode.postMessage({ type: 'analyzeStructure' }); }
         function selectExportPath() { vscode.postMessage({ type: 'selectExportPath' }); }

@@ -82,9 +82,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'debugHomeService':
                     await this.handleDebugHomeService();
                     break;
-                case 'selectExportPath':
-                    await this.handleSelectExportPath();
-                    break;
+
                 case 'showOutput':
                     await this.handleShowOutput();
                     break;
@@ -446,39 +444,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    /**
-     * 处理选择补丁输出目录
-     */
-    private async handleSelectExportPath() {
-        try {
-            const options: vscode.OpenDialogOptions = {
-                canSelectMany: false,
-                canSelectFiles: false,
-                canSelectFolders: true,
-                openLabel: '选择补丁输出目录'
-            };
 
-            const folderUri = await vscode.window.showOpenDialog(options);
-            if (folderUri && folderUri.length > 0) {
-                const exportPath = folderUri[0].fsPath;
-                const config = this.configService.getConfig();
-                config.exportPatchPath = exportPath;
-                await this.configService.saveConfig(config);
-
-                this._view?.webview.postMessage({
-                    type: 'exportPathSelected',
-                    exportPath,
-                    success: true
-                });
-            }
-        } catch (error: any) {
-            this._view?.webview.postMessage({
-                type: 'exportPathSelected',
-                success: false,
-                error: error.message
-            });
-        }
-    }
 
     /**
      * 处理显示输出日志
@@ -960,23 +926,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             </div>
             
             <div class="section">
-                <div class="section-title">输出配置</div>
-                
-                <div class="form-group">
-                    <label for="exportPatchPath">补丁输出目录:</label>
-                    <div class="form-row">
-                        <div class="input-container">
-                            <input type="text" id="exportPatchPath" placeholder="./patches">
-                            <button class="browse-button" onclick="selectExportPath()" style="max-width: 100px; min-width: 80px;">
-                                <span style="margin-right: 4px;">📁</span> 浏览...
-                            </button>
-                        </div>
-                    </div>
-                    <div class="help-text">设置补丁包和导出文件的保存目录</div>
-                </div>
-            </div>
-            
-            <div class="section">
                 <div class="section-title">操作</div>
                 <div class="button-group">
                     <button onclick="saveAdvancedConfig()">
@@ -1046,10 +995,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'showOutput' });
         }
         
-        // 选择补丁输出目录
-        function selectExportPath() {
-            vscode.postMessage({ type: 'selectExportPath' });
-        }
+
         
         // 显示添加数据源表单
         function showAddDataSourceForm() {
@@ -1249,7 +1195,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             document.getElementById('autoClient').checked = config.autoClient !== false;
             document.getElementById('debugMode').checked = config.debugMode !== false;
             document.getElementById('debugPort').value = config.debugPort || 8888;
-            document.getElementById('exportPatchPath').value = config.exportPatchPath || './patches';
+
             
             // 更新数据源列表
             updateDataSourceList(config.dataSources || []);
@@ -1264,10 +1210,30 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+            // 将design数据源放在第一位
+            const sortedDataSources = [...dataSources].sort((a, b) => {
+                const isADesign = currentConfig.selectedDataSource === a.name;
+                const isBDesign = currentConfig.selectedDataSource === b.name;
+                if (isADesign && !isBDesign) return -1;
+                if (!isADesign && isBDesign) return 1;
+                return 0;
+            });
+            
+            // 如果没有任何数据源被标记为design，检查数据源名称是否包含"design"关键字
+            if (!currentConfig.selectedDataSource) {
+                sortedDataSources.sort((a, b) => {
+                    const aHasDesign = a.name.toLowerCase().includes('design');
+                    const bHasDesign = b.name.toLowerCase().includes('design');
+                    if (aHasDesign && !bHasDesign) return -1;
+                    if (!aHasDesign && bHasDesign) return 1;
+                    return 0;
+                });
+            }
+            
             let html = '<div style="margin-top: 10px;">';
-            dataSources.forEach((ds, index) => {
+            sortedDataSources.forEach((ds, index) => {
                 // 检查是否为当前选中的design数据源
-                const isDesignDatabase = currentConfig.selectedDataSource === ds.name;
+                const isDesignDatabase = currentConfig.selectedDataSource === ds.name || ds.name.toLowerCase().includes('design');
                 const isBaseDatabase = currentConfig.baseDatabase === ds.name;
                 
                 // 转义特殊字符以避免HTML注入
@@ -1286,7 +1252,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="font-weight: bold; color: var(--vscode-textLink-foreground);">\${ds.name}</div>
                             <div>
-                                \${isDesignDatabase ? '<span style="background-color: var(--vscode-terminal-ansiGreen); color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px;">DESIGN</span>' : ''}
+                                \${isDesignDatabase ? '<span style="background: linear-gradient(135deg, var(--vscode-terminal-ansiGreen) 0%, #27ae60 100%); color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px;">DESIGN</span>' : ''}
                                 \${isBaseDatabase ? '<span style="background-color: var(--vscode-terminal-ansiBlue); color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px;">BASE</span>' : ''}
                             </div>
                         </div>
@@ -1297,13 +1263,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         </div>
                         <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
                             <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="showEditDataSourceForm(\${dsJson})">编辑</button>
-                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="setAsDesignDatabase('\${ds.name}')">设为Design</button>
+                            \${!isDesignDatabase ? \`<button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="setAsDesignDatabase('\${ds.name}')">设为Design</button>\` : ''}
                             <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="setAsBaseDatabase('\${ds.name}')">设为基准库</button>
                             <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="testDataSourceConnection('\${ds.name}')">测试连接</button>
                             <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="deleteDataSource('\${ds.name}')">删除</button>
                         </div>
                     </div>
-                \`;
+\`;
             });
             html += '</div>';
             
@@ -1359,7 +1325,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 autoClient: document.getElementById('autoClient').checked,
                 debugMode: document.getElementById('debugMode').checked,
                 debugPort: parseInt(document.getElementById('debugPort').value) || 8888,
-                exportPatchPath: document.getElementById('exportPatchPath').value
+
             };
             
             // 确保 debugPort 字段存在且为数字类型
@@ -1553,7 +1519,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     autoClient: true,
                     debugMode: true,
                     debugPort: 8888,
-                    exportPatchPath: './patches'
+
                 };
 
                 // 更新配置
