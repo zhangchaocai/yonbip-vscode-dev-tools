@@ -993,6 +993,59 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 </html>`;
     }
 
+    private async _buildReplacementContent(files: { path: string, type: string, relativePath: string }[], patchInfo: PatchInfo, archive: any, basePath: string, homePath: string): Promise<void> {
+        const fs = require('fs');
+        const path = require('path');
+
+        console.log('开始构建替换内容，文件数量:', files.length);
+
+        // 检查是否为NCC Home（是否存在hotwebs/nccloud目录）
+        const nccloudPath = path.join(homePath, 'hotwebs', 'nccloud');
+        const isNCCHome = fs.existsSync(nccloudPath);
+
+        for (const file of files) {
+            if (!fs.existsSync(file.path)) {
+                continue;
+            }
+
+            const stat = fs.statSync(file.path);
+            if (!stat.isFile()) {
+                continue;
+            }
+
+            const filePath = file.path;
+            const fileName = path.basename(filePath);
+
+            // 跳过不需要的文件
+            if (fileName.endsWith('.iml') || filePath.toLowerCase().includes('.idea')) {
+                continue;
+            }
+
+            let targetPath = '';
+
+            // 根据文件路径和类型确定目标路径
+            if (this._isJavaSourceFile(filePath)) {
+                targetPath = await this._getJavaFileTargetPath(filePath, isNCCHome, patchInfo);
+            } else if (this._isResourceFile(filePath)) {
+                targetPath = this._getResourceFileTargetPath(filePath);
+            } else if (this._isConfigFile(filePath)) {
+                targetPath = this._getConfigFileTargetPath(filePath);
+            } else if (this._isSqlFile(filePath)) {
+                targetPath = this._getSqlFileTargetPath(filePath, basePath);
+            } else if (this._isMetaInfFile(filePath)) {
+                targetPath = await this._getMetaInfFileTargetPath(filePath);
+            } else {
+                // 其他文件使用默认处理
+                //targetPath = this._getDefaultFileTargetPath(filePath, basePath);
+                continue;
+            }
+
+            if (targetPath) {
+                archive.file(filePath, { name: targetPath });
+            }
+        }
+    }
+
     private async _createStandardPatchZip(files: { path: string, type: string, relativePath: string }[], patchInfo: PatchInfo, basePath: string): Promise<string> {
         const fs = require('fs');
         const archiver = require('archiver');
@@ -1036,9 +1089,6 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             // 过滤并添加文件到zip
             const filteredFiles = files.filter(file => this._shouldIncludeFile(file, patchInfo));
 
-            // 使用IDEA插件的规则构建replacement内容
-            this._buildReplacementContent(archive, filteredFiles, basePath, patchInfo);
-
             // 生成并添加元数据文件
             const patchId = uuidv4();
 
@@ -1054,92 +1104,27 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             const readme = this._generateReadme(patchInfo, patchId);
             archive.append(readme, { name: 'readme.txt' });
 
-            archive.finalize();
+            // 使用IDEA插件的规则构建replacement内容
+            // 使用basePath作为homePath
+            this._buildReplacementContent(filteredFiles, patchInfo, archive, basePath, basePath).then(() => {
+                // 只有在_buildReplacementContent完成后才调用finalize
+                archive.finalize();
+            }).catch((error) => {
+                reject(error);
+            });
         });
-    }
-
-    /**
-     * 根据IDEA插件规则构建replacement内容
-     */
-    private _buildReplacementContent(archive: any, files: { path: string, type: string, relativePath: string }[], basePath: string, patchInfo: PatchInfo): void {
-        const fs = require('fs');
-        const path = require('path');
-
-        // 获取home路径配置
-        const config = this.configService.getConfig();
-        const homePath = config.homePath;
-
-        if (!homePath) {
-            // 如果没有配置home路径，使用默认逻辑
-            for (const file of files) {
-                if (fs.existsSync(file.path)) {
-                    const stat = fs.statSync(file.path);
-                    if (stat.isFile()) {
-                        const targetPath = `replacement/modules/${file.relativePath}`;
-                        archive.file(file.path, { name: targetPath });
-                    }
-                }
-            }
-            return;
-        }
-
-        // 检查是否为NCC Home（是否存在hotwebs/nccloud目录）
-        const nccloudPath = path.join(homePath, 'hotwebs', 'nccloud');
-        const isNCCHome = fs.existsSync(nccloudPath);
-
-        for (const file of files) {
-            if (!fs.existsSync(file.path)) {
-                continue;
-            }
-
-            const stat = fs.statSync(file.path);
-            if (!stat.isFile()) {
-                continue;
-            }
-
-            const filePath = file.path;
-            const fileName = path.basename(filePath);
-
-            // 跳过不需要的文件
-            if (fileName.endsWith('.iml') || filePath.toLowerCase().includes('.idea')) {
-                continue;
-            }
-
-            let targetPath = '';
-
-            // 根据文件路径和类型确定目标路径
-            if (this._isJavaSourceFile(filePath)) {
-                targetPath = this._getJavaFileTargetPath(filePath, isNCCHome, patchInfo);
-            } else if (this._isResourceFile(filePath)) {
-                targetPath = this._getResourceFileTargetPath(filePath);
-            } else if (this._isConfigFile(filePath)) {
-                targetPath = this._getConfigFileTargetPath(filePath);
-            } else if (this._isSqlFile(filePath)) {
-                targetPath = this._getSqlFileTargetPath(filePath, basePath);
-            } else if (this._isMetaInfFile(filePath)) {
-                targetPath = this._getMetaInfFileTargetPath(filePath);
-            } else {
-                // 其他文件使用默认处理
-                //targetPath = this._getDefaultFileTargetPath(filePath, basePath);
-                continue;
-            }
-
-            if (targetPath) {
-                archive.file(filePath, { name: targetPath });
-            }
-        }
     }
 
     /**
      * 查找文件所属的模块名称
      */
-    private _findModuleName(filePath: string): string {
+    private async _findModuleName(filePath: string): Promise<string> {
         const fs = require('fs');
         const path = require('path');
         const xml2js = require('xml2js');
 
         // 先向下递归查找
-        let moduleName = this._findModuleNameDownward(filePath, 0);
+        let moduleName = await this._findModuleNameDownward(filePath, 0);
         if (moduleName) {
             return moduleName;
         }
@@ -1154,7 +1139,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 try {
                     const xmlContent = fs.readFileSync(moduleXmlPath, 'utf8');
                     const parser = new xml2js.Parser();
-                    const result = parser.parseStringSync(xmlContent);
+                    const result = await this._parseXml(parser, xmlContent);
 
                     if (result && result.module && result.module.$ && result.module.$.name) {
                         return result.module.$.name;
@@ -1174,7 +1159,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * 向下递归查找模块名称
      */
-    private _findModuleNameDownward(dirPath: string, depth: number): string | null {
+    private async _findModuleNameDownward(dirPath: string, depth: number): Promise<string | null> {
         const fs = require('fs');
         const path = require('path');
         const xml2js = require('xml2js');
@@ -1192,7 +1177,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             try {
                 const xmlContent = fs.readFileSync(moduleXmlPath, 'utf8');
                 const parser = new xml2js.Parser();
-                const result = parser.parseStringSync(xmlContent);
+                const result = await this._parseXml(parser, xmlContent);
 
                 if (result && result.module && result.module.$ && result.module.$.name) {
                     return result.module.$.name;
@@ -1208,7 +1193,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             for (const child of children) {
                 const childPath = path.join(currentDir, child);
                 if (fs.statSync(childPath).isDirectory()) {
-                    const moduleName = this._findModuleNameDownward(childPath, depth + 1);
+                    const moduleName = await this._findModuleNameDownward(childPath, depth + 1);
                     if (moduleName) {
                         return moduleName;
                     }
@@ -1217,6 +1202,21 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         return null;
+    }
+
+    /**
+     * 异步解析XML内容
+     */
+    private _parseXml(parser: any, xmlContent: string): Promise<any> {
+        return new Promise((resolve, reject) => {
+            parser.parseString(xmlContent, (err: any, result: any) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(result);
+                }
+            });
+        });
     }
 
     /**
@@ -1257,9 +1257,9 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * 获取Java文件的目标路径
      */
-    private _getJavaFileTargetPath(filePath: string, isNCCHome: boolean, patchInfo: PatchInfo): string {
+    private async _getJavaFileTargetPath(filePath: string, isNCCHome: boolean, patchInfo: PatchInfo): Promise<string> {
         const path = require('path');
-        const moduleName = this._findModuleName(filePath);
+        const moduleName = await this._findModuleName(filePath);
 
         // 根据文件路径判断是public、private还是client
         if (filePath.includes('/src/public/') || filePath.includes('\\src\\public\\')) {
@@ -1322,8 +1322,8 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * 获取META-INF文件的目标路径
      */
-    private _getMetaInfFileTargetPath(filePath: string): string {
-        const moduleName = this._findModuleName(filePath);
+    private async _getMetaInfFileTargetPath(filePath: string): Promise<string> {
+        const moduleName = await this._findModuleName(filePath);
         const relativePath = this._extractRelativePath(filePath, '/META-INF/', '\\META-INF\\');
         return `replacement/modules/${moduleName}/META-INF${relativePath}`;
     }

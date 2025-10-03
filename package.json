@@ -195,7 +195,7 @@
       },
       {
         "command": "yonbip.project.exportPatch",
-        "title": "📦 导出补丁",
+        "title": "📤 导出YonBIP补丁",
         "category": "YonBIP/项目管理"
       }
     ],
@@ -209,7 +209,7 @@
       "explorer/context": [
         {
           "submenu": "yonbip.project.submenu",
-          "when": "explorerResourceIsFolder",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
           "group": "navigation"
         }
       ],
