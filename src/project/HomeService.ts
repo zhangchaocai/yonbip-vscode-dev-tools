@@ -149,9 +149,11 @@ export class HomeService {
         return new Promise((resolve) => {
             this.outputChannel.appendLine('🔍 检查项目是否需要编译...');
 
-            // 检查是否存在src目录
-            const srcPath = path.join(workspaceFolder, 'src');
-            if (!fs.existsSync(srcPath)) {
+            // 递归查找所有包含src目录的子项目
+            const srcPaths = this.findSrcDirectories(workspaceFolder);
+
+            // 如果没有找到任何src目录，则无需编译
+            if (srcPaths.length === 0) {
                 this.outputChannel.appendLine('✅ 项目中没有源代码需要编译');
                 resolve(true);
                 return;
@@ -243,20 +245,60 @@ export class HomeService {
             }
 
             // 检查是否是标准Java项目（存在src目录且包含Java文件）
-            if (fs.existsSync(srcPath)) {
-                const hasJavaFiles = this.hasJavaFiles(srcPath);
-                if (hasJavaFiles) {
-                    this.outputChannel.appendLine('🔨 检测到标准Java项目，正在编译...');
-                    this.outputChannel.appendLine('🔧 请确保项目已正确配置编译环境');
-                    // 对于标准Java项目，我们不执行编译，因为可能没有Maven或Gradle配置
-                    resolve(true);
-                    return;
+            let hasJavaProject = false;
+            for (const srcPath of srcPaths) {
+                if (this.hasJavaFiles(srcPath)) {
+                    hasJavaProject = true;
+                    break;
                 }
+            }
+
+            if (hasJavaProject) {
+                this.outputChannel.appendLine('🔨 检测到标准Java项目，正在编译...');
+                this.outputChannel.appendLine('🔧 请确保项目已正确配置编译环境');
+                // 对于标准Java项目，我们不执行编译，因为可能没有Maven或Gradle配置
+                resolve(true);
+                return;
             }
 
             this.outputChannel.appendLine('⚠️ 未识别的项目类型，跳过编译步骤');
             resolve(true);
         });
+    }
+
+    /**
+     * 递归查找所有包含src目录的子项目
+     */
+    private findSrcDirectories(dirPath: string): string[] {
+        const srcPaths: string[] = [];
+
+        try {
+            // 检查当前目录是否包含src子目录
+            const srcPath = path.join(dirPath, 'src');
+            if (fs.existsSync(srcPath) && fs.statSync(srcPath).isDirectory()) {
+                srcPaths.push(srcPath);
+            }
+
+            // 递归检查所有子目录
+            const items = fs.readdirSync(dirPath);
+            for (const item of items) {
+                // 跳过一些常见的不需要递归的目录
+                if (item === 'node_modules' || item === '.git' || item === 'target' || item === 'build' || item === 'bin') {
+                    continue;
+                }
+
+                const itemPath = path.join(dirPath, item);
+                const stat = fs.statSync(itemPath);
+
+                if (stat.isDirectory()) {
+                    srcPaths.push(...this.findSrcDirectories(itemPath));
+                }
+            }
+        } catch (error) {
+            // 忽略错误，继续处理其他目录
+        }
+
+        return srcPaths;
     }
 
     /**

@@ -1026,22 +1026,64 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             // 根据文件路径和类型确定目标路径
             if (this._isJavaSourceFile(filePath)) {
                 targetPath = await this._getJavaFileTargetPath(filePath, isNCCHome, patchInfo);
+
+                // 对于Java文件，我们需要使用编译后的class文件而不是源文件
+                if (targetPath) {
+                    // 查找项目根目录（包含.classpath文件的目录）
+                    let projectPath = path.dirname(filePath);
+                    while (projectPath && projectPath !== path.dirname(projectPath)) {
+                        if (fs.existsSync(path.join(projectPath, '.classpath'))) {
+                            break;
+                        }
+                        projectPath = path.dirname(projectPath);
+                    }
+
+                    // 如果没找到项目根目录，使用文件所在目录
+                    if (!projectPath || projectPath === path.dirname(projectPath)) {
+                        projectPath = path.dirname(filePath);
+                    }
+
+                    // 获取编译后的class文件路径
+                    const compiledClassPath = await this._getCompiledClassPath(filePath, projectPath);
+
+                    // 构造完整的class文件路径
+                    // 获取输出路径
+                    const outputPath = await this._getClasspathOutputPath(projectPath);
+                    const fullClassPath = path.join(projectPath, outputPath, compiledClassPath);
+
+                    // 检查编译后的class文件是否存在
+                    if (fs.existsSync(fullClassPath)) {
+                        // 使用编译后的class文件作为源文件
+                        archive.file(fullClassPath, { name: targetPath });
+                    } else {
+                        // 如果编译后的文件不存在，回退到使用源文件
+                        archive.file(filePath, { name: targetPath });
+                    }
+                }
             } else if (this._isResourceFile(filePath)) {
                 targetPath = this._getResourceFileTargetPath(filePath);
+                if (targetPath) {
+                    archive.file(filePath, { name: targetPath });
+                }
             } else if (this._isConfigFile(filePath)) {
                 targetPath = this._getConfigFileTargetPath(filePath);
+                if (targetPath) {
+                    archive.file(filePath, { name: targetPath });
+                }
             } else if (this._isSqlFile(filePath)) {
                 targetPath = this._getSqlFileTargetPath(filePath, basePath);
+                if (targetPath) {
+                    archive.file(filePath, { name: targetPath });
+                }
             } else if (this._isMetaInfFile(filePath)) {
                 targetPath = await this._getMetaInfFileTargetPath(filePath);
+                if (targetPath) {
+                    archive.file(filePath, { name: targetPath });
+                }
             } else {
                 // 其他文件使用默认处理
                 //targetPath = this._getDefaultFileTargetPath(filePath, basePath);
                 continue;
-            }
-
-            if (targetPath) {
-                archive.file(filePath, { name: targetPath });
             }
         }
     }
@@ -1255,43 +1297,163 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     /**
+     * 解析.classpath文件获取输出路径
+     */
+    private async _getClasspathOutputPath(projectPath: string): Promise<string> {
+        const fs = require('fs');
+        const path = require('path');
+        const xml2js = require('xml2js');
+
+        const classpathFile = path.join(projectPath, '.classpath');
+
+        // 如果.classpath文件不存在，返回默认输出路径
+        if (!fs.existsSync(classpathFile)) {
+            return 'build/classes';
+        }
+
+        try {
+            const xmlContent = fs.readFileSync(classpathFile, 'utf8');
+            const parser = new xml2js.Parser();
+            const result = await this._parseXml(parser, xmlContent);
+
+            // 查找output类型的classpathentry
+            if (result && result.classpath && result.classpath.classpathentry) {
+                const entries = result.classpath.classpathentry;
+                for (const entry of entries) {
+                    if (entry.$ && entry.$.kind === 'output') {
+                        return entry.$.path || 'build/classes';
+                    }
+                }
+            }
+
+            // 如果没有找到output类型的entry，返回默认值
+            return 'build/classes';
+        } catch (error) {
+            console.error('解析.classpath文件失败:', error);
+            return 'build/classes';
+        }
+    }
+
+    /**
+     * 获取Java文件的编译后class文件路径
+     */
+    private async _getCompiledClassPath(javaFilePath: string, projectPath: string): Promise<string> {
+        const fs = require('fs');
+        const path = require('path');
+
+        // 获取输出路径
+        const outputPath = await this._getClasspathOutputPath(projectPath);
+
+        // 查找src目录的位置并确定源码根目录
+        let sourceRoot = '';
+        let relativePath = '';
+
+        // 查找src目录的位置
+        if (javaFilePath.includes('/src/public/')) {
+            const parts = javaFilePath.split('/src/public/');
+            sourceRoot = path.join(parts[0], 'src/public');
+            relativePath = parts[1];
+        } else if (javaFilePath.includes('\\src\\public\\')) {
+            const parts = javaFilePath.split('\\src\\public\\');
+            sourceRoot = path.join(parts[0], 'src/public');
+            relativePath = parts[1];
+        } else if (javaFilePath.includes('/src/private/')) {
+            const parts = javaFilePath.split('/src/private/');
+            sourceRoot = path.join(parts[0], 'src/private');
+            relativePath = parts[1];
+        } else if (javaFilePath.includes('\\src\\private\\')) {
+            const parts = javaFilePath.split('\\src\\private\\');
+            sourceRoot = path.join(parts[0], 'src/private');
+            relativePath = parts[1];
+        } else if (javaFilePath.includes('/src/client/')) {
+            const parts = javaFilePath.split('/src/client/');
+            sourceRoot = path.join(parts[0], 'src/client');
+            relativePath = parts[1];
+        } else if (javaFilePath.includes('\\src\\client\\')) {
+            const parts = javaFilePath.split('\\src\\client\\');
+            sourceRoot = path.join(parts[0], 'src/client');
+            relativePath = parts[1];
+        } else {
+            // 默认情况，查找src目录
+            const srcIndexUnix = javaFilePath.indexOf('/src/');
+            const srcIndexWin = javaFilePath.indexOf('\\src\\');
+
+            if (srcIndexUnix !== -1) {
+                sourceRoot = javaFilePath.substring(0, srcIndexUnix + 4); // +4 是 '/src' 的长度
+                relativePath = javaFilePath.substring(srcIndexUnix + 5); // +5 是 '/src/' 的长度
+            } else if (srcIndexWin !== -1) {
+                sourceRoot = javaFilePath.substring(0, srcIndexWin + 4); // +4 是 '\src' 的长度
+                relativePath = javaFilePath.substring(srcIndexWin + 5); // +5 是 '\src\' 的长度
+            } else {
+                // 如果找不到src目录，使用相对于项目根目录的路径
+                relativePath = path.relative(projectPath, javaFilePath);
+            }
+        }
+
+        // 构造编译后的class文件路径
+        const classRelativePath = relativePath.replace(/\.java$/, '.class');
+
+        // 构造完整的class文件路径（相对于项目根目录）
+        const compiledClassPath = path.join(outputPath, classRelativePath);
+
+        // 检查编译后的class文件是否实际存在
+        const fullClassPath = path.join(projectPath, compiledClassPath);
+        if (fs.existsSync(fullClassPath)) {
+            // 返回相对路径，去掉outputPath前缀
+            return classRelativePath.replace(/\\/g, '/');
+        }
+
+        // 如果编译后的class文件不存在，回退到原来的逻辑
+        // 将.java替换为.class
+        const fallbackClassRelativePath = relativePath.replace(/\.java$/, '.class');
+        return fallbackClassRelativePath.replace(/\\/g, '/');
+    }
+
+    /**
      * 获取Java文件的目标路径
      */
     private async _getJavaFileTargetPath(filePath: string, isNCCHome: boolean, patchInfo: PatchInfo): Promise<string> {
         const path = require('path');
+        const fs = require('fs');
         const moduleName = await this._findModuleName(filePath);
+
+        // 查找项目根目录（包含.classpath文件的目录）
+        let projectPath = path.dirname(filePath);
+        while (projectPath && projectPath !== path.dirname(projectPath)) {
+            if (fs.existsSync(path.join(projectPath, '.classpath'))) {
+                break;
+            }
+            projectPath = path.dirname(projectPath);
+        }
+
+        // 如果没找到项目根目录，使用文件所在目录
+        if (!projectPath || projectPath === path.dirname(projectPath)) {
+            projectPath = path.dirname(filePath);
+        }
+
+        // 获取编译后的class文件路径
+        const compiledClassPath = await this._getCompiledClassPath(filePath, projectPath);
 
         // 根据文件路径判断是public、private还是client
         if (filePath.includes('/src/public/') || filePath.includes('\\src\\public\\')) {
-            const relativePath = this._extractRelativePath(filePath, '/src/public/', '\\src\\public\\');
-            // 将.java文件转换为.class文件路径
-            const classPath = relativePath.replace(/\.java$/, '.class');
-            return `replacement/modules/${moduleName}/classes${classPath}`;
+            return `replacement/modules/${moduleName}/classes/${compiledClassPath}`;
         } else if (filePath.includes('/src/private/') || filePath.includes('\\src\\private\\')) {
-            const relativePath = this._extractRelativePath(filePath, '/src/private/', '\\src\\private\\');
-            const classPath = relativePath.replace(/\.java$/, '.class');
-            return `replacement/modules/${moduleName}/META-INF/classes${classPath}`;
+            return `replacement/modules/${moduleName}/META-INF/classes/${compiledClassPath}`;
         } else if (filePath.includes('/src/client/') || filePath.includes('\\src\\client\\')) {
-            const relativePath = this._extractRelativePath(filePath, '/src/client/', '\\src\\client\\');
-            const classPath = relativePath.replace(/\.java$/, '.class');
-
             // 根据配置和环境决定目标路径
             if (isNCCHome) {
-                return `replacement/hotwebs/nccloud/WEB-INF/classes${classPath}`;
+                return `replacement/hotwebs/nccloud/WEB-INF/classes/${compiledClassPath}`;
             } else {
-                return `replacement/modules/${moduleName}/client/classes${classPath}`;
+                return `replacement/modules/${moduleName}/client/classes/${compiledClassPath}`;
             }
         } else if (filePath.includes('uap_special/src') &&
             (filePath.includes('/external/') || filePath.includes('/framework/') || filePath.includes('/lib/'))) {
             // 处理uap_special特殊情况
-            const relativePath = this._extractUapSpecialPath(filePath);
-            const classPath = relativePath.replace(/\.java$/, '.class');
-            return `replacement/external/classes${classPath}`;
+            return `replacement/external/classes/${compiledClassPath}`;
         }
 
         // 默认处理
-        const classPath = path.basename(filePath).replace(/\.java$/, '.class');
-        return `replacement/modules/${moduleName}/classes/${classPath}`;
+        return `replacement/modules/${moduleName}/classes/${compiledClassPath}`;
     }
 
     /**
