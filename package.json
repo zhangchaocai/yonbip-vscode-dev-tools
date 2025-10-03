@@ -197,6 +197,11 @@
         "command": "yonbip.project.exportPatch",
         "title": "📤 导出YonBIP补丁",
         "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.addAllSourcePaths",
+        "title": "📜 全部加入源码路径",
+        "category": "YonBIP/项目管理"
       }
     ],
     "submenus": [
@@ -253,6 +258,11 @@
           "command": "yonbip.home.stop",
           "when": "explorerResourceIsFolder",
           "group": "1@8"
+        },
+        {
+          "command": "yonbip.project.addAllSourcePaths",
+          "when": "explorerResourceIsFolder",
+          "group": "1@9"
         }
       ]
     },

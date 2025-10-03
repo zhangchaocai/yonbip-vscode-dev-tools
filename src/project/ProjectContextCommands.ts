@@ -5,6 +5,7 @@ import { LibraryService } from './LibraryService';
 import { NCHomeConfigService } from './NCHomeConfigService';
 import { HomeService } from './HomeService';
 import { ProjectService } from './ProjectService';
+import { ClasspathService } from './ClasspathService';
 
 // 添加一个静态属性来存储context
 let extensionContext: vscode.ExtensionContext | undefined;
@@ -42,6 +43,7 @@ export class ProjectContextCommands {
         this.setExtensionContext(context);
 
         const libraryService = new LibraryService(context, configService);
+        const classpathService = new ClasspathService();
 
         // 初始化项目目录命令（右键菜单）
         const initProjectContextCommand = vscode.commands.registerCommand(
@@ -51,7 +53,16 @@ export class ProjectContextCommands {
             }
         );
 
+        // 添加所有源码路径到.classpath命令（右键菜单）
+        const addAllSourcePathsCommand = vscode.commands.registerCommand(
+            'yonbip.project.addAllSourcePaths',
+            async (uri: vscode.Uri) => {
+                await this.handleAddAllSourcePaths(uri, classpathService);
+            }
+        );
+
         context.subscriptions.push(initProjectContextCommand);
+        context.subscriptions.push(addAllSourcePathsCommand);
     }
 
     /**
@@ -267,5 +278,43 @@ export class ProjectContextCommands {
         }
 
         return undefined;
+    }
+
+    /**
+     * 处理添加所有源码路径到.classpath
+     */
+    private static async handleAddAllSourcePaths(
+        uri: vscode.Uri | undefined,
+        classpathService: ClasspathService
+    ): Promise<void> {
+        try {
+            // 如果没有提供URI，则提示用户选择目录
+            let selectedPath: string;
+            if (!uri) {
+                const result = await vscode.window.showOpenDialog({
+                    canSelectFiles: false,
+                    canSelectFolders: true,
+                    canSelectMany: false,
+                    openLabel: '选择要扫描的目录'
+                });
+
+                if (!result || result.length === 0) {
+                    return;
+                }
+
+                selectedPath = result[0].fsPath;
+            } else {
+                selectedPath = uri.fsPath;
+            }
+
+            console.log(`用户选择的扫描目录: ${selectedPath}`);
+
+            // 调用ClasspathService处理添加源码路径
+            await classpathService.addAllSourcePaths(selectedPath);
+
+        } catch (error: any) {
+            console.error('添加源码路径失败:', error);
+            vscode.window.showErrorMessage(`添加源码路径失败: ${error.message}`);
+        }
     }
 }
