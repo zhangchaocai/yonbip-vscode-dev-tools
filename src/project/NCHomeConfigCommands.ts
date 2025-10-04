@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { NCHomeConfigService } from './NCHomeConfigService';
 import { NCHomeConfigProvider } from './NCHomeConfigProvider';
+import { MacHomeConversionService } from './MacHomeConversionService';
 
 /**
  * NC Home配置命令处理器
@@ -8,10 +9,13 @@ import { NCHomeConfigProvider } from './NCHomeConfigProvider';
 export class NCHomeConfigCommands {
     private service: NCHomeConfigService;
     private webviewProvider: NCHomeConfigProvider;
+    private macHomeConversionService: MacHomeConversionService;
 
-    constructor(context: vscode.ExtensionContext) {
+    constructor(context: vscode.ExtensionContext, macHomeConversionService?: MacHomeConversionService) {
         this.service = new NCHomeConfigService(context);
         this.webviewProvider = new NCHomeConfigProvider(context.extensionUri, context);
+        // 如果传入了MacHomeConversionService实例，则使用它，否则创建新的实例
+        this.macHomeConversionService = macHomeConversionService || new MacHomeConversionService(this.service);
 
         this.registerCommands(context);
     }
@@ -55,6 +59,8 @@ export class NCHomeConfigCommands {
             showOutputCommand,
             testConnectionCommand,
             this.service
+            // 注意：这里不再添加this.macHomeConversionService到context.subscriptions，
+            // 因为它可能与其他实例共享，会在extension.ts中统一管理
         );
     }
 
@@ -87,6 +93,19 @@ export class NCHomeConfigCommands {
                 await this.service.saveConfig(config);
 
                 vscode.window.showInformationMessage(`NC Home路径已设置: ${homePath}`);
+
+                // 如果是Mac系统，自动执行Mac HOME转换
+                if (process.platform === 'darwin') {
+                    const convert = await vscode.window.showInformationMessage(
+                        '检测到您使用的是Mac系统，是否需要自动执行Mac HOME转换？',
+                        '是',
+                        '否'
+                    );
+
+                    if (convert === '是') {
+                        await this.macHomeConversionService.convertToMacHome(homePath);
+                    }
+                }
 
                 // 如果配置界面已打开，刷新显示
                 // this.webviewProvider.refresh();

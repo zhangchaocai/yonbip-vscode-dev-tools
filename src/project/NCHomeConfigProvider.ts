@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { NCHomeConfigService } from './NCHomeConfigService';
 import { DataSourceMeta, NCHomeConfig } from './NCHomeConfigTypes';
+import { MacHomeConversionService } from './MacHomeConversionService';
 
 /**
  * NC Home配置WebView提供者
@@ -10,14 +11,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private configService: NCHomeConfigService;
+    private macHomeConversionService: MacHomeConversionService;
     private readonly context: vscode.ExtensionContext;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        context: vscode.ExtensionContext
+        context: vscode.ExtensionContext,
+        macHomeConversionService?: MacHomeConversionService
     ) {
         this.context = context;
         this.configService = new NCHomeConfigService(context);
+        // 如果传入了MacHomeConversionService实例，则使用它，否则创建新的实例
+        this.macHomeConversionService = macHomeConversionService || new MacHomeConversionService(this.configService);
     }
 
     public resolveWebviewView(
@@ -181,6 +186,19 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 const config = this.configService.getConfig();
                 config.homePath = homePath;
                 await this.configService.saveConfig(config);
+
+                // 如果是Mac系统，自动执行Mac HOME转换
+                if (process.platform === 'darwin') {
+                    const convert = await vscode.window.showInformationMessage(
+                        '检测到您使用的是Mac系统，是否需要自动执行Mac HOME转换？',
+                        '是',
+                        '否'
+                    );
+
+                    if (convert === '是') {
+                        await this.macHomeConversionService.convertToMacHome(homePath);
+                    }
+                }
             }
             this._view?.webview.postMessage({
                 type: 'homeDirectorySelected',

@@ -22,6 +22,7 @@ import { ProjectService } from './project/ProjectService';
 import { McpService } from './mcp/McpService';
 import { LibraryService } from './project/LibraryService';
 import { HomeService } from './project/HomeService';
+import { MacHomeConversionService } from './project/MacHomeConversionService';
 
 // 导入项目装饰器提供者
 import { ProjectDecorationProvider } from './project/ProjectDecorationProvider';
@@ -35,6 +36,7 @@ let projectService: ProjectService | undefined;
 let mcpService: McpService | undefined;
 let libraryService: LibraryService | undefined;
 let homeService: HomeService | undefined;
+let macHomeConversionService: MacHomeConversionService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -96,7 +98,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 注册NC Home配置界面和命令
 	ncHomeConfigService = new NCHomeConfigService(context);
-	const ncHomeConfigCommands = new NCHomeConfigCommands(context);
+	// 创建全局的MacHomeConversionService实例
+	macHomeConversionService = new MacHomeConversionService(ncHomeConfigService);
+	const ncHomeConfigCommands = new NCHomeConfigCommands(context, macHomeConversionService);
 	// NCHomeConfigCommands类没有实现dispose方法，因此不能添加到context.subscriptions中
 
 	// 注册HOME服务命令
@@ -113,7 +117,7 @@ export function activate(context: vscode.ExtensionContext) {
 	ProjectCommands.registerCommands(context, projectService, ncHomeConfigService);
 
 	// 注册NC Home配置界面
-	const ncHomeConfigProvider = new NCHomeConfigProvider(context.extensionUri, context);
+	const ncHomeConfigProvider = new NCHomeConfigProvider(context.extensionUri, context, macHomeConversionService);
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
 			NCHomeConfigProvider.viewType,
@@ -182,5 +186,10 @@ export function deactivate() {
 	// 释放HOME服务资源
 	if (homeService) {
 		homeService.dispose();
+	}
+
+	// 释放Mac HOME转换服务资源
+	if (macHomeConversionService) {
+		macHomeConversionService.dispose();
 	}
 }
