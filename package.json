@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YonBIP高级版开发者工具",
   "description": "YonBIP高级版开发者工具集成了MCP服务、数据库连接、OpenAPI测试等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "publisher": "zhang-chaocai",
   "author": {
     "name": "YonBIP开发社区",

@@ -128,6 +128,9 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 includeConfig: data.includeConfig !== false
             };
 
+            // 添加作者信息到patchInfo（通过类型断言）
+            (patchInfo as any).author = data.author || '';
+
             console.log('构建的补丁信息:', patchInfo);
 
             // 执行实际的导出逻辑
@@ -581,41 +584,20 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
         <div class="form-group">
             <label for="patchVersion">版本号 *</label>
-            <input type="text" id="patchVersion" placeholder="例如: 1.0.0">
+            <input type="text" id="patchVersion" placeholder="例如: 1" value="1">
             <div id="patchVersionError" class="error-message"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="patchAuthor">作者 *</label>
+            <input type="text" id="patchAuthor" placeholder="补丁作者">
+            <div id="patchAuthorError" class="error-message"></div>
         </div>
 
         <div class="form-group">
             <label for="patchDescription">补丁描述</label>
             <textarea id="patchDescription" placeholder="描述补丁的功能和修复的问题"></textarea>
             <div id="patchDescriptionError" class="error-message"></div>
-        </div>
-
-        <div class="form-group">
-            <label for="patchAuthor">作者</label>
-            <input type="text" id="patchAuthor" placeholder="补丁作者">
-            <div id="patchAuthorError" class="error-message"></div>
-        </div>
-
-        <div class="form-group">
-            <label for="patchType">补丁类型</label>
-            <select id="patchType">
-                <option value="hotfix">热修复</option>
-                <option value="feature">功能补丁</option>
-                <option value="security">安全补丁</option>
-                <option value="performance">性能优化</option>
-            </select>
-            <div id="patchTypeError" class="error-message"></div>
-        </div>
-
-        <div class="form-group">
-            <label for="targetVersion">目标版本</label>
-            <input type="text" id="targetVersion" placeholder="适用的产品版本">
-        </div>
-
-        <div class="form-group">
-            <label for="baseVersion">基础版本</label>
-            <input type="text" id="baseVersion" placeholder="基于的版本">
         </div>
 
         <div class="section-title">包含文件类型</div>
@@ -638,10 +620,6 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
-        <div class="form-group">
-            <label for="excludePatterns">排除文件模式</label>
-            <textarea id="excludePatterns" placeholder="使用glob模式，如 **/.git/**&#10;**/node_modules/**&#10;**/target/**"></textarea>
-        </div>
 
         <div class="section-title">
             可导出文件列表
@@ -662,27 +640,6 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
-        <div class="section-title">说明信息</div>
-        <div class="form-group">
-            <label for="installInstructions">安装说明</label>
-            <textarea id="installInstructions" placeholder="补丁安装步骤和注意事项"></textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="rollbackInstructions">回滚说明</label>
-            <textarea id="rollbackInstructions" placeholder="补丁回滚步骤"></textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="testInstructions">测试说明</label>
-            <textarea id="testInstructions" placeholder="补丁测试方法和验证步骤"></textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="notes">备注</label>
-            <textarea id="notes" placeholder="其他备注信息"></textarea>
-        </div>
-
         <div class="button-group">
             <button class="button button-secondary" onclick="cancel()">取消</button>
             <button class="button button-primary" onclick="exportPatch()">导出补丁</button>
@@ -696,27 +653,28 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         const validationRules = {
             patchName: {
                 required: true,
-                pattern: /^[a-zA-Z0-9_-]+$/,
-                message: '补丁名称只能包含字母、数字、下划线和连字符'
+                pattern: /^[a-zA-Z0-9_\u4e00-\u9fa5-]+$/,
+                message: '补丁名称只能包含字母、数字、中文、下划线和连字符'
             },
             patchVersion: {
                 required: true,
-                pattern: /^\\d+\\.\\d+\\.\\d+$/,
-                message: '版本号格式应为 x.y.z (例如: 1.0.0)'
+                pattern: /^\\d+$/,
+                message: '版本号应为纯数字格式 (例如: 1, 2, 3...)'
             },
             patchDescription: {
-                required: true,
-                minLength: 10,
-                message: '描述至少需要10个字符'
+                required: false,
+                minLength: 0,
+                message: '描述补丁的功能和修复的问题'
             },
             patchAuthor: {
                 required: true,
                 message: '请输入作者名称'
             },
-            patchType: {
-                required: true,
-                message: '请选择补丁类型'
-            }
+            // patchType已移除，使用默认值
+            // patchType: {
+            //     required: true,
+            //     message: '请选择补丁类型'
+            // }
         };
         
         // 验证单个字段
@@ -885,6 +843,12 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+            const author = document.getElementById('patchAuthor').value.trim();
+            if (!author) {
+                showError('patchAuthor', '请输入作者名称');
+                return;
+            }
+            
             console.log('验证通过，准备发送消息');
 
             const data = {
@@ -892,22 +856,11 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 version,
                 description: document.getElementById('patchDescription').value.trim(),
                 author: document.getElementById('patchAuthor').value.trim(),
-                patchType: document.getElementById('patchType').value,
-                targetVersion: document.getElementById('targetVersion').value.trim(),
-                baseVersion: document.getElementById('baseVersion').value.trim(),
                 includeSource: document.getElementById('includeSource').checked,
                 includeResources: document.getElementById('includeResources').checked,
                 includeConfig: document.getElementById('includeConfig').checked,
                 includeLibs: document.getElementById('includeLibs').checked,
-                excludePatterns: document.getElementById('excludePatterns').value
-                    .split('\\n')
-                    .map(p => p.trim())
-                    .filter(p => p.length > 0),
-                outputDir: document.getElementById('outputDir').value.trim(),
-                installInstructions: document.getElementById('installInstructions').value.trim(),
-                rollbackInstructions: document.getElementById('rollbackInstructions').value.trim(),
-                testInstructions: document.getElementById('testInstructions').value.trim(),
-                notes: document.getElementById('notes').value.trim()
+                outputDir: document.getElementById('outputDir').value.trim()
             };
 
             console.log('发送导出消息:', data);
@@ -1109,9 +1062,11 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             fs.mkdirSync(outputDir, { recursive: true });
         }
 
-        // 生成补丁文件名，自动添加patch_前缀
+        // 生成补丁文件名，自动添加patch_前缀，并包含作者信息
         const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const patchName = `patch_${patchInfo.name}_${timestamp}_V${patchInfo.version.replace(/\./g, '_')}`;
+        // 从patchInfo中获取作者信息（如果存在）
+        const authorPart = (patchInfo as any).author ? `_${(patchInfo as any).author}` : '';
+        const patchName = `patch_${patchInfo.name}${authorPart}_${timestamp}_V${patchInfo.version.replace(/\./g, '_')}`;
         const zipPath = path.join(outputDir, `${patchName}.zip`);
 
         return new Promise((resolve, reject) => {
@@ -1188,6 +1143,29 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                     }
                 } catch (error) {
                     console.error('解析module.xml失败:', error);
+                }
+            }
+
+            currentDir = path.dirname(currentDir);
+        }
+
+        // 如果都找不到，尝试从.project文件中获取项目名称
+        currentDir = path.dirname(filePath);
+        while (currentDir && currentDir !== path.dirname(currentDir)) {
+            const projectFile = path.join(currentDir, '.project');
+
+            if (fs.existsSync(projectFile)) {
+                try {
+                    const xmlContent = fs.readFileSync(projectFile, 'utf8');
+                    const parser = new xml2js.Parser();
+                    const result = await this._parseXml(parser, xmlContent);
+
+                    // 从.project文件中提取name标签的值
+                    if (result && result.projectDescription && result.projectDescription.name && result.projectDescription.name.length > 0) {
+                        return result.projectDescription.name[0];
+                    }
+                } catch (error) {
+                    console.error('解析.project文件失败:', error);
                 }
             }
 
