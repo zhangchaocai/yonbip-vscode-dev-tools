@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { HomeService } from './HomeService';
-import { NCHomeConfigService } from './NCHomeConfigService';
+import { NCHomeConfigService } from './config/NCHomeConfigService';
 
 /**
  * HOME调试服务类，模拟IDEA插件中的ServerDebugAction逻辑

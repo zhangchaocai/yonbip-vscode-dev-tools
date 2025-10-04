@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { PatchInfo } from './ProjectService';
-import { NCHomeConfigService } from './NCHomeConfigService';
+import { PatchInfo } from '../../project/project-management/ProjectService';
+import { NCHomeConfigService } from '../../project/nc-home/config/NCHomeConfigService';
 
 /**
  * 补丁导出配置Webview提供者

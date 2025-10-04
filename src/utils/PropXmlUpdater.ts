@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as iconv from 'iconv-lite';
-import { DataSourceMeta } from '../project/NCHomeConfigTypes';
+import { DataSourceMeta } from '../project/nc-home/config/NCHomeConfigTypes';
 
 /**
  * prop.xml文件更新工具类

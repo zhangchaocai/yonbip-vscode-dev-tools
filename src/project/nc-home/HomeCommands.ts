@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { HomeService } from './HomeService';
 import { HomeDebugService } from './HomeDebugService';
-import { NCHomeConfigService } from './NCHomeConfigService';
+import { NCHomeConfigService } from './config/NCHomeConfigService';
 
 /**
  * HOME服务命令类

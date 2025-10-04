@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as iconv from 'iconv-lite';
 import { NCHomeConfig, DataSourceMeta, ConnectionTestResult, AutoParseResult, DRIVER_INFO_MAP } from './NCHomeConfigTypes';
-import { PasswordEncryptor } from '../utils/PasswordEncryptor';
-import { PropXmlUpdater } from '../utils/PropXmlUpdater';
+import { PasswordEncryptor } from '../../../utils/PasswordEncryptor';
+import { PropXmlUpdater } from '../../../utils/PropXmlUpdater';
 
 /**
  * NC Home配置服务

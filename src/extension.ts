@@ -7,25 +7,25 @@ import * as path from 'path';
 // 扩展组件
 import { McpCommands } from './mcp/McpCommands';
 import { McpProvider } from './mcp/McpProvider';
-import { ProjectProvider } from './project/ProjectProvider';
-import { NCHomeConfigProvider } from './project/NCHomeConfigProvider';
-import { NCHomeConfigWebviewProvider } from './project/NCHomeConfigWebviewProvider';
-import { PatchExportWebviewProvider } from './project/PatchExportWebviewProvider';
+import { ProjectProvider } from './project/project-management/ProjectProvider';
+import { NCHomeConfigProvider } from './project/nc-home/config/NCHomeConfigProvider';
+import { NCHomeConfigWebviewProvider } from './project/nc-home/config/NCHomeConfigWebviewProvider';
+import { PatchExportWebviewProvider } from './project/ui/PatchExportWebviewProvider';
 import { OpenApiProvider } from './openapi/OpenApiProvider';
-import { NCHomeConfigService } from './project/NCHomeConfigService';
-import { HomeCommands } from './project/HomeCommands';
-import { NCHomeConfigCommands } from './project/NCHomeConfigCommands';
-import { LibraryCommands } from './project/LibraryCommands';
-import { ProjectContextCommands } from './project/ProjectContextCommands';
-import { ProjectCommands } from './project/ProjectCommands';
-import { ProjectService } from './project/ProjectService';
+import { NCHomeConfigService } from './project/nc-home/config/NCHomeConfigService';
+import { HomeCommands } from './project/nc-home/HomeCommands';
+import { NCHomeConfigCommands } from './project/nc-home/config/NCHomeConfigCommands';
+import { LibraryCommands } from './project/library/LibraryCommands';
+import { ProjectContextCommands } from './project/project-management/ProjectContextCommands';
+import { ProjectCommands } from './project/project-management/ProjectCommands';
+import { ProjectService } from './project/project-management/ProjectService';
 import { McpService } from './mcp/McpService';
-import { LibraryService } from './project/LibraryService';
-import { HomeService } from './project/HomeService';
-import { MacHomeConversionService } from './project/MacHomeConversionService';
+import { LibraryService } from './project/library/LibraryService';
+import { HomeService } from './project/nc-home/HomeService';
+import { MacHomeConversionService } from './project/mac/MacHomeConversionService';
 
 // 导入项目装饰器提供者
-import { ProjectDecorationProvider } from './project/ProjectDecorationProvider';
+import { ProjectDecorationProvider } from './project/project-management/ProjectDecorationProvider';
 
 // 导入密码加密解密工具类
 import { PasswordEncryptor } from './utils/PasswordEncryptor';

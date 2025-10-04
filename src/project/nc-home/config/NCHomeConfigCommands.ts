@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { NCHomeConfigService } from './NCHomeConfigService';
 import { NCHomeConfigProvider } from './NCHomeConfigProvider';
-import { MacHomeConversionService } from './MacHomeConversionService';
+import { MacHomeConversionService } from '../../mac/MacHomeConversionService';
 
 /**
  * NC Home配置命令处理器

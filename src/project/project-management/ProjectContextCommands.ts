@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { LibraryService } from './LibraryService';
-import { NCHomeConfigService } from './NCHomeConfigService';
-import { HomeService } from './HomeService';
+import { LibraryService } from '../library/LibraryService';
+import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
+import { HomeService } from '../nc-home/HomeService';
 import { ProjectService } from './ProjectService';
-import { ClasspathService } from './ClasspathService';
+import { ClasspathService } from '../library/ClasspathService';
 
 // 添加一个静态属性来存储context
 let extensionContext: vscode.ExtensionContext | undefined;
@@ -220,20 +220,6 @@ export class ProjectContextCommands {
                 fs.mkdirSync(classesPath, { recursive: true });
             }
 
-            // 同时创建src目录结构
-            const srcPrivatePath = path.join(basePath, 'src', 'private');
-            const srcPublicPath = path.join(basePath, 'src', 'public');
-            const srcClientPath = path.join(basePath, 'src', 'client');
-            if (!fs.existsSync(srcPrivatePath)) {
-                fs.mkdirSync(srcPrivatePath, { recursive: true });
-            }
-            if (!fs.existsSync(srcPublicPath)) {
-                fs.mkdirSync(srcPublicPath, { recursive: true });
-            }
-            if (!fs.existsSync(srcClientPath)) {
-                fs.mkdirSync(srcClientPath, { recursive: true });
-            }
-
             // 创建META-INF目录和module.xml文件
             const metaInfPath = path.join(basePath, 'META-INF');
             if (!fs.existsSync(metaInfPath)) {
@@ -259,26 +245,6 @@ export class ProjectContextCommands {
         }
     }
 
-    /**
-     * 选择数据库驱动库路径
-     */
-    private static async selectDriverLibPath(): Promise<string | undefined> {
-        const result = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: true,
-            openLabel: '选择数据库驱动JAR文件',
-            filters: {
-                'JAR文件': ['jar']
-            }
-        });
-
-        if (result && result.length > 0) {
-            return result.map(uri => uri.fsPath).join(',');
-        }
-
-        return undefined;
-    }
 
     /**
      * 处理添加所有源码路径到.classpath

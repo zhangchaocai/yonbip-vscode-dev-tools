@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { LibraryService } from './LibraryService';
-import { NCHomeConfigService } from './NCHomeConfigService';
+import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 
 /**
  * 库管理命令

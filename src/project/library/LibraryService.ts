@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { NCHomeConfigService } from './NCHomeConfigService';
+import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 
 /**
  * Jar包信息VO
@@ -873,20 +873,10 @@ export class LibraryService {
             relativePath = path.relative(workspaceRoot, workspacePath) || '.';
         }
 
-        // 确保使用正斜杠路径分隔符
-        const normalizedRelativePath = relativePath.split(path.sep).join('/');
-
-        // 如果是当前目录('.')，则不添加前缀
-        // const srcPath = normalizedRelativePath === '.' ? 'src' : `${normalizedRelativePath}/src`;
-        // const binPath = normalizedRelativePath === '.' ? 'bin' : `${normalizedRelativePath}/bin`;
-        const srcPath = normalizedRelativePath === '.' ? 'src' : `src`;
         // 生成 .classpath 文件内容
         let classpathContent = `<?xml version="1.0" encoding="UTF-8"?>
 <classpath>
     <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-    <classpathentry kind="src" path="${srcPath}/client"/>
-    <classpathentry kind="src" path="${srcPath}/private"/>
-    <classpathentry kind="src" path="${srcPath}/public"/>
     <classpathentry kind="output" path="build/classes"/>`;
 
         // 添加所有jar文件

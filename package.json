@@ -357,7 +357,7 @@
     "glob": "^11.0.3",
     "mocha": "^11.7.2",
     "sinon": "^21.0.0",
-    "typescript": "^5.0.4"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@types/adm-zip": "^0.5.7",

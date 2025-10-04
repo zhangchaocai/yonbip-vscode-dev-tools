@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import AdmZip from 'adm-zip';
-import { NCHomeConfigService } from './NCHomeConfigService';
+import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 
 /**
  * Mac HOME转换服务

@@ -3,7 +3,7 @@ import { spawn, spawnSync, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as iconv from 'iconv-lite';
-import { NCHomeConfigService } from './NCHomeConfigService';
+import { NCHomeConfigService } from './config/NCHomeConfigService';
 
 /**
  * NC HOME服务状态

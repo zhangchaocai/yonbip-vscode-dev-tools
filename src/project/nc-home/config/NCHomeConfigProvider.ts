@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { NCHomeConfigService } from './NCHomeConfigService';
 import { DataSourceMeta, NCHomeConfig } from './NCHomeConfigTypes';
-import { MacHomeConversionService } from './MacHomeConversionService';
+import { MacHomeConversionService } from '../../mac/MacHomeConversionService';
 
 /**
  * NC Home配置WebView提供者

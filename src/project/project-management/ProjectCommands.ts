@@ -4,8 +4,8 @@ import * as path from 'path';
 import * as https from 'https';
 import * as StreamZip from 'node-stream-zip';
 import { ProjectService } from './ProjectService';
-import { NCHomeConfigService } from './NCHomeConfigService';
-import { LibraryService } from './LibraryService';
+import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
+import { LibraryService } from '../library/LibraryService';
 
 /**
  * 项目相关命令类
