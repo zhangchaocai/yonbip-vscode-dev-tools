@@ -12,6 +12,8 @@ import { PropXmlUpdater } from '../../../utils/PropXmlUpdater';
 export class NCHomeConfigService {
     private context: vscode.ExtensionContext;
     private static outputChannelInstance: vscode.OutputChannel | null = null;
+    private static oracleClientInitialized: boolean = false;
+    private static oracleClientLibDir: string | null = null;
     private outputChannel: vscode.OutputChannel;
     private config: NCHomeConfig;
     private configFilePath: string;
@@ -535,8 +537,9 @@ export class NCHomeConfigService {
 
             this.outputChannel.appendLine(`🔍 开始测试Oracle连接: ${connectString}`);
 
-            try {
-                // 直接使用Thick模式以避免版本兼容性问题
+            // 检查是否已经初始化过Oracle客户端
+            // 修复NJS-090错误：在调用initOracleClient前检查oracleClientVersion是否存在
+            if (!oracledb.oracleClientVersion && !NCHomeConfigService.oracleClientInitialized) {
                 this.outputChannel.appendLine(`🔄 初始化Oracle Thick模式...`);
 
                 try {
@@ -544,6 +547,7 @@ export class NCHomeConfigService {
                     // 首先尝试使用默认路径初始化
                     oracledb.initOracleClient();
                     this.outputChannel.appendLine(`✅ Oracle Thick模式初始化成功`);
+                    NCHomeConfigService.oracleClientInitialized = true;
                 } catch (initError: any) {
                     this.outputChannel.appendLine(`⚠️ Oracle Thick模式初始化失败: ${initError.message}`);
 
@@ -572,11 +576,13 @@ export class NCHomeConfigService {
                             if (clientPath && fs.existsSync(clientPath)) {
                                 try {
                                     // 检查是否已经初始化过Oracle客户端
+                                    // 修复NJS-090错误：在调用initOracleClient前检查oracleClientVersion是否存在
                                     if (!oracledb.oracleClientVersion) {
                                         oracledb.initOracleClient({ libDir: clientPath });
                                     }
                                     this.outputChannel.appendLine(`✅ Oracle Thick模式使用路径初始化成功: ${clientPath}`);
                                     initialized = true;
+                                    NCHomeConfigService.oracleClientInitialized = true;
                                     break;
                                 } catch (pathError: any) {
                                     this.outputChannel.appendLine(`⚠️ 路径 ${clientPath} 初始化失败: ${pathError.message}`);
@@ -605,9 +611,14 @@ export class NCHomeConfigService {
                         }
                     } else {
                         this.outputChannel.appendLine(`💡 提示: 请确保已安装Oracle Instant Client`);
+                        NCHomeConfigService.oracleClientInitialized = true;
                     }
                 }
+            } else {
+                this.outputChannel.appendLine(`ℹ️ Oracle客户端已初始化，跳过重复初始化`);
+            }
 
+            try {
                 // 使用Thick模式进行连接
                 const connection = await oracledb.getConnection({
                     user: dataSource.username,
@@ -643,6 +654,20 @@ export class NCHomeConfigService {
             const oracledb = await import('oracledb');
 
             this.outputChannel.appendLine(`🔄 尝试Oracle旧版本兼容模式...`);
+
+            // 检查是否已经初始化过Oracle客户端
+            // 修复NJS-090错误：在调用initOracleClient前检查oracleClientVersion是否存在
+            if (!oracledb.oracleClientVersion && !NCHomeConfigService.oracleClientInitialized) {
+                this.outputChannel.appendLine(`⚠️ Oracle客户端未初始化，尝试初始化...`);
+                try {
+                    oracledb.initOracleClient();
+                    NCHomeConfigService.oracleClientInitialized = true;
+                    this.outputChannel.appendLine(`✅ Oracle客户端初始化成功`);
+                } catch (initError: any) {
+                    this.outputChannel.appendLine(`⚠️ Oracle客户端初始化失败: ${initError.message}`);
+                    // 即使初始化失败，仍然尝试连接，因为可能是Thin模式
+                }
+            }
 
             // 尝试多种连接格式
             const connectionFormats = [
@@ -701,7 +726,7 @@ export class NCHomeConfigService {
 
         // 检查版本兼容性
         if (errorMessage.includes('NJS-138') || errorMessage.includes('Thin mode') || errorMessage.includes('version')) {
-            return this.handleOracleConnectionError(error, dataSource);
+            return this.testOracleLegacyCompatibility(dataSource);
         }
 
         // 处理ORA错误
