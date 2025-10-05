@@ -209,6 +209,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         }
                     }
                 }
+
+                // 重新加载配置以获取新home目录中的数据源信息
+                await this.handleLoadConfig();
             }
             this._view?.webview.postMessage({
                 type: 'homeDirectorySelected',
