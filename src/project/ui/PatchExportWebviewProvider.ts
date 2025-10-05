@@ -942,14 +942,15 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 </html>`;
     }
 
-    private async _buildReplacementContent(files: { path: string, type: string, relativePath: string }[], patchInfo: PatchInfo, archive: any, basePath: string, homePath: string): Promise<void> {
+    private async _buildReplacementContent(files: { path: string, type: string, relativePath: string }[], patchInfo: PatchInfo, archive: any, basePath: string): Promise<void> {
         const fs = require('fs');
         const path = require('path');
 
         console.log('开始构建替换内容，文件数量:', files.length);
 
         // 检查是否为NCC Home（是否存在hotwebs/nccloud目录）
-        const nccloudPath = path.join(homePath, 'hotwebs', 'nccloud');
+        let config = this.configService.getConfig();
+        const nccloudPath = path.join(config.homePath, 'hotwebs', 'nccloud');
         const isNCCHome = fs.existsSync(nccloudPath);
 
         for (const file of files) {
@@ -1004,6 +1005,10 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                     if (fs.existsSync(fullClassPath)) {
                         // 使用编译后的class文件作为源文件
                         archive.file(fullClassPath, { name: targetPath });
+                        // 如果包含源码，则添加源码文件
+                        if (patchInfo.includeSource) {
+                            archive.file(file.path, { name: targetPath.replace('.class', '.java') });
+                        }
                     } else {
                         // 如果编译后的文件不存在，回退到使用源文件
                         archive.file(filePath, { name: targetPath });
@@ -1099,7 +1104,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
             // 使用IDEA插件的规则构建replacement内容
             // 使用basePath作为homePath
-            this._buildReplacementContent(filteredFiles, patchInfo, archive, basePath, basePath).then(() => {
+            this._buildReplacementContent(filteredFiles, patchInfo, archive, basePath).then(() => {
                 // 只有在_buildReplacementContent完成后才调用finalize
                 archive.finalize();
             }).catch((error) => {
@@ -1443,7 +1448,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
      */
     private _getConfigFileTargetPath(filePath: string): string {
         const relativePath = this._extractRelativePath(filePath, '/yyconfig/modules/', '\\yyconfig\\modules\\');
-        return `replacement/hotwebs/nccloud/WEB-INF/extend${relativePath}`;
+        return `replacement/hotwebs/nccloud/WEB-INF/extend/yyconfig/modules/${relativePath}`;
     }
 
     /**
