@@ -165,7 +165,7 @@
       },
       {
         "command": "yonbip.home.startFromDirectory",
-        "title": "⚙️ YONBIP 中间件启动",
+        "title": "🖥️ YONBIP 中间件启动",
         "category": "YonBIP/HOME"
       },
       {

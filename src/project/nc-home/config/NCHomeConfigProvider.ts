@@ -1082,8 +1082,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     <div class="form-group">
                         <label for="dsType">数据库类型:</label>
                         <select id="dsType">
-                            <option value="mysql">MySQL</option>
                             <option value="oracle">Oracle</option>
+                            <option value="mysql">MySQL</option>
                             <option value="sqlserver">SQL Server</option>
                             <option value="postgresql">PostgreSQL</option>
                             <option value="db2">DB2</option>
@@ -1095,7 +1095,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div class="form-group">
                         <label for="dsPort">端口号:</label>
-                        <input type="number" id="dsPort" value="3306">
+                        <input type="number" id="dsPort" value="1521">
                     </div>
                     <div class="form-group">
                         <label for="dsDatabase">数据库名:</label>
@@ -1126,6 +1126,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 document.getElementById('dsDatabase').value = dataSource.databaseName;
                 document.getElementById('dsUsername').value = dataSource.username;
                 // 密码字段不填充，保持为空
+            } else {
+                // 新增模式下，默认选中Oracle并设置默认端口
+                document.getElementById('dsType').value = 'oracle';
+                document.getElementById('dsPort').value = 1521;
             }
         }
         
@@ -1139,6 +1143,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         
         // 保存数据源
         function saveDataSource(mode) {
+            // 防止重复提交
+            const saveButton = event.target;
+            if (saveButton.disabled) return;
+            
             const portValue = document.getElementById('dsPort').value;
             const dataSource = {
                 name: document.getElementById('dsName').value,
@@ -1163,6 +1171,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             }
             
             const messageType = mode === 'edit' ? 'updateDataSource' : 'addDataSource';
+            
+            // 禁用保存按钮防止重复提交
+            saveButton.disabled = true;
+            saveButton.textContent = mode === 'edit' ? '更新中...' : '保存中...';
             
             vscode.postMessage({
                 type: messageType,
@@ -1494,6 +1506,15 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     break;
                     
                 case 'dataSourceAdded':
+                    // 恢复保存按钮状态
+                    const saveButtons = document.querySelectorAll('button');
+                    saveButtons.forEach(button => {
+                        if (button.textContent.includes('保存中') || button.disabled) {
+                            button.disabled = false;
+                            button.textContent = button.textContent.replace('保存中...', '保存');
+                        }
+                    });
+                    
                     if (message.success) {
                         showMessage('数据源添加成功', 'success');
                         // 更新配置显示
@@ -1506,6 +1527,15 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     break;
                     
                 case 'dataSourceUpdated':
+                    // 恢复保存按钮状态
+                    const updateButtons = document.querySelectorAll('button');
+                    updateButtons.forEach(button => {
+                        if (button.textContent.includes('更新中') || button.disabled) {
+                            button.disabled = false;
+                            button.textContent = button.textContent.replace('更新中...', '更新');
+                        }
+                    });
+                    
                     if (message.success) {
                         showMessage('数据源更新成功', 'success');
                         // 更新配置显示

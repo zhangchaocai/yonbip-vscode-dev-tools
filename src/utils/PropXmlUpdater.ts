@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as iconv from 'iconv-lite';
 import { DataSourceMeta } from '../project/nc-home/config/NCHomeConfigTypes';
+import { PasswordEncryptor } from '../utils/PasswordEncryptor';
 
 /**
  * prop.xml文件更新工具类
@@ -30,7 +31,13 @@ export class PropXmlUpdater {
         } else {
             // 读取现有文件内容（使用gb2312编码）
             const buffer = fs.readFileSync(propXmlPath);
-            content = iconv.decode(buffer, 'gb2312');
+            try {
+                content = iconv.decode(buffer, 'gb2312');
+            } catch (error) {
+                // 如果gb2312解码失败，尝试使用UTF-8解码
+                console.warn('gb2312解码失败，尝试使用UTF-8解码:', error);
+                content = iconv.decode(buffer, 'utf8');
+            }
         }
 
         // 生成数据源XML片段
@@ -38,7 +45,7 @@ export class PropXmlUpdater {
 
         if (isUpdate) {
             // 更新操作：替换现有的数据源
-            const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${dataSource.name}</dataSourceName>[\\s\\S]*?</dataSource>`, 'g');
+            const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${this.escapeRegExp(dataSource.name)}</dataSourceName>[\\s\\S]*?</dataSource>`, 'g');
             if (dataSourceRegex.test(content)) {
                 // 如果找到了同名数据源，则替换
                 content = content.replace(dataSourceRegex, dataSourceXml);
@@ -46,7 +53,7 @@ export class PropXmlUpdater {
             // 如果没找到，不添加新的数据源，因为这应该是更新操作
         } else {
             // 添加操作：检查是否已存在同名数据源
-            const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${dataSource.name}</dataSourceName>[\\s\\S]*?</dataSource>`, 'g');
+            const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${this.escapeRegExp(dataSource.name)}</dataSourceName>[\\s\\S]*?</dataSource>`, 'g');
             if (dataSourceRegex.test(content)) {
                 throw new Error(`数据源 "${dataSource.name}" 已存在`);
             }
@@ -54,8 +61,8 @@ export class PropXmlUpdater {
             content = this.insertDataSourceIntoContent(content, dataSourceXml);
         }
 
-        // 写入文件（使用gb2312编码）
-        const buffer = iconv.encode(content, 'gb2312');
+        // 写入文件（使用gb2312编码，不添加BOM）
+        const buffer = iconv.encode(content, 'gb2312', { addBOM: false });
         fs.writeFileSync(propXmlPath, buffer);
     }
 
@@ -74,14 +81,21 @@ export class PropXmlUpdater {
 
         // 读取文件内容（使用gb2312编码）
         const buffer = fs.readFileSync(propXmlPath);
-        let content = iconv.decode(buffer, 'gb2312');
+        let content: string;
+        try {
+            content = iconv.decode(buffer, 'gb2312');
+        } catch (error) {
+            // 如果gb2312解码失败，尝试使用UTF-8解码
+            console.warn('gb2312解码失败，尝试使用UTF-8解码:', error);
+            content = iconv.decode(buffer, 'utf8');
+        }
 
         // 删除指定的数据源
         const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${this.escapeRegExp(dataSourceName)}</dataSourceName>[\\s\\S]*?</dataSource>\\s*`, 'g');
         content = content.replace(dataSourceRegex, '');
 
-        // 写入文件（使用gb2312编码）
-        const newBuffer = iconv.encode(content, 'gb2312');
+        // 写入文件（使用gb2312编码，不添加BOM）
+        const newBuffer = iconv.encode(content, 'gb2312', { addBOM: false });
         fs.writeFileSync(propXmlPath, newBuffer);
     }
 
@@ -198,14 +212,35 @@ export class PropXmlUpdater {
             }
         }
 
+        // 对密码进行加密
+        let encryptedPassword = dataSource.password || '';
+        if (encryptedPassword) {
+            try {
+                encryptedPassword = PasswordEncryptor.encrypt(encryptedPassword);
+            } catch (error) {
+                console.error('密码加密失败:', error);
+                // 如果加密失败，使用原始密码
+            }
+        }
+
+        // 对可能包含中文的字段进行XML转义
+        const escapeXml = (str: string): string => {
+            if (!str) return str;
+            return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        };
+
         return `	<dataSource>
-		<dataSourceName>${dataSource.name}</dataSourceName>
-		<oidMark>${dataSource.oidFlag || 'ZZ'}</oidMark>
-		<databaseUrl>${databaseUrl}</databaseUrl>
-		<user>${dataSource.username}</user>
-		<password>${dataSource.password}</password>
-		<driverClassName>${driverClassName}</driverClassName>
-		<databaseType>${dataSource.databaseType.toUpperCase()}</databaseType>
+		<dataSourceName>${escapeXml(dataSource.name)}</dataSourceName>
+		<oidMark>${escapeXml(dataSource.oidFlag || 'ZZ')}</oidMark>
+		<databaseUrl>${escapeXml(databaseUrl)}</databaseUrl>
+		<user>${escapeXml(dataSource.username)}</user>
+		<password>${escapeXml(encryptedPassword)}</password>
+		<driverClassName>${escapeXml(driverClassName)}</driverClassName>
+		<databaseType>${escapeXml(dataSource.databaseType.toUpperCase())}</databaseType>
 		<maxCon>50</maxCon>
 		<minCon>1</minCon>
 		<dataSourceClassName>nc.bs.mw.ejb.xares.IerpDataSource</dataSourceClassName>

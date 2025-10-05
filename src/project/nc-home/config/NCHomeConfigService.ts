@@ -934,8 +934,13 @@ export class NCHomeConfigService {
                 PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
                 this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 写入prop.xml文件`);
             } catch (error: any) {
+                // 如果写入prop.xml失败，从配置中移除已添加的数据源
+                const index = this.config.dataSources.findIndex(ds => ds.name === dataSource.name);
+                if (index !== -1) {
+                    this.config.dataSources.splice(index, 1);
+                }
                 this.outputChannel.appendLine(`写入prop.xml文件失败: ${error.message}`);
-                throw new Error(`数据源已添加到配置中，但写入prop.xml文件失败: ${error.message}`);
+                throw new Error(`添加数据源失败: ${error.message}`);
             }
         }
 
@@ -1018,15 +1023,44 @@ export class NCHomeConfigService {
      * 设置为开发库
      */
     public async setAsDesignDatabase(dataSourceName: string): Promise<void> {
-        if (!this.config.dataSources?.some(ds => ds.name === dataSourceName)) {
+        if (!this.config.dataSources) {
+            this.config.dataSources = [];
+        }
+
+        const dataSourceIndex = this.config.dataSources.findIndex(ds => ds.name === dataSourceName);
+        if (dataSourceIndex === -1) {
             throw new Error(`数据源 "${dataSourceName}" 不存在`);
         }
 
-        this.config.selectedDataSource = dataSourceName;
+        // 保存原始数据源名称
+        const originalDataSourceName = dataSourceName;
+
+        // 将数据源名称改为"design"
+        const dataSource = this.config.dataSources[dataSourceIndex];
+        dataSource.name = 'design';
+
+        // 更新selectedDataSource为"design"
+        this.config.selectedDataSource = 'design';
+
+        // 保存配置
         await this.saveConfig(this.config);
 
-        this.outputChannel.appendLine(`设置开发库: ${dataSourceName}`);
-        vscode.window.showInformationMessage(`已设置 "${dataSourceName}" 为开发库`);
+        // 同时更新prop.xml文件中的数据源名称
+        if (this.config.homePath) {
+            try {
+                // 先删除原来的数据源
+                PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, originalDataSourceName);
+                // 再添加更新后的数据源
+                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
+                this.outputChannel.appendLine(`已将数据源 "${originalDataSourceName}" 重命名为 "design" 并写入prop.xml文件`);
+            } catch (error: any) {
+                this.outputChannel.appendLine(`更新prop.xml文件失败: ${error.message}`);
+                throw new Error(`数据源已设置为开发库，但更新prop.xml文件失败: ${error.message}`);
+            }
+        }
+
+        this.outputChannel.appendLine(`设置开发库: ${originalDataSourceName} 已重命名为 design`);
+        vscode.window.showInformationMessage(`已将 "${originalDataSourceName}" 设置为开发库并重命名为 "design"`);
     }
 
     /**
