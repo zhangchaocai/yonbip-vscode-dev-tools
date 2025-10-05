@@ -298,14 +298,10 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                             let fileType = '';
 
                             // 根据文件扩展名分类
-                            if (['.java', '.js', '.ts', '.jsx', '.tsx'].includes(ext)) {
+                            if (['.java'].includes(ext)) {
                                 fileType = 'source';
-                            } else if (['.xml', '.properties', '.json', '.txt'].includes(ext)) {
+                            } else if (['.xml', '.upm', '.rest', '.aop'].includes(ext)) {
                                 fileType = 'resource';
-                            } else if (['.yml', '.yaml', '.conf', '.config'].includes(ext)) {
-                                fileType = 'config';
-                            } else if (['.jar', '.war', '.ear'].includes(ext)) {
-                                fileType = 'library';
                             }
 
                             if (fileType) {
