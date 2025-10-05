@@ -355,12 +355,13 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private _getDefaultPatchInfo(): Partial<PatchInfo> {
+    private _getDefaultPatchInfo(): Partial<PatchInfo> & { author?: string } {
         const config = vscode.workspace.getConfiguration('yonbip');
         return {
-            name: 'patch',
-            version: '1.0.0',
+            name: '修复补丁',
+            version: '1',
             description: '',
+            author: 'yonyou',
             includeSource: true,
             includeResources: true,
             includeConfig: false,
@@ -797,20 +798,12 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             document.getElementById('patchName').value = data.name || '';
             document.getElementById('patchVersion').value = data.version || '';
             document.getElementById('patchDescription').value = data.description || '';
-            document.getElementById('patchAuthor').value = data.author || '';
-            document.getElementById('patchType').value = data.patchType || 'hotfix';
-            document.getElementById('targetVersion').value = data.targetVersion || '';
-            document.getElementById('baseVersion').value = data.baseVersion || '';
+            document.getElementById('patchAuthor').value = data.author || 'yonyou';
             document.getElementById('includeSource').checked = data.includeSource !== false;
             document.getElementById('includeResources').checked = data.includeResources !== false;
             document.getElementById('includeConfig').checked = data.includeConfig === true;
             document.getElementById('includeLibs').checked = data.includeLibs === true;
-            document.getElementById('excludePatterns').value = (data.excludePatterns || []).join('\\n');
             document.getElementById('outputDir').value = data.outputDir || './patches';
-            document.getElementById('installInstructions').value = data.installInstructions || '';
-            document.getElementById('rollbackInstructions').value = data.rollbackInstructions || '';
-            document.getElementById('testInstructions').value = data.testInstructions || '';
-            document.getElementById('notes').value = data.notes || '';
         }
 
         function selectOutputDir() {
@@ -935,6 +928,18 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
+            // 初始化表单
+            initializeForm({
+                name: '修复补丁',
+                version: '1',
+                description: '',
+                author: 'yonyou',
+                includeSource: true,
+                includeResources: true,
+                includeConfig: false,
+                outputDir: './patches'
+            });
+            
             refreshFiles();
         });
     </script>
