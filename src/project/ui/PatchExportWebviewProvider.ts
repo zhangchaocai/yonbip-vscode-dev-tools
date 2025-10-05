@@ -128,8 +128,9 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 includeConfig: data.includeConfig !== false
             };
 
-            // 添加作者信息到patchInfo（通过类型断言）
+            // 添加作者信息和包含源码选项到patchInfo（通过类型断言）
             (patchInfo as any).author = data.author || '';
+            (patchInfo as any).includeJavaSource = data.includeJavaSource !== false;
 
             console.log('构建的补丁信息:', patchInfo);
 
@@ -355,7 +356,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private _getDefaultPatchInfo(): Partial<PatchInfo> & { author?: string } {
+    private _getDefaultPatchInfo(): Partial<PatchInfo> & { author?: string, includeJavaSource?: boolean } {
         const config = vscode.workspace.getConfiguration('yonbip');
         return {
             name: '修复补丁',
@@ -365,6 +366,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             includeSource: true,
             includeResources: true,
             includeConfig: false,
+            includeJavaSource: true, // 默认包含Java源码
             outputPath: config.get('patchOutputDir') || './patches'
         };
     }
@@ -569,6 +571,27 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         .form-group.error textarea {
             border-color: var(--vscode-errorForeground);
         }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        .no-data-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .no-data-text {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .no-data-subtext {
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+        }
     </style>
 </head>
 <body>
@@ -597,26 +620,13 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             <div id="patchDescriptionError" class="error-message"></div>
         </div>
 
-        <div class="section-title">包含文件类型</div>
+        <div class="section-title">补丁配置</div>
         <div class="checkbox-group">
             <div class="checkbox-item">
-                <input type="checkbox" id="includeSource" checked>
-                <label for="includeSource">包含源码文件</label>
-            </div>
-            <div class="checkbox-item">
-                <input type="checkbox" id="includeResources" checked>
-                <label for="includeResources">包含资源文件</label>
-            </div>
-            <div class="checkbox-item">
-                <input type="checkbox" id="includeConfig">
-                <label for="includeConfig">包含配置文件</label>
-            </div>
-            <div class="checkbox-item">
-                <input type="checkbox" id="includeLibs">
-                <label for="includeLibs">包含库文件</label>
+                <input type="checkbox" id="includeJavaSource" checked>
+                <label for="includeJavaSource">包含Java源码文件</label>
             </div>
         </div>
-
 
         <div class="section-title">
             可导出文件列表
@@ -802,7 +812,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             document.getElementById('includeSource').checked = data.includeSource !== false;
             document.getElementById('includeResources').checked = data.includeResources !== false;
             document.getElementById('includeConfig').checked = data.includeConfig === true;
-            document.getElementById('includeLibs').checked = data.includeLibs === true;
+            document.getElementById('includeJavaSource').checked = data.includeJavaSource !== false;
             document.getElementById('outputDir').value = data.outputDir || './patches';
         }
 
@@ -848,7 +858,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 includeSource: document.getElementById('includeSource').checked,
                 includeResources: document.getElementById('includeResources').checked,
                 includeConfig: document.getElementById('includeConfig').checked,
-                includeLibs: document.getElementById('includeLibs').checked,
+                includeJavaSource: document.getElementById('includeJavaSource').checked,
                 outputDir: document.getElementById('outputDir').value.trim()
             };
 
@@ -880,8 +890,20 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         function displayFiles(files) {
             const fileList = document.getElementById('fileList');
             
-            if (!files || Object.keys(files).length === 0) {
-                fileList.innerHTML = '<div class="loading">未找到可导出的文件</div>';
+            // 检查是否有文件
+            const hasFiles = files && (
+                (files.source && files.source.length > 0) ||
+                (files.resources && files.resources.length > 0) ||
+                (files.config && files.config.length > 0) ||
+                (files.libraries && files.libraries.length > 0)
+            );
+            
+            if (!hasFiles) {
+                fileList.innerHTML = '<div class="no-data">' +
+                    '<div class="no-data-icon">📄</div>' +
+                    '<div class="no-data-text">暂无数据</div>' +
+                    '<div class="no-data-subtext">暂未选择需要导出补丁的文件</div>' +
+                    '</div>';
                 return;
             }
 
@@ -937,6 +959,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 includeSource: true,
                 includeResources: true,
                 includeConfig: false,
+                includeJavaSource: true, // 默认包含Java源码
                 outputDir: './patches'
             });
             
@@ -1011,7 +1034,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                         // 使用编译后的class文件作为源文件
                         archive.file(fullClassPath, { name: targetPath });
                         // 如果包含源码，则添加源码文件
-                        if (patchInfo.includeSource) {
+                        if ((patchInfo as any).includeJavaSource !== false) {
                             archive.file(file.path, { name: targetPath.replace('.class', '.java') });
                         }
                     } else {
