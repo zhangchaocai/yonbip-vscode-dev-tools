@@ -77,6 +77,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'deleteDataSource':
                     await this.handleDeleteDataSource(data.dataSourceName);
                     break;
+                case 'requestDeleteConfirmation':
+                    await this.handleDeleteConfirmationRequest(data.dataSourceName);
+                    break;
                 case 'setDesignDatabase':
                     await this.handleSetDesignDatabase(data.dataSourceName);
                     break;
@@ -1293,11 +1296,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             <div>数据库: \${ds.databaseName}</div>
                         </div>
                         <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
-                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="showEditDataSourceForm(\${dsJson})">编辑</button>
-                            \${!isDesignDatabase ? \`<button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="setAsDesignDatabase('\${ds.name}')">设为Design</button>\` : ''}
-                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="setAsBaseDatabase('\${ds.name}')">设为基准库</button>
-                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="testDataSourceConnection('\${ds.name}')">测试连接</button>
-                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" onclick="deleteDataSource('\${ds.name}')">删除</button>
+                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" data-action="edit" data-ds-name="\${ds.name}">编辑</button>
+                            \${!isDesignDatabase ? \`<button class="secondary" style="font-size: 12px; padding: 4px 8px;" data-action="setDesign" data-ds-name="\${ds.name}">设为Design</button>\` : ''}
+                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" data-action="setBase" data-ds-name="\${ds.name}">设为基准库</button>
+                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" data-action="test" data-ds-name="\${ds.name}">测试连接</button>
+                            <button class="secondary" style="font-size: 12px; padding: 4px 8px;" data-action="delete" data-ds-name="\${ds.name}">删除</button>
                         </div>
                     </div>
 \`;
@@ -1305,6 +1308,55 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             html += '</div>';
             
             dataSourceListElement.innerHTML = html;
+            
+            // 添加事件监听器
+            addDataSourceEventListeners();
+        }
+        
+        // 添加数据源事件监听器
+        function addDataSourceEventListeners() {
+            // 编辑按钮
+            document.querySelectorAll('[data-action="edit"]').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dataSourceName = e.target.getAttribute('data-ds-name');
+                    const dataSource = currentConfig.dataSources.find(ds => ds.name === dataSourceName);
+                    if (dataSource) {
+                        showEditDataSourceForm(dataSource);
+                    }
+                });
+            });
+            
+            // 设为Design按钮
+            document.querySelectorAll('[data-action="setDesign"]').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dataSourceName = e.target.getAttribute('data-ds-name');
+                    setAsDesignDatabase(dataSourceName);
+                });
+            });
+            
+            // 设为基准库按钮
+            document.querySelectorAll('[data-action="setBase"]').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dataSourceName = e.target.getAttribute('data-ds-name');
+                    setAsBaseDatabase(dataSourceName);
+                });
+            });
+            
+            // 测试连接按钮
+            document.querySelectorAll('[data-action="test"]').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dataSourceName = e.target.getAttribute('data-ds-name');
+                    testDataSourceConnection(dataSourceName);
+                });
+            });
+            
+            // 删除按钮
+            document.querySelectorAll('[data-action="delete"]').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dataSourceName = e.target.getAttribute('data-ds-name');
+                    deleteDataSource(dataSourceName);
+                });
+            });
         }
         
         // 设置为Design数据源
@@ -1339,12 +1391,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         
         // 删除数据源
         function deleteDataSource(dataSourceName) {
-            if (confirm(\`确定要删除数据源 "\${dataSourceName}" 吗？\`)) {
-                vscode.postMessage({
-                    type: 'deleteDataSource',
-                    dataSourceName: dataSourceName
-                });
-            }
+            // 通过向扩展发送消息来处理确认对话框
+            vscode.postMessage({
+                type: 'requestDeleteConfirmation',
+                dataSourceName: dataSourceName
+            });
         }
         
         // 保存高级配置
@@ -1484,6 +1535,32 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     } else {
                         showMessage('数据源删除失败: ' + message.error, 'error');
                     }
+                    break; // 添加缺失的break语句
+                    
+                case 'designDatabaseSet':
+                    if (message.success) {
+                        showMessage('已设置为开发库', 'success');
+                        // 更新配置显示
+                        if (message.config) {
+                            updateConfigDisplay(message.config);
+                        }
+                    } else {
+                        showMessage('设置开发库失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
+                case 'baseDatabaseSet':
+                    if (message.success) {
+                        showMessage('已设置为基准库', 'success');
+                        // 更新配置显示
+                        if (message.config) {
+                            updateConfigDisplay(message.config);
+                        }
+                    } else {
+                        showMessage('设置基准库失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
                 case 'defaultsReset':
                     if (message.success) {
                         // 更新配置显示
@@ -1524,6 +1601,24 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 }
             });
         }
+    }
+
+    /**
+     * 处理删除确认请求
+     */
+    private async handleDeleteConfirmationRequest(dataSourceName: string) {
+        const confirm = await vscode.window.showWarningMessage(
+            `确定要删除数据源 "${dataSourceName}" 吗？`,
+            { modal: true },
+            '确定',
+            '取消'
+        );
+
+        if (confirm === '确定') {
+            // 用户确认删除，执行删除操作
+            await this.handleDeleteDataSource(dataSourceName);
+        }
+        // 如果用户点击取消或关闭对话框，则不执行任何操作
     }
 
     /**

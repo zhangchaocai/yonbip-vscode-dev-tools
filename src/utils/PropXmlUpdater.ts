@@ -77,7 +77,7 @@ export class PropXmlUpdater {
         let content = iconv.decode(buffer, 'gb2312');
 
         // 删除指定的数据源
-        const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${dataSourceName}</dataSourceName>[\\s\\S]*?</dataSource>\\s*`, 'g');
+        const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${this.escapeRegExp(dataSourceName)}</dataSourceName>[\\s\\S]*?</dataSource>\\s*`, 'g');
         content = content.replace(dataSourceRegex, '');
 
         // 写入文件（使用gb2312编码）
@@ -238,5 +238,13 @@ export class PropXmlUpdater {
 
         // 如果还是找不到合适的位置，直接追加
         return content + '\n' + dataSourceXml;
+    }
+
+    /**
+     * 转义正则表达式特殊字符
+     * @param string 要转义的字符串
+     */
+    private static escapeRegExp(string: string): string {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 }
