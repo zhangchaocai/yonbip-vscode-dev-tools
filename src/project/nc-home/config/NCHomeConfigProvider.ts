@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { NCHomeConfigService } from './NCHomeConfigService';
 import { DataSourceMeta, NCHomeConfig } from './NCHomeConfigTypes';
 import { MacHomeConversionService } from '../../mac/MacHomeConversionService';
@@ -189,14 +191,22 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
                 // 如果是Mac系统，自动执行Mac HOME转换
                 if (process.platform === 'darwin') {
-                    const convert = await vscode.window.showInformationMessage(
-                        '检测到您使用的是Mac系统，是否需要自动执行Mac HOME转换？',
-                        '是',
-                        '否'
-                    );
+                    // 检查home/bin目录下是否已存在sysConfig.sh文件
+                    const sysConfigPath = path.join(homePath, 'bin', 'sysConfig.sh');
+                    if (fs.existsSync(sysConfigPath)) {
+                        // 如果sysConfig.sh文件已存在，则不再执行MAC HOME转换
+                        this.macHomeConversionService['outputChannel'].appendLine('检测到sysConfig.sh文件已存在，跳过MAC HOME转换');
+                        vscode.window.showInformationMessage('检测到sysConfig.sh文件已存在，跳过MAC HOME转换');
+                    } else {
+                        const convert = await vscode.window.showInformationMessage(
+                            '检测到您使用的是Mac系统，是否需要自动执行Mac HOME转换？',
+                            '是',
+                            '否'
+                        );
 
-                    if (convert === '是') {
-                        await this.macHomeConversionService.convertToMacHome(homePath);
+                        if (convert === '是') {
+                            await this.macHomeConversionService.convertToMacHome(homePath);
+                        }
                     }
                 }
             }
@@ -1471,7 +1481,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     } else {
                         showMessage('数据源删除失败: ' + message.error, 'error');
                     }
-                    break;
                 case 'defaultsReset':
                     if (message.success) {
                         // 更新配置显示
