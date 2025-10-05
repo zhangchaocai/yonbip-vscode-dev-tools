@@ -912,6 +912,16 @@ export class NCHomeConfigService {
     }
 
     /**
+     * 获取数据源
+     */
+    public getDataSource(name: string): DataSourceMeta | undefined {
+        if (!this.config.dataSources) {
+            return undefined;
+        }
+        return this.config.dataSources.find(ds => ds.name === name);
+    }
+
+    /**
      * 添加数据源
      */
     public async addDataSource(dataSource: DataSourceMeta): Promise<void> {
