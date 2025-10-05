@@ -915,30 +915,60 @@ export class NCHomeConfigService {
      * 添加数据源
      */
     public async addDataSource(dataSource: DataSourceMeta): Promise<void> {
-        if (!this.config.dataSources) {
-            this.config.dataSources = [];
+        // 完整验证 - 检查所有字段是否已填写
+        if (!dataSource.name || dataSource.name.trim() === '') {
+            throw new Error('数据源名称不能为空');
+        }
+
+        // 数据源名称格式校验 - 只能包含英文、数字、下划线和短横线
+        const nameRegex = /^[a-zA-Z0-9_-]+$/;
+        if (!nameRegex.test(dataSource.name)) {
+            throw new Error('数据源名称只能包含英文、数字、下划线(_)和短横线(-)');
+        }
+
+        if (!dataSource.databaseType || dataSource.databaseType.trim() === '') {
+            throw new Error('数据库类型不能为空');
+        }
+
+        if (!dataSource.host || dataSource.host.trim() === '') {
+            throw new Error('主机地址不能为空');
+        }
+
+        if (!dataSource.port || dataSource.port <= 0 || dataSource.port > 65535) {
+            throw new Error('端口号必须在1-65535之间');
+        }
+
+        if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+            throw new Error('数据库名不能为空');
+        }
+
+        if (!dataSource.username || dataSource.username.trim() === '') {
+            throw new Error('用户名不能为空');
+        }
+
+        // 密码字段必填校验
+        if (!dataSource.password || dataSource.password.trim() === '') {
+            throw new Error('密码不能为空');
         }
 
         // 检查数据源名称是否重复
-        const exists = this.config.dataSources.some(ds => ds.name === dataSource.name);
-        if (exists) {
-            throw new Error(`数据源名称 "${dataSource.name}" 已存在`);
+        if (this.config.dataSources) {
+            const exists = this.config.dataSources.some(ds => ds.name === dataSource.name);
+            if (exists) {
+                throw new Error(`数据源名称 "${dataSource.name}" 已存在`);
+            }
         }
 
-        this.config.dataSources.push(dataSource);
-        await this.saveConfig(this.config);
+        // 注意：这里不再将数据源添加到config.dataSources中，只保存到prop.xml文件
+        // this.config.dataSources.push(dataSource);
+        // await this.saveConfig(this.config);
 
-        // 同时更新prop.xml文件
+        // 直接更新prop.xml文件
         if (this.config.homePath) {
             try {
                 PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
                 this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 写入prop.xml文件`);
             } catch (error: any) {
-                // 如果写入prop.xml失败，从配置中移除已添加的数据源
-                const index = this.config.dataSources.findIndex(ds => ds.name === dataSource.name);
-                if (index !== -1) {
-                    this.config.dataSources.splice(index, 1);
-                }
                 this.outputChannel.appendLine(`写入prop.xml文件失败: ${error.message}`);
                 throw new Error(`添加数据源失败: ${error.message}`);
             }
@@ -951,27 +981,61 @@ export class NCHomeConfigService {
      * 更新数据源
      */
     public async updateDataSource(dataSource: DataSourceMeta): Promise<void> {
-        if (!this.config.dataSources) {
-            this.config.dataSources = [];
-            return;
+        // 完整验证 - 检查所有字段是否已填写
+        if (!dataSource.name || dataSource.name.trim() === '') {
+            throw new Error('数据源名称不能为空');
         }
 
-        const index = this.config.dataSources.findIndex(ds => ds.name === dataSource.name);
-        if (index === -1) {
-            throw new Error(`数据源 "${dataSource.name}" 不存在`);
+        // 数据源名称格式校验 - 只能包含英文、数字、下划线和短横线
+        const nameRegex = /^[a-zA-Z0-9_-]+$/;
+        if (!nameRegex.test(dataSource.name)) {
+            throw new Error('数据源名称只能包含英文、数字、下划线(_)和短横线(-)');
         }
 
-        this.config.dataSources[index] = dataSource;
-        await this.saveConfig(this.config);
+        if (!dataSource.databaseType || dataSource.databaseType.trim() === '') {
+            throw new Error('数据库类型不能为空');
+        }
 
-        // 同时更新prop.xml文件
+        if (!dataSource.host || dataSource.host.trim() === '') {
+            throw new Error('主机地址不能为空');
+        }
+
+        if (!dataSource.port || dataSource.port <= 0 || dataSource.port > 65535) {
+            throw new Error('端口号必须在1-65535之间');
+        }
+
+        if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+            throw new Error('数据库名不能为空');
+        }
+
+        if (!dataSource.username || dataSource.username.trim() === '') {
+            throw new Error('用户名不能为空');
+        }
+
+        // 注意：密码字段可以为空，表示不修改密码
+
+        // 注意：这里不再更新config.dataSources，只更新prop.xml文件
+        // if (!this.config.dataSources) {
+        //     this.config.dataSources = [];
+        //     return;
+        // }
+
+        // const index = this.config.dataSources.findIndex(ds => ds.name === dataSource.name);
+        // if (index === -1) {
+        //     throw new Error(`数据源 "${dataSource.name}" 不存在`);
+        // }
+
+        // this.config.dataSources[index] = dataSource;
+        // await this.saveConfig(this.config);
+
+        // 直接更新prop.xml文件
         if (this.config.homePath) {
             try {
                 PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, true);
                 this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 更新到prop.xml文件`);
             } catch (error: any) {
                 this.outputChannel.appendLine(`更新prop.xml文件失败: ${error.message}`);
-                throw new Error(`数据源已更新到配置中，但更新prop.xml文件失败: ${error.message}`);
+                throw new Error(`更新数据源失败: ${error.message}`);
             }
         }
 
@@ -982,37 +1046,38 @@ export class NCHomeConfigService {
      * 删除数据源
      */
     public async deleteDataSource(dataSourceName: string): Promise<void> {
-        if (!this.config.dataSources) {
-            return;
-        }
+        // 注意：这里不再从config.dataSources中删除，只从prop.xml文件中删除
+        // if (!this.config.dataSources) {
+        //     return;
+        // }
 
-        const index = this.config.dataSources.findIndex(ds => ds.name === dataSourceName);
-        if (index === -1) {
-            throw new Error(`数据源 "${dataSourceName}" 不存在`);
-        }
+        // const index = this.config.dataSources.findIndex(ds => ds.name === dataSourceName);
+        // if (index === -1) {
+        //     throw new Error(`数据源 "${dataSourceName}" 不存在`);
+        // }
 
-        this.config.dataSources.splice(index, 1);
+        // this.config.dataSources.splice(index, 1);
 
-        // 如果删除的是当前选中的数据源，清除选择
-        if (this.config.selectedDataSource === dataSourceName) {
-            this.config.selectedDataSource = undefined;
-        }
+        // // 如果删除的是当前选中的数据源，清除选择
+        // if (this.config.selectedDataSource === dataSourceName) {
+        //     this.config.selectedDataSource = undefined;
+        // }
 
-        // 如果删除的是基准库，清除基准库设置
-        if (this.config.baseDatabase === dataSourceName) {
-            this.config.baseDatabase = undefined;
-        }
+        // // 如果删除的是基准库，清除基准库设置
+        // if (this.config.baseDatabase === dataSourceName) {
+        //     this.config.baseDatabase = undefined;
+        // }
 
-        await this.saveConfig(this.config);
+        // await this.saveConfig(this.config);
 
-        // 同时从prop.xml文件中删除数据源
+        // 直接从prop.xml文件中删除数据源
         if (this.config.homePath) {
             try {
                 PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, dataSourceName);
                 this.outputChannel.appendLine(`已从prop.xml文件中删除数据源 "${dataSourceName}"`);
             } catch (error: any) {
                 this.outputChannel.appendLine(`从prop.xml文件中删除数据源失败: ${error.message}`);
-                // 注意：这里不抛出异常，因为删除操作在配置中已经成功执行
+                throw new Error(`删除数据源失败: ${error.message}`);
             }
         }
 
@@ -1023,11 +1088,14 @@ export class NCHomeConfigService {
      * 设置为开发库
      */
     public async setAsDesignDatabase(dataSourceName: string): Promise<void> {
-        if (!this.config.dataSources) {
-            this.config.dataSources = [];
+        // 从prop.xml文件中获取当前数据源列表
+        let dataSources: DataSourceMeta[] = [];
+        if (this.config.homePath) {
+            const portsAndDataSourcesFromProp = this.getPortFromPropXml();
+            dataSources = portsAndDataSourcesFromProp.dataSources;
         }
 
-        const dataSourceIndex = this.config.dataSources.findIndex(ds => ds.name === dataSourceName);
+        const dataSourceIndex = dataSources.findIndex(ds => ds.name === dataSourceName);
         if (dataSourceIndex === -1) {
             throw new Error(`数据源 "${dataSourceName}" 不存在`);
         }
@@ -1036,13 +1104,14 @@ export class NCHomeConfigService {
         const originalDataSourceName = dataSourceName;
 
         // 将数据源名称改为"design"
-        const dataSource = this.config.dataSources[dataSourceIndex];
+        const dataSource = dataSources[dataSourceIndex];
+        const originalDataSource = { ...dataSource }; // 保存原始数据源信息
         dataSource.name = 'design';
 
-        // 更新selectedDataSource为"design"
+        // 更新config中的selectedDataSource为"design"
         this.config.selectedDataSource = 'design';
 
-        // 保存配置
+        // 保存配置（只保存selectedDataSource，不保存数据源列表）
         await this.saveConfig(this.config);
 
         // 同时更新prop.xml文件中的数据源名称
@@ -1054,6 +1123,13 @@ export class NCHomeConfigService {
                 PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
                 this.outputChannel.appendLine(`已将数据源 "${originalDataSourceName}" 重命名为 "design" 并写入prop.xml文件`);
             } catch (error: any) {
+                // 如果更新失败，恢复原始数据源
+                try {
+                    PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, 'design');
+                    PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, originalDataSource, false);
+                } catch (restoreError: any) {
+                    this.outputChannel.appendLine(`恢复原始数据源失败: ${restoreError.message}`);
+                }
                 this.outputChannel.appendLine(`更新prop.xml文件失败: ${error.message}`);
                 throw new Error(`数据源已设置为开发库，但更新prop.xml文件失败: ${error.message}`);
             }
@@ -1067,7 +1143,14 @@ export class NCHomeConfigService {
      * 设置基准库
      */
     public async setBaseDatabase(dataSourceName: string): Promise<void> {
-        if (!this.config.dataSources?.some(ds => ds.name === dataSourceName)) {
+        // 从prop.xml文件中获取当前数据源列表
+        let dataSources: DataSourceMeta[] = [];
+        if (this.config.homePath) {
+            const portsAndDataSourcesFromProp = this.getPortFromPropXml();
+            dataSources = portsAndDataSourcesFromProp.dataSources;
+        }
+
+        if (!dataSources.some(ds => ds.name === dataSourceName)) {
             throw new Error(`数据源 "${dataSourceName}" 不存在`);
         }
 
@@ -1253,6 +1336,22 @@ export class NCHomeConfigService {
                                     port = parseInt(urlMatch[2], 10);
                                     databaseName = urlMatch[3];
                                 }
+                            } else if (databaseUrl.startsWith('jdbc:dm:')) {
+                                // 达梦数据库: jdbc:dm://localhost:5236/nc6x
+                                const urlMatch = databaseUrl.match(/jdbc:dm:\/\/([^:]+):(\d+)\/(.+)/);
+                                if (urlMatch) {
+                                    host = urlMatch[1];
+                                    port = parseInt(urlMatch[2], 10);
+                                    databaseName = urlMatch[3];
+                                }
+                            } else if (databaseUrl.startsWith('jdbc:kingbase8:')) {
+                                // 人大金仓: jdbc:kingbase8://localhost:54321/nc6x
+                                const urlMatch = databaseUrl.match(/jdbc:kingbase8:\/\/([^:]+):(\d+)\/(.+)/);
+                                if (urlMatch) {
+                                    host = urlMatch[1];
+                                    port = parseInt(urlMatch[2], 10);
+                                    databaseName = urlMatch[3];
+                                }
                             } else {
                                 // 其他类型，尝试通用解析
                                 const urlMatch = databaseUrl.match(/\/\/([^:]+):(\d+)\/(.+)/);
@@ -1260,6 +1359,25 @@ export class NCHomeConfigService {
                                     host = urlMatch[1];
                                     port = parseInt(urlMatch[2], 10);
                                     databaseName = urlMatch[3];
+                                }
+                            }
+
+                            // 解密密码（如果需要）
+                            let decryptedPassword = password;
+                            if (password) {
+                                try {
+                                    decryptedPassword = PasswordEncryptor.getSecurePassword(password);
+                                    // 检查解密结果是否包含大量乱码字符
+                                    // 如果解密后包含多个连续的替换字符，说明解密可能失败
+                                    const replacementCharCount = (decryptedPassword.match(/\uFFFD/g) || []).length;
+                                    if (replacementCharCount > 2) {
+                                        // 如果解密后包含过多乱码，说明可能使用了不同的加密方式
+                                        // 在这种情况下，我们显示一个占位符而不是乱码
+                                        decryptedPassword = '[加密密码-需要重新输入]';
+                                    }
+                                } catch (decryptError: any) {
+                                    this.outputChannel.appendLine(`解密密码失败: ${decryptError.message}`);
+                                    decryptedPassword = '[加密密码-需要重新输入]';
                                 }
                             }
 
@@ -1273,7 +1391,7 @@ export class NCHomeConfigService {
                                 databaseName: databaseName,
                                 oidFlag: oidFlag,
                                 username: username,
-                                password: password
+                                password: decryptedPassword
                             };
 
                             dataSources.push(dataSource);

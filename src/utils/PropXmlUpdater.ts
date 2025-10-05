@@ -45,15 +45,19 @@ export class PropXmlUpdater {
 
         if (isUpdate) {
             // 更新操作：替换现有的数据源
-            const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${this.escapeRegExp(dataSource.name)}</dataSourceName>[\\s\\S]*?</dataSource>`, 'g');
+            // 对于包含中文字符的数据源名称，我们需要更精确的匹配
+            const escapedName = this.escapeRegExp(dataSource.name);
+            const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>\\s*${escapedName}\\s*</dataSourceName>[\\s\\S]*?</dataSource>`, 'g');
             if (dataSourceRegex.test(content)) {
                 // 如果找到了同名数据源，则替换
-                content = content.replace(dataSourceRegex, dataSourceXml);
+                content = content.replace(dataSourceRegex, '\n' + dataSourceXml + '\n');
             }
             // 如果没找到，不添加新的数据源，因为这应该是更新操作
         } else {
             // 添加操作：检查是否已存在同名数据源
-            const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${this.escapeRegExp(dataSource.name)}</dataSourceName>[\\s\\S]*?</dataSource>`, 'g');
+            // 对于包含中文字符的数据源名称，我们需要更精确的匹配
+            const escapedName = this.escapeRegExp(dataSource.name);
+            const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>\\s*${escapedName}\\s*</dataSourceName>[\\s\\S]*?</dataSource>`, 'g');
             if (dataSourceRegex.test(content)) {
                 throw new Error(`数据源 "${dataSource.name}" 已存在`);
             }
@@ -91,7 +95,9 @@ export class PropXmlUpdater {
         }
 
         // 删除指定的数据源
-        const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>${this.escapeRegExp(dataSourceName)}</dataSourceName>[\\s\\S]*?</dataSource>\\s*`, 'g');
+        // 对于包含中文字符的数据源名称，我们需要更精确的匹配
+        const escapedName = this.escapeRegExp(dataSourceName);
+        const dataSourceRegex = new RegExp(`<dataSource>\\s*<dataSourceName>\\s*${escapedName}\\s*</dataSourceName>[\\s\\S]*?</dataSource>\\s*`, 'g');
         content = content.replace(dataSourceRegex, '');
 
         // 写入文件（使用gb2312编码，不添加BOM）
@@ -180,6 +186,12 @@ export class PropXmlUpdater {
                 case 'pg':
                     databaseUrl = `jdbc:postgresql://${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
                     break;
+                case 'dm':
+                    databaseUrl = `jdbc:dm://${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
+                    break;
+                case 'kingbase':
+                    databaseUrl = `jdbc:kingbase8://${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
+                    break;
                 default:
                     databaseUrl = `jdbc:${dataSource.databaseType.toLowerCase()}://${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
             }
@@ -207,6 +219,12 @@ export class PropXmlUpdater {
                 case 'pg':
                     driverClassName = 'org.postgresql.Driver';
                     break;
+                case 'dm':
+                    driverClassName = 'dm.jdbc.driver.DmDriver';
+                    break;
+                case 'kingbase':
+                    driverClassName = 'com.kingbase8.Driver';
+                    break;
                 default:
                     driverClassName = 'com.mysql.cj.jdbc.Driver';
             }
@@ -233,8 +251,12 @@ export class PropXmlUpdater {
                 .replace(/'/g, '&apos;');
         };
 
+        // 确保数据源名称正确处理中文字符
+        const dataSourceName = dataSource.name || '';
+
+        // 使用正确的缩进格式生成XML片段
         return `	<dataSource>
-		<dataSourceName>${escapeXml(dataSource.name)}</dataSourceName>
+		<dataSourceName>${escapeXml(dataSourceName)}</dataSourceName>
 		<oidMark>${escapeXml(dataSource.oidFlag || 'ZZ')}</oidMark>
 		<databaseUrl>${escapeXml(databaseUrl)}</databaseUrl>
 		<user>${escapeXml(dataSource.username)}</user>
@@ -262,16 +284,19 @@ export class PropXmlUpdater {
         const xaDataSourceClassIndex = content.indexOf('</XADataSourceClass>');
         if (xaDataSourceClassIndex !== -1) {
             const insertPosition = xaDataSourceClassIndex + '</XADataSourceClass>'.length;
+            // 确保插入的数据源有正确的缩进和换行
             return content.slice(0, insertPosition) + '\n' + dataSourceXml + '\n' + content.slice(insertPosition);
         }
 
         // 如果找不到XADataSourceClass标签，则在文件末尾插入（在</root>标签之前）
         const rootEndIndex = content.lastIndexOf('</root>');
         if (rootEndIndex !== -1) {
+            // 确保插入的数据源有正确的缩进和换行
             return content.slice(0, rootEndIndex) + '\n' + dataSourceXml + '\n' + content.slice(rootEndIndex);
         }
 
         // 如果还是找不到合适的位置，直接追加
+        // 确保插入的数据源有正确的缩进和换行
         return content + '\n' + dataSourceXml;
     }
 

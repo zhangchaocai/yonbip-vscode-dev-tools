@@ -125,20 +125,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 config.wsPort = portsAndDataSourcesFromProp.wsPort;
             }
 
-            // 如果prop.xml中有数据源信息，更新到配置中
+            // 从prop.xml中获取数据源信息
             if (portsAndDataSourcesFromProp.dataSources.length > 0) {
-                // 优先使用从prop.xml读取的数据源信息，避免重复
-                const existingDataSources = config.dataSources || [];
-                const propDataSources = portsAndDataSourcesFromProp.dataSources;
-
-                // 创建一个映射来跟踪从prop.xml读取的数据源
-                const propDataSourceNames = new Set(propDataSources.map(ds => ds.name));
-
-                // 过滤掉已存在于prop.xml中的现有数据源
-                const filteredExistingDataSources = existingDataSources.filter(ds => !propDataSourceNames.has(ds.name));
-
-                // 合并数据源：prop.xml中的数据源 + 过滤后的现有数据源
-                config.dataSources = [...propDataSources, ...filteredExistingDataSources];
+                // 直接使用从prop.xml读取的数据源信息
+                config.dataSources = portsAndDataSourcesFromProp.dataSources;
             }
         }
 
@@ -337,11 +327,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     private async handleAddDataSource(dataSource: DataSourceMeta) {
         try {
             await this.configService.addDataSource(dataSource);
-            const config = this.configService.getConfig();
+            // 注意：这里不再重新加载整个配置，只发送成功消息
             this._view?.webview.postMessage({
                 type: 'dataSourceAdded',
-                success: true,
-                config
+                success: true
+                // 不再传递整个config对象
             });
         } catch (error: any) {
             this._view?.webview.postMessage({
@@ -358,11 +348,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     private async handleUpdateDataSource(dataSource: DataSourceMeta) {
         try {
             await this.configService.updateDataSource(dataSource);
-            const config = this.configService.getConfig();
+            // 注意：这里不再重新加载整个配置，只发送成功消息
             this._view?.webview.postMessage({
                 type: 'dataSourceUpdated',
-                success: true,
-                config: config
+                success: true
+                // 不再传递整个config对象
             });
         } catch (error: any) {
             // 发送错误消息
@@ -380,11 +370,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     private async handleDeleteDataSource(dataSourceName: string) {
         try {
             await this.configService.deleteDataSource(dataSourceName);
-            const config = this.configService.getConfig();
+            // 注意：这里不再重新加载整个配置，只发送成功消息
             this._view?.webview.postMessage({
                 type: 'dataSourceDeleted',
-                success: true,
-                config
+                success: true
+                // 不再传递整个config对象
             });
         } catch (error: any) {
             this._view?.webview.postMessage({
@@ -401,11 +391,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     private async handleSetDesignDatabase(dataSourceName: string) {
         try {
             await this.configService.setAsDesignDatabase(dataSourceName);
-            const config = this.configService.getConfig();
+            // 注意：这里不再传递整个config对象，而是重新加载配置以获取最新的数据源信息
+            await this.handleLoadConfig();
             this._view?.webview.postMessage({
                 type: 'designDatabaseSet',
-                success: true,
-                config
+                success: true
             });
         } catch (error: any) {
             this._view?.webview.postMessage({
@@ -422,11 +412,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     private async handleSetBaseDatabase(dataSourceName: string) {
         try {
             await this.configService.setBaseDatabase(dataSourceName);
-            const config = this.configService.getConfig();
+            // 注意：这里不再传递整个config对象，而是重新加载配置以获取最新的数据源信息
+            await this.handleLoadConfig();
             this._view?.webview.postMessage({
                 type: 'baseDatabaseSet',
-                success: true,
-                config
+                success: true
             });
         } catch (error: any) {
             this._view?.webview.postMessage({
@@ -647,6 +637,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             border-radius: 6px;
             box-sizing: border-box;
             transition: border-color 0.2s ease;
+        }
+        
+        /* 密码输入框特殊样式 */
+        input[type="password"] {
+            font-family: monospace; /* 使用等宽字体 */
+            letter-spacing: 5px; /* 增加字符间距以更好地隐藏密码 */
         }
         
         input:focus, select:focus {
@@ -1063,7 +1059,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             const title = isEditMode ? '编辑数据源' : '添加数据源';
             const nameField = isEditMode ? 
                 '<input type="text" id="dsName" value="' + dataSource.name + '" required readonly>' :
-                '<input type="text" id="dsName" required>';
+                '<input type="text" id="dsName" value="dataSource1" required>';
             
             modal.innerHTML = \`
                 <div style="
@@ -1076,38 +1072,43 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 ">
                     <h3 style="margin-top: 0; color: var(--vscode-foreground);">\${title}</h3>
                     <div class="form-group">
-                        <label for="dsName">数据源名称:</label>
+                        <label for="dsName">数据源名称<span style="color: red;"> *</span>:</label>
                         \${nameField}
                     </div>
                     <div class="form-group">
-                        <label for="dsType">数据库类型:</label>
+                        <label for="dsType">数据库类型<span style="color: red;"> *</span>:</label>
                         <select id="dsType">
                             <option value="oracle">Oracle</option>
                             <option value="mysql">MySQL</option>
                             <option value="sqlserver">SQL Server</option>
                             <option value="postgresql">PostgreSQL</option>
                             <option value="db2">DB2</option>
+                            <option value="dm">达梦数据库</option>
+                            <option value="kingbase">人大金仓</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="dsHost">主机地址:</label>
+                        <label for="dsHost">主机地址<span style="color: red;"> *</span>:</label>
                         <input type="text" id="dsHost" value="localhost">
                     </div>
                     <div class="form-group">
-                        <label for="dsPort">端口号:</label>
+                        <label for="dsPort">端口号<span style="color: red;"> *</span>:</label>
                         <input type="number" id="dsPort" value="1521">
                     </div>
                     <div class="form-group">
-                        <label for="dsDatabase">数据库名:</label>
+                        <label for="dsDatabase">数据库名<span style="color: red;"> *</span>:</label>
                         <input type="text" id="dsDatabase">
                     </div>
                     <div class="form-group">
-                        <label for="dsUsername">用户名:</label>
+                        <label for="dsUsername">用户名<span style="color: red;"> *</span>:</label>
                         <input type="text" id="dsUsername">
                     </div>
                     <div class="form-group">
-                        <label for="dsPassword">密码:</label>
-                        <input type="password" id="dsPassword">
+                        <label for="dsPassword">密码<span style="color: red;"> *</span>:</label>
+                        <div style="position: relative;">
+                            <input type="password" id="dsPassword" style="padding-right: 30px;">
+                            <button type="button" id="togglePassword" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--vscode-foreground);" title="显示/隐藏密码">👁️</button>
+                        </div>
                     </div>
                     <div style="text-align: right; margin-top: 20px;">
                         <button class="secondary" onclick="closeModal()">取消</button>
@@ -1118,18 +1119,46 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             
             document.body.appendChild(modal);
             
+            // 添加密码显示/隐藏切换功能
+            const togglePasswordButton = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('dsPassword');
+            
+            if (togglePasswordButton && passwordInput) {
+                togglePasswordButton.addEventListener('click', function() {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    this.textContent = type === 'password' ? '👁️' : '🔒';
+                });
+            }
+            
             // 如果是编辑模式，填充现有数据
             if (isEditMode) {
-                document.getElementById('dsType').value = dataSource.databaseType;
+                // 数据库类型需要映射到下拉框的值
+                const databaseTypeMap = {
+                    'ORACLE': 'oracle',
+                    'MYSQL': 'mysql',
+                    'SQLSERVER': 'sqlserver',
+                    'POSTGRESQL': 'postgresql',
+                    'DB2': 'db2',
+                    'DM': 'dm',
+                    'KINGBASE': 'kingbase'
+                };
+                const selectValue = databaseTypeMap[dataSource.databaseType.toUpperCase()] || dataSource.databaseType.toLowerCase();
+                document.getElementById('dsType').value = selectValue;
                 document.getElementById('dsHost').value = dataSource.host;
                 document.getElementById('dsPort').value = dataSource.port;
                 document.getElementById('dsDatabase').value = dataSource.databaseName;
                 document.getElementById('dsUsername').value = dataSource.username;
-                // 密码字段不填充，保持为空
+                // 填充密码字段（如果存在）
+                if (dataSource.password && dataSource.password !== '[加密密码-需要重新输入]') {
+                    document.getElementById('dsPassword').value = dataSource.password;
+                }
             } else {
-                // 新增模式下，默认选中Oracle并设置默认端口
+                // 新增模式下，默认选中Oracle并设置默认端口、数据库名和数据源名称
                 document.getElementById('dsType').value = 'oracle';
                 document.getElementById('dsPort').value = 1521;
+                document.getElementById('dsDatabase').value = 'orcl';
+                // 数据源名称默认值已设置在HTML中
             }
         }
         
@@ -1159,15 +1188,52 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 driverClassName: '' // 这将在后端处理
             };
             
-            // 简单验证
-            if (!dataSource.name || !dataSource.host || !dataSource.databaseName || !dataSource.username) {
-                showMessage('请填写必填字段', 'error');
+            // 完整验证 - 检查所有字段是否已填写
+            if (!dataSource.name || dataSource.name.trim() === '') {
+                showMessage('请填写数据源名称', 'error');
                 return;
             }
             
-            // 如果是编辑模式且密码字段为空，则不发送密码
-            if (mode === 'edit' && !dataSource.password) {
-                delete dataSource.password;
+            // 数据源名称格式校验 - 只能包含英文、数字、下划线和短横线
+            const nameRegex = /^[a-zA-Z0-9_-]+$/;
+            if (!nameRegex.test(dataSource.name)) {
+                showMessage('数据源名称只能包含英文、数字、下划线(_)和短横线(-)', 'error');
+                return;
+            }
+            
+            if (!dataSource.databaseType || dataSource.databaseType.trim() === '') {
+                showMessage('请选择数据库类型', 'error');
+                return;
+            }
+            
+            if (!dataSource.host || dataSource.host.trim() === '') {
+                showMessage('请填写主机地址', 'error');
+                return;
+            }
+            
+            if (!portValue || portValue.trim() === '' || isNaN(parseInt(portValue)) || parseInt(portValue) <= 0 || parseInt(portValue) > 65535) {
+                showMessage('请填写有效的端口号(1-65535)', 'error');
+                return;
+            }
+            
+            if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+                showMessage('请填写数据库名', 'error');
+                return;
+            }
+            
+            if (!dataSource.username || dataSource.username.trim() === '') {
+                showMessage('请填写用户名', 'error');
+                return;
+            }
+            
+            // 密码字段必填校验（新增数据源时必须填写，编辑数据源时如果填写了则更新）
+            if (!dataSource.password || dataSource.password.trim() === '') {
+                if (mode !== 'edit') {
+                    // 新增模式下密码必填
+                    showMessage('请填写密码', 'error');
+                    return;
+                }
+                // 编辑模式下如果密码为空，表示不修改密码
             }
             
             const messageType = mode === 'edit' ? 'updateDataSource' : 'addDataSource';
@@ -1517,10 +1583,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     
                     if (message.success) {
                         showMessage('数据源添加成功', 'success');
-                        // 更新配置显示
-                        if (message.config) {
-                            updateConfigDisplay(message.config);
-                        }
+                        // 注意：这里不再重新加载整个配置，而是刷新数据源列表
+                        // 由于我们不再在.nc-home-config.json中保存数据源，需要重新从prop.xml加载
+                        vscode.postMessage({ type: 'loadConfig' });
                     } else {
                         showMessage('数据源添加失败: ' + message.error, 'error');
                     }
@@ -1538,10 +1603,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     
                     if (message.success) {
                         showMessage('数据源更新成功', 'success');
-                        // 更新配置显示
-                        if (message.config) {
-                            updateConfigDisplay(message.config);
-                        }
+                        // 注意：这里不再重新加载整个配置，而是刷新数据源列表
+                        // 由于我们不再在.nc-home-config.json中保存数据源，需要重新从prop.xml加载
+                        vscode.postMessage({ type: 'loadConfig' });
                     } else {
                         showMessage('数据源更新失败: ' + message.error, 'error');
                     }
@@ -1558,10 +1622,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'dataSourceDeleted':
                     if (message.success) {
                         showMessage('数据源删除成功', 'success');
-                        // 更新配置显示
-                        if (message.config) {
-                            updateConfigDisplay(message.config);
-                        }
+                        // 注意：这里不再重新加载整个配置，而是刷新数据源列表
+                        // 由于我们不再在.nc-home-config.json中保存数据源，需要重新从prop.xml加载
+                        vscode.postMessage({ type: 'loadConfig' });
                     } else {
                         showMessage('数据源删除失败: ' + message.error, 'error');
                     }
@@ -1570,10 +1633,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'designDatabaseSet':
                     if (message.success) {
                         showMessage('已设置为开发库', 'success');
-                        // 更新配置显示
-                        if (message.config) {
-                            updateConfigDisplay(message.config);
-                        }
+                        // 重新加载配置以获取最新的数据源信息
+                        vscode.postMessage({ type: 'loadConfig' });
                     } else {
                         showMessage('设置开发库失败: ' + message.error, 'error');
                     }
@@ -1582,10 +1643,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'baseDatabaseSet':
                     if (message.success) {
                         showMessage('已设置为基准库', 'success');
-                        // 更新配置显示
-                        if (message.config) {
-                            updateConfigDisplay(message.config);
-                        }
+                        // 重新加载配置以获取最新的数据源信息
+                        vscode.postMessage({ type: 'loadConfig' });
                     } else {
                         showMessage('设置基准库失败: ' + message.error, 'error');
                     }
@@ -1640,8 +1699,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         const confirm = await vscode.window.showWarningMessage(
             `确定要删除数据源 "${dataSourceName}" 吗？`,
             { modal: true },
-            '确定',
-            '取消'
+            '确定'
         );
 
         if (confirm === '确定') {
