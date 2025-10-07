@@ -914,30 +914,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 
                 <div class="form-group">
                     <div class="checkbox-group">
-                        <input type="checkbox" id="standardMode">
-                        <label for="standardMode">标准模式</label>
-                    </div>
-                    <div class="help-text">启用标准模式以获得更稳定的运行环境</div>
-                </div>
-                
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="asyncTask">
-                        <label for="asyncTask">异步任务处理</label>
-                    </div>
-                    <div class="help-text">启用异步任务处理以提升系统性能</div>
-                </div>
-                
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="autoClient">
-                        <label for="autoClient">自动客户端</label>
-                    </div>
-                    <div class="help-text">自动管理客户端连接</div>
-                </div>
-                
-                <div class="form-group">
-                    <div class="checkbox-group">
                         <input type="checkbox" id="debugMode">
                         <label for="debugMode">调试模式</label>
                     </div>
@@ -1302,9 +1278,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             }
             
             // 更新高级设置
-            document.getElementById('standardMode').checked = config.standardMode !== false;
-            document.getElementById('asyncTask').checked = config.asyncTask || false;
-            document.getElementById('autoClient').checked = config.autoClient !== false;
+            // 移除了standardMode相关的代码
+            // 移除了autoClient相关的代码
             document.getElementById('debugMode').checked = config.debugMode !== false;
             document.getElementById('debugPort').value = config.debugPort || 8888;
 
@@ -1480,9 +1455,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         function saveAdvancedConfig() {
             const config = {
                 ...currentConfig,
-                standardMode: document.getElementById('standardMode').checked,
-                asyncTask: document.getElementById('asyncTask').checked,
-                autoClient: document.getElementById('autoClient').checked,
+                // 移除了standardMode相关的代码
+                // 移除了autoClient相关的代码
                 debugMode: document.getElementById('debugMode').checked,
                 debugPort: parseInt(document.getElementById('debugPort').value) || 8888,
 
@@ -1727,9 +1701,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
                 // 设置默认值
                 const defaultConfig = {
-                    standardMode: true,
-                    asyncTask: false,
-                    autoClient: true,
+                    // 移除了standardMode相关的代码
+                    // 移除了autoClient相关的代码
                     debugMode: true,
                     debugPort: 8888,
 

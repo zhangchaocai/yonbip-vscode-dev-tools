@@ -62,14 +62,11 @@ export interface NCHomeConfig {
     uuid?: string;
 
     // 插件配置
-    asyncTask?: boolean;
-    autoClient?: boolean;
     exportAllsql?: boolean;
     customTableCheck?: boolean;
     customTablePath?: string;
     showLocalDatadict?: boolean;
     autoChangeJdk?: boolean;
-    standardMode?: boolean;
 
     // 模块配置
     hotwebs?: string;

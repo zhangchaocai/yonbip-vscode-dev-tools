@@ -1190,10 +1190,18 @@ export class LibraryService {
             // 要写入的配置内容
             const settingsContent = {
                 ...existingSettings,
-                "files.encoding": "GBK",
                 "java.saveActions.organizeImports": true,
                 "java.compile.nullAnalysis.mode": "automatic",
-                "java.configuration.runtimes": javaRuntimeConfig
+                "java.configuration.runtimes": javaRuntimeConfig,
+                "[java]": {
+                    "files.encoding": "gbk"
+                },
+                "[javascript]": {
+                    "files.encoding": "utf8"
+                },
+                "[typescript]": {
+                    "files.encoding": "utf8"
+                }
             };
 
             // 写入文件

@@ -160,13 +160,12 @@ export class NCHomeConfigService {
 
         return {
             homePath: '',
-            asyncTask: false,
-            autoClient: true,
             exportAllsql: true,
             customTableCheck: false,
             showLocalDatadict: false,
             autoChangeJdk: false,
-            standardMode: true,
+            // 移除了standardMode属性
+            // 移除了autoClient属性
             dataSources: [],
 
             port: 9999,

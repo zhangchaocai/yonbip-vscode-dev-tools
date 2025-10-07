@@ -170,8 +170,6 @@ export class NCHomeConfigCommands {
                         case '$(database) 数据源配置':
                             await this.showDataSourceConfig();
                             break;
-                        case '$(gear) 高级设置':
-                            await this.showAdvancedSettings();
                             break;
                     }
                 } catch (error: any) {
@@ -190,60 +188,8 @@ export class NCHomeConfigCommands {
         vscode.window.showInformationMessage('数据源配置功能正在开发中，敬请期待！');
     }
 
-    /**
-     * 显示高级设置
-     */
-    private async showAdvancedSettings(): Promise<void> {
-        const config = this.service.getConfig();
+ 
 
-        const setting = await vscode.window.showQuickPick([
-            {
-                label: '$(check) 标准模式',
-                description: config.standardMode ? '已启用' : '已禁用',
-                detail: '是否使用标准模式'
-            },
-            {
-                label: '$(sync) 异步任务',
-                description: config.asyncTask ? '已启用' : '已禁用',
-                detail: '是否使用异步任务处理'
-            }
-        ], {
-            placeHolder: '选择要配置的项目'
-        });
-
-        if (setting) {
-            switch (setting.label) {
-                case '$(check) 标准模式':
-                    await this.toggleStandardMode();
-                    break;
-                case '$(sync) 异步任务':
-                    await this.toggleAsyncTask();
-                    break;
-            }
-        }
-    }
-
-
-
-    /**
-     * 切换标准模式
-     */
-    private async toggleStandardMode(): Promise<void> {
-        const config = this.service.getConfig();
-        config.standardMode = !config.standardMode;
-        await this.service.saveConfig(config);
-        vscode.window.showInformationMessage(`标准模式已${config.standardMode ? '启用' : '禁用'}`);
-    }
-
-    /**
-     * 切换异步任务
-     */
-    private async toggleAsyncTask(): Promise<void> {
-        const config = this.service.getConfig();
-        config.asyncTask = !config.asyncTask;
-        await this.service.saveConfig(config);
-        vscode.window.showInformationMessage(`异步任务已${config.asyncTask ? '启用' : '禁用'}`);
-    }
 
     /**
      * 测试当前数据源连接
