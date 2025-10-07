@@ -1223,17 +1223,6 @@ export class NCHomeConfigService {
     }
 
     /**
-     * 释放资源
-     */
-    public dispose(): void {
-        // 只有在扩展完全停用时才应该dispose outputChannel
-        if (NCHomeConfigService.outputChannelInstance) {
-            NCHomeConfigService.outputChannelInstance.dispose();
-            NCHomeConfigService.outputChannelInstance = null;
-        }
-    }
-
-    /**
      * 从prop.xml文件中获取服务端口信息和数据源信息
      * @returns 包含http端口、service端口和数据源列表的对象，如果无法获取则对应值为null
      */
@@ -1420,6 +1409,90 @@ export class NCHomeConfigService {
         } catch (error: any) {
             this.outputChannel.appendLine(`读取prop.xml文件失败: ${error.message}`);
             return { port: null, wsPort: null, dataSources: [] };
+        }
+    }
+
+    /**
+     * 获取最新的日志信息
+     * @returns 最新的日志内容
+     */
+    public async getLatestLogs(): Promise<{ fileName: string; content: string }[]> {
+        try {
+            // 检查homePath是否已配置
+            if (!this.config.homePath) {
+                throw new Error('NC HOME路径未配置');
+            }
+
+            // 构建日志目录路径
+            const logsDir = path.join(this.config.homePath, 'nclogs', 'server');
+
+            // 检查日志目录是否存在
+            if (!fs.existsSync(logsDir)) {
+                throw new Error(`日志目录不存在: ${logsDir}`);
+            }
+
+            // 读取目录中的所有文件
+            const files = fs.readdirSync(logsDir);
+
+            // 过滤出.log文件并按修改时间排序
+            const logFiles = files
+                .filter(file => file.endsWith('.log'))
+                .map(file => {
+                    const filePath = path.join(logsDir, file);
+                    const stat = fs.statSync(filePath);
+                    return {
+                        name: file,
+                        path: filePath,
+                        mtime: stat.mtime
+                    };
+                })
+                .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+
+            // 获取最新的几个日志文件（最多5个）
+            const latestLogFiles = logFiles.slice(0, 5);
+
+            // 读取这些日志文件的内容
+            const logs = await Promise.all(
+                latestLogFiles.map(async file => {
+                    try {
+                        // 读取文件的最后10KB内容（避免读取过大的文件）
+                        const buffer = Buffer.alloc(10240);
+                        const fd = fs.openSync(file.path, 'r');
+                        const stats = fs.fstatSync(fd);
+                        const startPosition = Math.max(0, stats.size - 10240);
+                        const bytesRead = fs.readSync(fd, buffer, 0, buffer.length, startPosition);
+                        fs.closeSync(fd);
+                        
+                        // 将buffer转换为字符串并返回
+                        const content = buffer.slice(0, bytesRead).toString('utf-8');
+                        return {
+                            fileName: file.name,
+                            content: content
+                        };
+                    } catch (readError: any) {
+                        return {
+                            fileName: file.name,
+                            content: `读取文件失败: ${readError.message}`
+                        };
+                    }
+                })
+            );
+
+            return logs;
+        } catch (error: any) {
+            this.outputChannel.appendLine(`获取日志失败: ${error.message}`);
+            throw new Error(`获取日志失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 释放资源
+     */
+    public dispose(): void {
+        // 只有在扩展完全停用时才应该dispose outputChannel
+        if (NCHomeConfigService.outputChannelInstance) {
+            NCHomeConfigService.outputChannelInstance.dispose();
+            NCHomeConfigService.outputChannelInstance = null;
         }
     }
 }

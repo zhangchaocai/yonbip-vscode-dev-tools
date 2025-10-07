@@ -59,6 +59,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'openSysConfig':
                     await this.handleOpenSysConfig();
                     break;
+                case 'viewLogs':
+                    await this.handleViewLogs();
+                    break;
                 // case 'startHomeService':
                 //     await this.handleStartHomeService();
                 //     break;
@@ -93,9 +96,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     await this.handleDebugHomeService();
                     break;
 
-                case 'showOutput':
-                    await this.handleShowOutput();
-                    break;
                 case 'confirmResetDefaults':
                     await this.handleConfirmResetDefaults();
                     break;
@@ -253,6 +253,25 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             this._view?.webview.postMessage({
                 type: 'sysConfigOpened',
                 success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理查看日志
+     */
+    private async handleViewLogs() {
+        try {
+            const logs = await this.configService.getLatestLogs();
+            this._view?.webview.postMessage({
+                type: 'logsLoaded',
+                logs: logs
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'logsLoaded',
+                logs: [],
                 error: error.message
             });
         }
@@ -469,26 +488,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     }
 
 
-
-    /**
-     * 处理显示输出日志
-     */
-    private async handleShowOutput() {
-        try {
-            // 显示输出面板
-            await vscode.commands.executeCommand('yonbip.home.showOutput');
-            this._view?.webview.postMessage({
-                type: 'outputShown',
-                success: true
-            });
-        } catch (error: any) {
-            this._view?.webview.postMessage({
-                type: 'outputShown',
-                success: false,
-                error: error.message
-            });
-        }
-    }
 
     /**
      * 生成WebView HTML内容
@@ -878,10 +877,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             <span style="margin-right: 6px;">📂</span> 打开Home目录
                         </button>
                         <button class="secondary" onclick="openSysConfig()">
-                            <span style="margin-right: 6px;">🔧</span> 启动SysConfig
+                            <span style="margin-right: 6px;">🔍</span> 启动SysConfig
                         </button>
-                        <button class="secondary" onclick="showOutput()">
-                            <span style="margin-right: 6px;">📝</span> 查看日志
+                        <button class="secondary" onclick="viewLogs()">
+                            <span style="margin-right: 6px;">📋</span> 查看日志
                         </button>
                     </div>
                 </div>
@@ -981,6 +980,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'openSysConfig' });
         }
         
+        // 查看日志
+        function viewLogs() {
+            vscode.postMessage({ type: 'viewLogs' });
+        }
+        
         // 启动HOME服务
         // function startHomeService() {
         //     vscode.postMessage({ type: 'startHomeService' });
@@ -996,11 +1000,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'stopHomeService' });
         }
 
-        // 显示输出
-        function showOutput() {
-            vscode.postMessage({ type: 'showOutput' });
-        }
-        
+
 
         
         // 显示添加数据源表单
@@ -1523,6 +1523,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                     
+                case 'logsLoaded':
+                    if (message.error) {
+                        showMessage('获取日志失败: ' + message.error, 'error');
+                    } else {
+                        showLogs(message.logs);
+                    }
+                    break;
+                    
                 case 'homeServiceStarted':
                     if (message.success) {
                         showMessage('HOME服务启动成功', 'success');
@@ -1637,6 +1645,95 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     break;
             }
         });
+        
+        // 显示日志
+        function showLogs(logs) {
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.id = 'logsModal';
+            modal.style.cssText = \`
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 1000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            \`;
+            
+            let logsHtml = '<div style="background: var(--vscode-editor-background); border: 1px solid var(--vscode-widget-border); border-radius: 6px; padding: 20px; width: 90%; height: 90%; display: flex; flex-direction: column;">';
+            logsHtml += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">';
+            logsHtml += '<h3 style="margin: 0; color: var(--vscode-foreground);">应用查看日志</h3>';
+            logsHtml += '<button onclick="closeLogsModal()" style="background: none; border: none; color: var(--vscode-foreground); cursor: pointer; font-size: 20px;">×</button>';
+            logsHtml += '</div>';
+            
+            // 创建选项卡
+            logsHtml += '<div style="display: flex; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 15px; overflow-x: auto;">';
+            logs.forEach((log, index) => {
+                logsHtml += \`<button class="log-tab \${index === 0 ? 'active' : ''}" onclick="switchLogTab(\${index})" style="padding: 8px 16px; background: \${index === 0 ? 'var(--vscode-tab-activeBackground)' : 'transparent'}; color: var(--vscode-foreground); border: none; cursor: pointer; border-bottom: \${index === 0 ? '2px solid var(--vscode-textLink-foreground)' : 'none'};">\${log.fileName}</button>\`;
+            });
+            logsHtml += '</div>';
+            
+            // 创建日志内容区域
+            logsHtml += '<div style="flex: 1; overflow: hidden;">';
+            logs.forEach((log, index) => {
+                // 提取错误信息
+                const errorLines = log.content.split('\\n').filter(line => 
+                    line.includes('ERROR') || 
+                    line.includes('Exception') || 
+                    line.includes('错误') || 
+                    line.includes('异常') ||
+                    line.includes('FATAL') ||
+                    line.includes('SEVERE')
+                );
+                
+                logsHtml += \`<div id="log-content-\${index}" class="log-content" style="display: \${index === 0 ? 'block' : 'none'}; height: 100%; overflow: auto;">\`;
+                
+                if (errorLines.length > 0) {
+                    logsHtml += '<div style="margin-bottom: 15px; padding: 10px; background-color: rgba(203, 36, 49, 0.2); border: 1px solid var(--vscode-errorForeground); border-radius: 4px;">';
+                    logsHtml += '<h4 style="margin-top: 0; color: var(--vscode-errorForeground);">检测到的错误信息:</h4>';
+                    errorLines.forEach(line => {
+                        logsHtml += \`<div style="font-family: monospace; font-size: 12px; margin-bottom: 5px;">\${line}</div>\`;
+                    });
+                    logsHtml += '</div>';
+                }
+                
+                logsHtml += '<div style="font-family: monospace; font-size: 12px; white-space: pre-wrap;">';
+                logsHtml += log.content;
+                logsHtml += '</div>';
+                logsHtml += '</div>';
+            });
+            logsHtml += '</div>';
+            logsHtml += '</div>';
+            
+            modal.innerHTML = logsHtml;
+            document.body.appendChild(modal);
+        }
+        
+        // 关闭日志模态框
+        function closeLogsModal() {
+            const modal = document.getElementById('logsModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // 切换日志选项卡
+        function switchLogTab(index) {
+            // 更新选项卡样式
+            document.querySelectorAll('.log-tab').forEach((tab, i) => {
+                tab.style.background = i === index ? 'var(--vscode-tab-activeBackground)' : 'transparent';
+                tab.style.borderBottom = i === index ? '2px solid var(--vscode-textLink-foreground)' : 'none';
+            });
+            
+            // 显示对应的内容
+            document.querySelectorAll('.log-content').forEach((content, i) => {
+                content.style.display = i === index ? 'block' : 'none';
+            });
+        }
         
         // 页面加载完成后加载配置
         vscode.postMessage({ type: 'loadConfig' });
