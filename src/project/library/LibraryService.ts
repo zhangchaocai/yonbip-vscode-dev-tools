@@ -217,8 +217,11 @@ export class LibraryService {
                 );
             }
 
-            // 生成VSCode的settings.json更新
+            // 选中的文件夹生成VSCode的settings.json更新
             await this.updateVSCodeSettings(libDir, targetPath);
+
+            // 工作区根目录下生成settings.json文件
+            await this.generateWorkspaceSettings(homePath);
 
             // 生成launch.json配置用于调试Java代码
             await this.generateLaunchConfiguration(targetPath, libDir);
@@ -1145,6 +1148,216 @@ export class LibraryService {
         if (LibraryService.outputChannelInstance) {
             LibraryService.outputChannelInstance.dispose();
             LibraryService.outputChannelInstance = null;
+        }
+    }
+
+    /**
+     * 在工作区根目录生成settings.json文件，设置文件编码为GBK
+     */
+    public async generateWorkspaceSettings(homePath: string): Promise<void> {
+        try {
+            // 获取工作区文件夹
+            const workspaceFolder = this.getWorkspaceFolder();
+            if (!workspaceFolder) {
+                throw new Error('未找到工作区文件夹');
+            }
+
+            const workspacePath = workspaceFolder.uri.fsPath;
+            
+            // 确保.vscode目录存在
+            const vscodeDir = path.join(workspacePath, '.vscode');
+            if (!fs.existsSync(vscodeDir)) {
+                fs.mkdirSync(vscodeDir, { recursive: true });
+            }
+
+            // settings.json文件路径
+            const settingsPath = path.join(vscodeDir, 'settings.json');
+
+            // 读取现有配置（如果存在）
+            let existingSettings = {};
+            if (fs.existsSync(settingsPath)) {
+                try {
+                    const content = fs.readFileSync(settingsPath, 'utf-8');
+                    existingSettings = JSON.parse(content);
+                } catch (error) {
+                    this.outputChannel.appendLine(`读取现有settings.json失败: ${error}`);
+                }
+            }
+
+            // 获取JDK运行时配置
+            const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
+
+            // 要写入的配置内容
+            const settingsContent = {
+                ...existingSettings,
+                "files.encoding": "GBK",
+                "java.saveActions.organizeImports": true,
+                "java.compile.nullAnalysis.mode": "automatic",
+                "java.configuration.runtimes": javaRuntimeConfig
+            };
+
+            // 写入文件
+            fs.writeFileSync(settingsPath, JSON.stringify(settingsContent, null, 2), 'utf-8');
+            
+            this.outputChannel.appendLine(`工作区settings.json文件已生成: ${settingsPath}`);
+            vscode.window.showInformationMessage('工作区settings.json文件已生成，文件编码已设置为GBK，JDK运行时已配置');
+        } catch (error: any) {
+            this.outputChannel.appendLine(`生成工作区settings.json文件失败: ${error.message}`);
+            vscode.window.showErrorMessage(`生成工作区settings.json文件失败: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取Java运行时配置
+     */
+    private async getJavaRuntimeConfig(homePath: string): Promise<any[]> {
+        try {
+            // 检查操作系统类型
+            if (process.platform === 'darwin') {
+                // macOS系统
+                return await this.getMacJavaRuntimeConfig();
+            } else if (process.platform === 'win32') {
+                // Windows系统
+                return await this.getWindowsJavaRuntimeConfig(homePath);
+            } else {
+                // 其他系统（Linux等）
+                return await this.getMacJavaRuntimeConfig();
+            }
+        } catch (error) {
+            this.outputChannel.appendLine(`获取Java运行时配置失败: ${error}`);
+            // 返回默认配置
+            return [];
+        }
+    }
+
+    /**
+     * 获取macOS系统的Java运行时配置
+     */
+    private async getMacJavaRuntimeConfig(): Promise<any[]> {
+        try {
+            // 首先尝试从环境变量中获取JDK路径
+            let jdkPath = process.env.JAVA_HOME || process.env.JDK_HOME;
+
+            // 如果环境变量中没有找到，尝试使用/usr/libexec/java_home命令获取
+            if (!jdkPath) {
+                try {
+                    const { execSync } = require('child_process');
+                    jdkPath = execSync('/usr/libexec/java_home', { encoding: 'utf-8' }).trim();
+                } catch (error) {
+                    this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
+                }
+            }
+
+            // 如果还是没有找到，尝试一些常见的JDK安装路径
+            if (!jdkPath) {
+                const commonJdkPaths = [
+                    '/Library/Java/JavaVirtualMachines/default/Contents/Home',
+                    '/Library/Java/JavaVirtualMachines/jdk1.8.0_281.jdk/Contents/Home',
+                    '/Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home',
+                    '/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home',
+                    '/System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home'
+                ];
+
+                for (const path of commonJdkPaths) {
+                    if (fs.existsSync(path)) {
+                        jdkPath = path;
+                        break;
+                    }
+                }
+            }
+
+            // 如果仍然没有找到，尝试使用java命令来获取
+            if (!jdkPath) {
+                try {
+                    const { execSync } = require('child_process');
+                    const javaPath = execSync('which java', { encoding: 'utf-8' }).trim();
+                    if (javaPath) {
+                        // 从java命令路径推断JDK路径
+                        if (javaPath.includes('/bin/java')) {
+                            jdkPath = javaPath.replace(/\/bin\/java$/, '');
+                        } else {
+                            // 尝试使用java -XshowSettings:properties命令获取java.home
+                            const javaProperties = execSync('java -XshowSettings:properties -version 2>&1', { encoding: 'utf-8' });
+                            const javaHomeMatch = javaProperties.match(/java\.home = (.+)/);
+                            if (javaHomeMatch && javaHomeMatch[1]) {
+                                jdkPath = javaHomeMatch[1].trim();
+                            }
+                        }
+                    }
+                } catch (error) {
+                    this.outputChannel.appendLine(`获取Java路径时出错: ${error}`);
+                }
+            }
+
+            // 如果找到了JDK路径，返回配置
+            if (jdkPath && fs.existsSync(jdkPath)) {
+                // 验证是否包含java可执行文件
+                const javaExecutable = path.join(jdkPath, 'bin', 'java');
+                if (fs.existsSync(javaExecutable)) {
+                    return [
+                        {
+                            "name": "JavaSE-JDK",
+                            "path": jdkPath
+                        }
+                    ];
+                }
+            }
+
+            // 如果无法找到有效的JDK路径，返回空数组
+            this.outputChannel.appendLine('无法自动检测到有效的JDK路径');
+            return [];
+        } catch (error) {
+            this.outputChannel.appendLine(`获取macOS Java运行时配置失败: ${error}`);
+            return [];
+        }
+    }
+
+    /**
+     * 获取Windows系统的Java运行时配置
+     */
+    private async getWindowsJavaRuntimeConfig(homePath: string): Promise<any[]> {
+        try {
+            // 在Windows系统上，默认使用homepath/ufjdk作为JDK路径
+            const defaultJdkPath = path.join(homePath, 'ufjdk');
+
+            // 检查默认路径是否存在
+            if (fs.existsSync(defaultJdkPath)) {
+                // 验证是否包含java可执行文件
+                const javaExecutable = path.join(defaultJdkPath, 'bin', 'java.exe');
+                if (fs.existsSync(javaExecutable)) {
+                    return [
+                        {
+                            "name": "JavaSE-ufjdk",
+                            "path": defaultJdkPath
+                        }
+                    ];
+                }
+            }
+
+            // 如果默认路径不存在或无效，尝试从环境变量中获取
+            let jdkPath = process.env.JAVA_HOME || process.env.JDK_HOME;
+
+            // 如果找到了JDK路径，返回配置
+            if (jdkPath && fs.existsSync(jdkPath)) {
+                // 验证是否包含java可执行文件
+                const javaExecutable = path.join(jdkPath, 'bin', 'java.exe');
+                if (fs.existsSync(javaExecutable)) {
+                    return [
+                        {
+                            "name": "JavaSE-ufjdk",
+                            "path": jdkPath
+                        }
+                    ];
+                }
+            }
+
+            // 如果无法找到有效的JDK路径，返回空数组
+            this.outputChannel.appendLine('无法找到有效的JDK路径');
+            return [];
+        } catch (error) {
+            this.outputChannel.appendLine(`获取Windows Java运行时配置失败: ${error}`);
+            return [];
         }
     }
 }
