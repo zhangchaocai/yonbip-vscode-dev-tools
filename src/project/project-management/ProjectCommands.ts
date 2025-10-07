@@ -197,9 +197,9 @@ export class ProjectCommands {
             });
 
             // 创建标记文件来标识已初始化的项目
-            const markerFilePath = path.join(selectedPath, '.yonbip-project');
+            const markerFilePath = path.join(selectedPath, '.yonbip-premium-project');
             try {
-                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP Premium Project.');
             } catch (error) {
                 console.error('创建标记文件失败:', error);
             }
@@ -316,9 +316,9 @@ export class ProjectCommands {
             });
 
             // 创建标记文件来标识已初始化的项目
-            const markerFilePath = path.join(selectedPath, '.yonbip-project');
+            const markerFilePath = path.join(selectedPath, '.yonbip-premium-project');
             try {
-                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP Premium Project.');
             } catch (error) {
                 console.error('创建标记文件失败:', error);
             }
@@ -353,8 +353,8 @@ export class ProjectCommands {
             selectedPath = componentPath;
         }
 
-        // 检查目录是否包含.yonbip-project标记文件（即是否为已初始化的YonBIP项目）
-        const markerFilePath = path.join(selectedPath, '.yonbip-project');
+        // 检查目录是否包含.yonbip-premium-project标记文件（即是否为已初始化的YonBIP项目）
+        const markerFilePath = path.join(selectedPath, '.yonbip-premium-project');
         if (!fs.existsSync(markerFilePath)) {
             vscode.window.showErrorMessage('只有已初始化的YonBIP项目目录才能创建业务组件。请先使用"🚀 YONBIP 工程初始化"命令初始化项目。');
             return;
@@ -1131,8 +1131,8 @@ export class ProjectCommands {
      * 检查是否为多模块项目
      */
     private isMultiModuleProject(projectPath: string): boolean {
-        // 检查目录是否包含.yonbip-project标记文件且不包含META-INF目录
-        const markerFilePath = path.join(projectPath, '.yonbip-project');
+        // 检查目录是否包含.yonbip-premium-project标记文件且不包含META-INF目录
+        const markerFilePath = path.join(projectPath, '.yonbip-premium-project');
         const metaInfPath = path.join(projectPath, 'META-INF');
 
         return fs.existsSync(markerFilePath) && !fs.existsSync(metaInfPath);
@@ -1142,8 +1142,8 @@ export class ProjectCommands {
      * 检查是否为模块项目
      */
     private isModuleProject(projectPath: string): boolean {
-        // 检查目录是否包含.yonbip-project标记文件且包含META-INF目录
-        const markerFilePath = path.join(projectPath, '.yonbip-project');
+        // 检查目录是否包含.yonbip-premium-project标记文件且包含META-INF目录
+        const markerFilePath = path.join(projectPath, '.yonbip-premium-project');
         const metaInfPath = path.join(projectPath, 'META-INF');
 
         return fs.existsSync(markerFilePath) && fs.existsSync(metaInfPath);

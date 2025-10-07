@@ -230,11 +230,11 @@ export class LibraryService {
             // 当通过LibraryCommands直接调用时不创建标记文件，避免重复创建
             if (selectedPath) {
                 // 创建标记文件来标识已初始化的项目（修复图标消失问题）
-                const markerFilePath = path.join(targetPath, '.yonbip-project');
+                const markerFilePath = path.join(targetPath, '.yonbip-premium-project');
                 this.outputChannel.appendLine(`创建标记文件: ${markerFilePath}`);
 
                 try {
-                    fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+                    fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP Premium Project.');
                     this.outputChannel.appendLine('标记文件创建成功');
                 } catch (error) {
                     this.outputChannel.appendLine(`创建标记文件失败: ${error}`);

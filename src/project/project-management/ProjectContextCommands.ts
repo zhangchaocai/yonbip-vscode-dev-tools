@@ -150,11 +150,11 @@ export class ProjectContextCommands {
             });
 
             // 创建标记文件来标识已初始化的项目
-            const markerFilePath = path.join(selectedPath, '.yonbip-project');
+            const markerFilePath = path.join(selectedPath, '.yonbip-premium-project');
             console.log(`创建标记文件: ${markerFilePath}`);
 
             try {
-                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP project.');
+                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP Premium Project.');
                 console.log('标记文件创建成功');
 
                 // 验证文件是否真的创建了
