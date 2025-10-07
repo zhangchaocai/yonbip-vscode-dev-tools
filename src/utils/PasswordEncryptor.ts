@@ -21,7 +21,7 @@ export class PasswordEncryptor {
      * @param encryptedPassword 加密后的密码
      * @returns 解密后的密码
      */
-    public static decrypt(encryptedPassword: string): string {
+    public static decrypt(homePath: string, encryptedPassword: string): string {
         if (!encryptedPassword) {
             return '';
         }
@@ -34,7 +34,7 @@ export class PasswordEncryptor {
             }
 
             const jarPath = path.join(PasswordEncryptor.extensionPath, 'resources', 'aes-crypto-tool', 'aes-decrypt-tool.jar');
-            const dependencyJarPath = path.join(PasswordEncryptor.extensionPath, 'resources', 'aes-crypto-tool', 'sagas-encrypt-1.0.0-SNAPSHOT.jar');
+            const dependencyJarPath = path.join(homePath, 'modules', 'iuap', 'lib', 'sagas-encrypt-1.0.0-SNAPSHOT.jar');
 
             // 执行Java解密命令，使用类路径包含所有必要的JAR文件
             const result = spawnSync('java', ['-cp', `${jarPath}${path.delimiter}${dependencyJarPath}`, 'com.yonyou.encrypt.AESWrapper', 'decrypt', encryptedPassword], {
@@ -65,7 +65,7 @@ export class PasswordEncryptor {
      * @param plainPassword 明文密码
      * @returns 加密后的密码
      */
-    public static encrypt(plainPassword: string): string {
+    public static encrypt(homePath: string, plainPassword: string): string {
         if (!plainPassword) {
             return '';
         }
@@ -78,8 +78,7 @@ export class PasswordEncryptor {
             }
 
             const jarPath = path.join(PasswordEncryptor.extensionPath, 'resources', 'aes-crypto-tool', 'aes-decrypt-tool.jar');
-            const dependencyJarPath = path.join(PasswordEncryptor.extensionPath, 'resources', 'aes-crypto-tool', 'sagas-encrypt-1.0.0-SNAPSHOT.jar');
-
+            const dependencyJarPath = path.join(homePath, 'modules', 'iuap', 'lib', 'sagas-encrypt-1.0.0-SNAPSHOT.jar');
             // 执行Java加密命令，使用类路径包含所有必要的JAR文件
             const result = spawnSync('java', ['-cp', `${jarPath}${path.delimiter}${dependencyJarPath}`, 'com.yonyou.encrypt.AESWrapper', 'encrypt', plainPassword], {
                 encoding: 'utf8',
@@ -109,7 +108,7 @@ export class PasswordEncryptor {
      * @param password 密码字符串
      * @returns 是否已加密
      */
-    public static isEncrypted(password: string): boolean {
+    public static isEncrypted(homePath: string, password: string): boolean {
         if (!password || password.length === 0) {
             return false;
         }
@@ -124,14 +123,14 @@ export class PasswordEncryptor {
      * @param password 密码字符串
      * @returns 解密后的密码
      */
-    public static getSecurePassword(password: string): string {
+    public static getSecurePassword(homePath: string, password: string): string {
         if (!password) {
             return '';
         }
 
         // 如果密码已加密，则解密
-        if (PasswordEncryptor.isEncrypted(password)) {
-            return PasswordEncryptor.decrypt(password);
+        if (PasswordEncryptor.isEncrypted(homePath, password)) {
+            return PasswordEncryptor.decrypt(homePath, password);
         }
 
         // 否则返回原密码

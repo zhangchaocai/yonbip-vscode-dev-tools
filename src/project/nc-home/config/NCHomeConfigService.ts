@@ -71,7 +71,7 @@ export class NCHomeConfigService {
             for (const dataSource of configCopy.dataSources) {
                 if (dataSource.password) {
                     // 使用PasswordEncryptor解密密码
-                    const decryptedPassword = PasswordEncryptor.getSecurePassword(dataSource.password);
+                    const decryptedPassword = PasswordEncryptor.getSecurePassword(configCopy.homePath, dataSource.password);
 
                     // 检查解密结果是否包含大量乱码字符
                     // 如果解密后包含多个连续的替换字符，说明解密可能失败
@@ -337,7 +337,7 @@ export class NCHomeConfigService {
             }
 
             // 处理密码解密
-            const securePassword = PasswordEncryptor.getSecurePassword(dataSource.password || '');
+            const securePassword = PasswordEncryptor.getSecurePassword(this.config.homePath, dataSource.password || '');
             const secureDataSource = {
                 ...dataSource,
                 password: securePassword
@@ -1376,7 +1376,7 @@ export class NCHomeConfigService {
                             let decryptedPassword = password;
                             if (password) {
                                 try {
-                                    decryptedPassword = PasswordEncryptor.getSecurePassword(password);
+                                    decryptedPassword = PasswordEncryptor.getSecurePassword(this.config.homePath, password);
                                     // 检查解密结果是否包含大量乱码字符
                                     // 如果解密后包含多个连续的替换字符，说明解密可能失败
                                     const replacementCharCount = (decryptedPassword.match(/\uFFFD/g) || []).length;

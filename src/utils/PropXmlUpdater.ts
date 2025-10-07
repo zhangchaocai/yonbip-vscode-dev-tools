@@ -41,7 +41,7 @@ export class PropXmlUpdater {
         }
 
         // 生成数据源XML片段
-        const dataSourceXml = this.generateDataSourceXml(dataSource);
+        const dataSourceXml = this.generateDataSourceXml(homePath, dataSource);
 
         if (isUpdate) {
             // 更新操作：替换现有的数据源
@@ -163,7 +163,7 @@ export class PropXmlUpdater {
      * 生成数据源XML片段
      * @param dataSource 数据源信息
      */
-    private static generateDataSourceXml(dataSource: DataSourceMeta): string {
+    private static generateDataSourceXml(homePath: string, dataSource: DataSourceMeta): string {
         // 根据数据库类型生成URL
         let databaseUrl = dataSource.url || '';
         if (!databaseUrl) {
@@ -234,7 +234,7 @@ export class PropXmlUpdater {
         let encryptedPassword = dataSource.password || '';
         if (encryptedPassword) {
             try {
-                encryptedPassword = PasswordEncryptor.encrypt(encryptedPassword);
+                encryptedPassword = PasswordEncryptor.encrypt(homePath, encryptedPassword);
             } catch (error) {
                 console.error('密码加密失败:', error);
                 // 如果加密失败，使用原始密码
