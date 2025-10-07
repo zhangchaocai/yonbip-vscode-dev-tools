@@ -1236,77 +1236,153 @@ export class LibraryService {
      */
     private async getMacJavaRuntimeConfig(): Promise<any[]> {
         try {
-            // 首先尝试从环境变量中获取JDK路径
-            let jdkPath = process.env.JAVA_HOME || process.env.JDK_HOME;
-
-            // 如果环境变量中没有找到，尝试使用/usr/libexec/java_home命令获取
-            if (!jdkPath) {
-                try {
-                    const { execSync } = require('child_process');
-                    jdkPath = execSync('/usr/libexec/java_home', { encoding: 'utf-8' }).trim();
-                } catch (error) {
-                    this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
-                }
-            }
-
-            // 如果还是没有找到，尝试一些常见的JDK安装路径
-            if (!jdkPath) {
-                const commonJdkPaths = [
-                    '/Library/Java/JavaVirtualMachines/default/Contents/Home',
-                    '/Library/Java/JavaVirtualMachines/jdk1.8.0_281.jdk/Contents/Home',
-                    '/Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home',
-                    '/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home',
-                    '/System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home'
-                ];
-
-                for (const path of commonJdkPaths) {
-                    if (fs.existsSync(path)) {
-                        jdkPath = path;
-                        break;
-                    }
-                }
-            }
-
-            // 如果仍然没有找到，尝试使用java命令来获取
-            if (!jdkPath) {
-                try {
-                    const { execSync } = require('child_process');
-                    const javaPath = execSync('which java', { encoding: 'utf-8' }).trim();
-                    if (javaPath) {
-                        // 从java命令路径推断JDK路径
-                        if (javaPath.includes('/bin/java')) {
-                            jdkPath = javaPath.replace(/\/bin\/java$/, '');
-                        } else {
-                            // 尝试使用java -XshowSettings:properties命令获取java.home
-                            const javaProperties = execSync('java -XshowSettings:properties -version 2>&1', { encoding: 'utf-8' });
-                            const javaHomeMatch = javaProperties.match(/java\.home = (.+)/);
-                            if (javaHomeMatch && javaHomeMatch[1]) {
-                                jdkPath = javaHomeMatch[1].trim();
+            const javaRuntimes: any[] = [];
+            
+            // 尝试使用/usr/libexec/java_home命令获取所有已安装的JDK
+            try {
+                const { execSync } = require('child_process');
+                // 获取所有已安装的Java版本
+                const javaVersionsOutput = execSync('/usr/libexec/java_home -V', { encoding: 'utf-8' });
+                const lines = javaVersionsOutput.split('\n');
+                
+                // 解析每个Java版本
+                for (const line of lines) {
+                    const match = line.match(/(\d+\.\d+\.?\d*).*?(\/.*?\/Contents\/Home)/);
+                    if (match) {
+                        const version = match[1];
+                        const path = match[2];
+                        
+                        // 验证路径是否存在且包含java可执行文件
+                        if (fs.existsSync(path)) {
+                            const javaExecutable = path.join(path, 'bin', 'java');
+                            if (fs.existsSync(javaExecutable)) {
+                                // 根据Java版本确定运行时名称
+                                let runtimeName = "JavaSE-1.8";
+                                if (version.startsWith("1.8")) {
+                                    runtimeName = "JavaSE-1.8";
+                                } else if (version.startsWith("11")) {
+                                    runtimeName = "JavaSE-11";
+                                } else if (version.startsWith("17")) {
+                                    runtimeName = "JavaSE-17";
+                                } else if (version.startsWith("1.6")) {
+                                    runtimeName = "JavaSE-1.6";
+                                } else {
+                                    // 对于其他版本，使用通用名称
+                                    runtimeName = `JavaSE-${version}`;
+                                }
+                                
+                                javaRuntimes.push({
+                                    "name": runtimeName,
+                                    "path": path
+                                });
                             }
                         }
                     }
-                } catch (error) {
-                    this.outputChannel.appendLine(`获取Java路径时出错: ${error}`);
                 }
+            } catch (error) {
+                this.outputChannel.appendLine(`使用/usr/libexec/java_home -V命令获取JDK路径失败: ${error}`);
             }
+            
+            // 如果没有通过/usr/libexec/java_home -V获取到Java版本，使用原来的逻辑
+            if (javaRuntimes.length === 0) {
+                // 首先尝试从环境变量中获取JDK路径
+                let jdkPath = process.env.JAVA_HOME || process.env.JDK_HOME;
 
-            // 如果找到了JDK路径，返回配置
-            if (jdkPath && fs.existsSync(jdkPath)) {
-                // 验证是否包含java可执行文件
-                const javaExecutable = path.join(jdkPath, 'bin', 'java');
-                if (fs.existsSync(javaExecutable)) {
-                    return [
-                        {
-                            "name": "JavaSE-JDK",
-                            "path": jdkPath
-                        }
+                // 如果环境变量中没有找到，尝试使用/usr/libexec/java_home命令获取
+                if (!jdkPath) {
+                    try {
+                        const { execSync } = require('child_process');
+                        jdkPath = execSync('/usr/libexec/java_home', { encoding: 'utf-8' }).trim();
+                    } catch (error) {
+                        this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
+                    }
+                }
+
+                // 如果还是没有找到，尝试一些常见的JDK安装路径
+                if (!jdkPath) {
+                    const commonJdkPaths = [
+                        '/Library/Java/JavaVirtualMachines/default/Contents/Home',
+                        '/Library/Java/JavaVirtualMachines/jdk1.8.0_281.jdk/Contents/Home',
+                        '/Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home',
+                        '/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home',
+                        '/System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home'
                     ];
+
+                    for (const path of commonJdkPaths) {
+                        if (fs.existsSync(path)) {
+                            jdkPath = path;
+                            break;
+                        }
+                    }
+                }
+
+                // 如果仍然没有找到，尝试使用java命令来获取
+                if (!jdkPath) {
+                    try {
+                        const { execSync } = require('child_process');
+                        const javaPath = execSync('which java', { encoding: 'utf-8' }).trim();
+                        if (javaPath) {
+                            // 从java命令路径推断JDK路径
+                            if (javaPath.includes('/bin/java')) {
+                                jdkPath = javaPath.replace(/\/bin\/java$/, '');
+                            } else {
+                                // 尝试使用java -XshowSettings:properties命令获取java.home
+                                const javaProperties = execSync('java -XshowSettings:properties -version 2>&1', { encoding: 'utf-8' });
+                                const javaHomeMatch = javaProperties.match(/java\.home = (.+)/);
+                                if (javaHomeMatch && javaHomeMatch[1]) {
+                                    jdkPath = javaHomeMatch[1].trim();
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        this.outputChannel.appendLine(`获取Java路径时出错: ${error}`);
+                    }
+                }
+
+                // 如果找到了JDK路径，返回配置
+                if (jdkPath && fs.existsSync(jdkPath)) {
+                    // 验证是否包含java可执行文件
+                    const javaExecutable = path.join(jdkPath, 'bin', 'java');
+                    if (fs.existsSync(javaExecutable)) {
+                        // 尝试确定Java版本
+                        let runtimeName = "JavaSE-1.8";
+                        try {
+                            const { execSync } = require('child_process');
+                            const javaVersionOutput = execSync(`${javaExecutable} -version 2>&1`, { encoding: 'utf-8' });
+                            
+                            if (javaVersionOutput.includes('version "1.8')) {
+                                runtimeName = "JavaSE-1.8";
+                            } else if (javaVersionOutput.includes('version "11')) {
+                                runtimeName = "JavaSE-11";
+                            } else if (javaVersionOutput.includes('version "17')) {
+                                runtimeName = "JavaSE-17";
+                            } else if (javaVersionOutput.includes('version "1.6')) {
+                                runtimeName = "JavaSE-1.6";
+                            } else {
+                                // 尝试从输出中提取版本号
+                                const versionMatch = javaVersionOutput.match(/version "(\d+\.?\d*\.?\d*)/);
+                                if (versionMatch && versionMatch[1]) {
+                                    runtimeName = `JavaSE-${versionMatch[1]}`;
+                                }
+                            }
+                        } catch (versionError) {
+                            this.outputChannel.appendLine(`获取Java版本时出错: ${versionError}`);
+                        }
+                        
+                        javaRuntimes.push({
+                            "name": runtimeName,
+                            "path": jdkPath
+                        });
+                    }
                 }
             }
 
             // 如果无法找到有效的JDK路径，返回空数组
-            this.outputChannel.appendLine('无法自动检测到有效的JDK路径');
-            return [];
+            if (javaRuntimes.length === 0) {
+                this.outputChannel.appendLine('无法自动检测到有效的JDK路径');
+            }
+            
+            return javaRuntimes;
         } catch (error) {
             this.outputChannel.appendLine(`获取macOS Java运行时配置失败: ${error}`);
             return [];
@@ -1318,6 +1394,8 @@ export class LibraryService {
      */
     private async getWindowsJavaRuntimeConfig(homePath: string): Promise<any[]> {
         try {
+            const javaRuntimes: any[] = [];
+            
             // 在Windows系统上，默认使用homepath/ufjdk作为JDK路径
             const defaultJdkPath = path.join(homePath, 'ufjdk');
 
@@ -1326,12 +1404,10 @@ export class LibraryService {
                 // 验证是否包含java可执行文件
                 const javaExecutable = path.join(defaultJdkPath, 'bin', 'java.exe');
                 if (fs.existsSync(javaExecutable)) {
-                    return [
-                        {
-                            "name": "JavaSE-ufjdk",
-                            "path": defaultJdkPath
-                        }
-                    ];
+                    javaRuntimes.push({
+                        "name": "JavaSE-ufjdk",
+                        "path": defaultJdkPath
+                    });
                 }
             }
 
@@ -1343,18 +1419,42 @@ export class LibraryService {
                 // 验证是否包含java可执行文件
                 const javaExecutable = path.join(jdkPath, 'bin', 'java.exe');
                 if (fs.existsSync(javaExecutable)) {
-                    return [
-                        {
-                            "name": "JavaSE-ufjdk",
-                            "path": jdkPath
+                    // 尝试确定Java版本
+                    let runtimeName = "JavaSE-1.8";
+                    try {
+                        const { execSync } = require('child_process');
+                        const javaVersionOutput = execSync(`"${javaExecutable}" -version 2>&1`, { encoding: 'utf-8' });
+                        
+                        if (javaVersionOutput.includes('version "1.8')) {
+                            runtimeName = "JavaSE-1.8";
+                        } else if (javaVersionOutput.includes('version "11')) {
+                            runtimeName = "JavaSE-11";
+                        } else if (javaVersionOutput.includes('version "17')) {
+                            runtimeName = "JavaSE-17";
+                        } else {
+                            // 尝试从输出中提取版本号
+                            const versionMatch = javaVersionOutput.match(/version "(\d+\.?\d*\.?\d*)/);
+                            if (versionMatch && versionMatch[1]) {
+                                runtimeName = `JavaSE-${versionMatch[1]}`;
+                            }
                         }
-                    ];
+                    } catch (versionError) {
+                        this.outputChannel.appendLine(`获取Java版本时出错: ${versionError}`);
+                    }
+                    
+                    javaRuntimes.push({
+                        "name": runtimeName,
+                        "path": jdkPath
+                    });
                 }
             }
 
             // 如果无法找到有效的JDK路径，返回空数组
-            this.outputChannel.appendLine('无法找到有效的JDK路径');
-            return [];
+            if (javaRuntimes.length === 0) {
+                this.outputChannel.appendLine('无法找到有效的JDK路径');
+            }
+            
+            return javaRuntimes;
         } catch (error) {
             this.outputChannel.appendLine(`获取Windows Java运行时配置失败: ${error}`);
             return [];
