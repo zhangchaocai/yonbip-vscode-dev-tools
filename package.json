@@ -196,6 +196,11 @@
         "command": "yonbip.project.addAllSourcePaths",
         "title": "📜 全部加入源码路径",
         "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.test.oracleClient",
+        "title": "🧪 测试Oracle客户端",
+        "category": "YonBIP/测试"
       }
     ],
     "submenus": [

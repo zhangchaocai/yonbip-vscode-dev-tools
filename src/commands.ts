@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-
 /**
  * 文档操作相关的命令
  */

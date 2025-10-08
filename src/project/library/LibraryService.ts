@@ -1193,6 +1193,7 @@ export class LibraryService {
                 "java.saveActions.organizeImports": true,
                 "java.compile.nullAnalysis.mode": "automatic",
                 "java.configuration.runtimes": javaRuntimeConfig,
+                "java.jdt.ls.java.home": javaRuntimeConfig.length > 0 ? javaRuntimeConfig[0].path : undefined, //工具链 JDK
                 "[java]": {
                     "files.encoding": "gbk"
                 },

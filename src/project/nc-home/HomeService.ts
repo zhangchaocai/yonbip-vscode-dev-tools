@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as iconv from 'iconv-lite';
 import { NCHomeConfigService } from './config/NCHomeConfigService';
+import { OracleClientService } from './OracleClientService';
 
 /**
  * NC HOME服务状态
@@ -28,10 +29,12 @@ export class HomeService {
     private static outputChannelInstance: vscode.OutputChannel | null = null;
     private isManualStop: boolean = false;
     private startupCheckTimer: NodeJS.Timeout | null = null;
+    private oracleClientService: OracleClientService;
 
     constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService) {
         this.context = context;
         this.configService = configService;
+        this.oracleClientService = new OracleClientService(context);
         // 确保outputChannel只初始化一次
         if (!HomeService.outputChannelInstance) {
             HomeService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP NC HOME服务');
@@ -159,91 +162,6 @@ export class HomeService {
                 return;
             }
 
-            // 检查是否是Maven项目
-            const pomPath = path.join(workspaceFolder, 'pom.xml');
-            if (fs.existsSync(pomPath)) {
-                this.outputChannel.appendLine('🔨 检测到Maven项目，正在编译...');
-                this.outputChannel.appendLine('🔧 执行命令: mvn clean compile');
-
-                const compileProcess = spawn('mvn', ['clean', 'compile'], {
-                    cwd: workspaceFolder,
-                    env: {
-                        ...process.env,
-                        JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8'
-                    }
-                });
-
-                compileProcess.stdout?.on('data', (data: any) => {
-                    const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
-                    this.outputChannel.appendLine(`[STDOUT] ${output}`);
-                });
-
-                compileProcess.stderr?.on('data', (data: any) => {
-                    const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
-                    this.outputChannel.appendLine(`[STDERR] ${output}`);
-                });
-
-                compileProcess.on('close', (code: any) => {
-                    if (code === 0) {
-                        this.outputChannel.appendLine('✅ Maven编译成功');
-                        resolve(true);
-                    } else {
-                        this.outputChannel.appendLine(`❌ Maven编译失败，退出码: ${code}`);
-                        resolve(false);
-                    }
-                });
-
-                compileProcess.on('error', (error: any) => {
-                    this.outputChannel.appendLine(`❌ Maven编译出错: ${error.message}`);
-                    resolve(false);
-                });
-
-                return;
-            }
-
-            // 检查是否是Gradle项目
-            const gradlePath = path.join(workspaceFolder, 'build.gradle');
-            const gradleKtsPath = path.join(workspaceFolder, 'build.gradle.kts');
-            if (fs.existsSync(gradlePath) || fs.existsSync(gradleKtsPath)) {
-                this.outputChannel.appendLine('🔨 检测到Gradle项目，正在编译...');
-                this.outputChannel.appendLine('🔧 执行命令: gradle clean compileJava');
-
-                const compileProcess = spawn('gradle', ['clean', 'compileJava'], {
-                    cwd: workspaceFolder,
-                    env: {
-                        ...process.env,
-                        JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8'
-                    }
-                });
-
-                compileProcess.stdout?.on('data', (data: any) => {
-                    const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
-                    this.outputChannel.appendLine(`[STDOUT] ${output}`);
-                });
-
-                compileProcess.stderr?.on('data', (data: any) => {
-                    const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
-                    this.outputChannel.appendLine(`[STDERR] ${output}`);
-                });
-
-                compileProcess.on('close', (code: any) => {
-                    if (code === 0) {
-                        this.outputChannel.appendLine('✅ Gradle编译成功');
-                        resolve(true);
-                    } else {
-                        this.outputChannel.appendLine(`❌ Gradle编译失败，退出码: ${code}`);
-                        resolve(false);
-                    }
-                });
-
-                compileProcess.on('error', (error: any) => {
-                    this.outputChannel.appendLine(`❌ Gradle编译出错: ${error.message}`);
-                    resolve(false);
-                });
-
-                return;
-            }
-
             // 检查是否是标准Java项目（存在src目录且包含Java文件）
             let hasJavaProject = false;
             for (const srcPath of srcPaths) {
@@ -256,7 +174,6 @@ export class HomeService {
             if (hasJavaProject) {
                 this.outputChannel.appendLine('🔨 检测到标准Java项目，正在编译...');
                 this.outputChannel.appendLine('🔧 请确保项目已正确配置编译环境');
-                // 对于标准Java项目，我们不执行编译，因为可能没有Maven或Gradle配置
                 resolve(true);
                 return;
             }
@@ -325,6 +242,14 @@ export class HomeService {
         }
     }
 
+    /**
+     * 检查是否需要Oracle Instant Client（如果配置了Oracle数据源）
+     */
+    private async checkOracleClientIfNeeded(config: any): Promise<void> {
+        if (config.dataSource && config.dataSource.type === 'oracle') {
+            await this.checkOracleClientIfNeeded(config);
+        }
+    }
 
     /**
      * 启动NC HOME服务 (对应IDEA插件中的ServerDebugAction)
@@ -376,6 +301,9 @@ export class HomeService {
             vscode.window.showErrorMessage(`NC HOME路径不存在: ${config.homePath}`);
             return;
         }
+
+        // 检查Oracle Instant Client（如果配置了Oracle数据源）
+        await this.checkOracleClientIfNeeded(config);
 
         try {
             this.setStatus(HomeStatus.STARTING);
@@ -499,7 +427,6 @@ export class HomeService {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: {
                     ...env,
-                    JAVA_TOOL_OPTIONS: '-Dfile.encoding=UTF-8',
                     LANG: 'zh_CN.UTF-8',
                     LC_ALL: 'zh_CN.UTF-8',
                     LC_CTYPE: 'zh_CN.UTF-8',
@@ -1057,12 +984,38 @@ export class HomeService {
         // MaxPermSize参数在Java 9+版本中已被移除
         let javaVersion = 0;
         try {
-            const { execSync } = require('child_process');
-            const versionOutput = execSync('java -version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-            const versionMatch = (versionOutput || '').match(/version\s+"(\d+)/i);
-            if (versionMatch && versionMatch[1]) {
-                javaVersion = parseInt(versionMatch[1]);
-                this.outputChannel.appendLine(`检测到Java版本: ${javaVersion}`);
+            // 优先从VS Code配置中获取Java版本
+            const javaConfig = vscode.workspace.getConfiguration('java.configuration');
+            const runtimes = javaConfig.get<any[]>('runtimes', []);
+            
+            // 查找默认的Java运行时版本
+            const defaultRuntime = runtimes.find(runtime => runtime.default === true);
+            if (defaultRuntime && defaultRuntime.name) {
+                const versionMatch = defaultRuntime.name.match(/(\d+)/);
+                if (versionMatch && versionMatch[1]) {
+                    javaVersion = parseInt(versionMatch[1]);
+                    this.outputChannel.appendLine(`从VS Code配置获取Java版本: ${javaVersion}`);
+                }
+            }
+            
+            // 如果没有默认运行时，尝试使用第一个配置的运行时版本
+            if (javaVersion === 0 && runtimes.length > 0 && runtimes[0].name) {
+                const versionMatch = runtimes[0].name.match(/(\d+)/);
+                if (versionMatch && versionMatch[1]) {
+                    javaVersion = parseInt(versionMatch[1]);
+                    this.outputChannel.appendLine(`从VS Code配置获取第一个Java运行时版本: ${javaVersion}`);
+                }
+            }
+            
+            // 如果从VS Code配置中无法获取版本，则通过命令行检测
+            if (javaVersion === 0) {
+                const { execSync } = require('child_process');
+                const versionOutput = execSync('java -version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+                const versionMatch = (versionOutput || '').match(/version\s+"(\d+)/i);
+                if (versionMatch && versionMatch[1]) {
+                    javaVersion = parseInt(versionMatch[1]);
+                    this.outputChannel.appendLine(`通过命令行检测到Java版本: ${javaVersion}`);
+                }
             }
         } catch (error: any) {
             this.outputChannel.appendLine(`警告: 无法检测Java版本，将假设使用Java 8+: ${error.message}`);

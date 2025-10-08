@@ -5,6 +5,7 @@ import * as iconv from 'iconv-lite';
 import { NCHomeConfig, DataSourceMeta, ConnectionTestResult, AutoParseResult, DRIVER_INFO_MAP } from './NCHomeConfigTypes';
 import { PasswordEncryptor } from '../../../utils/PasswordEncryptor';
 import { PropXmlUpdater } from '../../../utils/PropXmlUpdater';
+import { OracleClientService } from '../OracleClientService';
 
 /**
  * NC Home配置服务
@@ -17,9 +18,11 @@ export class NCHomeConfigService {
     private outputChannel: vscode.OutputChannel;
     private config: NCHomeConfig;
     private configFilePath: string;
+    private oracleClientService: OracleClientService;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
+        this.oracleClientService = new OracleClientService(context);
         // 确保outputChannel只初始化一次
         if (!NCHomeConfigService.outputChannelInstance) {
             NCHomeConfigService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP NC Home配置');
@@ -535,6 +538,21 @@ export class NCHomeConfigService {
             const connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
 
             this.outputChannel.appendLine(`🔍 开始测试Oracle连接: ${connectString}`);
+
+            // 检查Oracle Instant Client是否已安装
+            const oracleClientCheck = await this.oracleClientService.checkOracleClientInstalled();
+            if (!oracleClientCheck.installed) {
+                this.outputChannel.appendLine(`⚠️ 未检测到Oracle Instant Client`);
+                
+                // 提示用户安装Oracle Instant Client
+                const installConfirmed = await this.oracleClientService.promptInstallOracleClient();
+                if (!installConfirmed) {
+                    return {
+                        success: false,
+                        message: 'Oracle Instant Client未安装，无法连接Oracle数据库。\n请安装Oracle Instant Client后重试。'
+                    };
+                }
+            }
 
             // 检查是否已经初始化过Oracle客户端
             // 修复NJS-090错误：在调用initOracleClient前检查oracleClientVersion是否存在
