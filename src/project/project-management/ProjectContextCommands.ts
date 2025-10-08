@@ -4,11 +4,56 @@ import * as path from 'path';
 import { LibraryService } from '../library/LibraryService';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { HomeService } from '../nc-home/HomeService';
-import { ProjectService } from './ProjectService';
 import { ClasspathService } from '../library/ClasspathService';
 
 // 添加一个静态属性来存储context
 let extensionContext: vscode.ExtensionContext | undefined;
+
+// 新增：用于在资源管理器中为已初始化项目目录添加标记（徽章）
+class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
+    private _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
+    public readonly onDidChangeFileDecorations = this._onDidChangeFileDecorations.event;
+
+    // 允许主动标记的目录（确保即刻刷新）
+    private initializedFolders = new Set<string>();
+
+    // 主动标记目录为已初始化，并触发刷新
+    public markAsInitialized(folderPath: string): void {
+        const absPath = path.resolve(folderPath);
+        this.initializedFolders.add(absPath);
+        // 同时触发针对该目录和全局的刷新，避免在复制大量文件后装饰未刷新
+        this._onDidChangeFileDecorations.fire(vscode.Uri.file(absPath));
+        this._onDidChangeFileDecorations.fire(undefined);
+    }
+
+    provideFileDecoration(uri: vscode.Uri): vscode.ProviderResult<vscode.FileDecoration> {
+        try {
+            const fsPath = uri.fsPath;
+            if (!fs.existsSync(fsPath)) {
+                return undefined;
+            }
+            const stat = fs.statSync(fsPath);
+            // 只为目录添加标记：如果目录内存在 .project 文件，或被主动标记
+            if (stat.isDirectory()) {
+                const markerPath = path.join(fsPath, '.project');
+                if (fs.existsSync(markerPath) || this.initializedFolders.has(path.resolve(fsPath))) {
+                    return {
+                        // VS Code 仅支持单字符徽章，这里改为单字符以确保稳定显示
+                        badge: '✅',
+                        tooltip: 'YonBIP 项目已初始化',
+                        color: new vscode.ThemeColor('gitDecoration.addedResourceForeground'),
+                        // 允许向下传播，让子项也能显示标记（在某些视图中更明显）
+                        propagate: true
+                    };
+                }
+            }
+        } catch (e) {
+            // 忽略错误，返回不装饰
+            return undefined;
+        }
+        return undefined;
+    }
+}
 
 /**
  * 项目上下文菜单命令
@@ -26,14 +71,6 @@ export class ProjectContextCommands {
         extensionContext = context;
     }
 
-    /**
-     * 设置装饰器提供者实例
-     * @param provider 装饰器提供者实例
-     */
-    public static setDecorationProvider(provider: any): void {
-        console.log('设置装饰器提供者:', provider ? '成功' : '失败');
-        this.decorationProvider = provider;
-    }
 
     /**
      * 注册所有项目上下文菜单相关命令
@@ -44,6 +81,13 @@ export class ProjectContextCommands {
 
         const libraryService = new LibraryService(context, configService);
         const classpathService = new ClasspathService();
+
+        // 新增：注册文件装饰器提供者
+        if (!this.decorationProvider) {
+            const provider = new ProjectInitDecorationProvider();
+            context.subscriptions.push(vscode.window.registerFileDecorationProvider(provider));
+            this.decorationProvider = provider;
+        }
 
         // 初始化项目目录命令（右键菜单）
         const initProjectContextCommand = vscode.commands.registerCommand(

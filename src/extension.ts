@@ -1,15 +1,12 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // 扩展组件
 import { McpCommands } from './mcp/McpCommands';
 import { McpProvider } from './mcp/McpProvider';
 import { ProjectProvider } from './project/project-management/ProjectProvider';
 import { NCHomeConfigProvider } from './project/nc-home/config/NCHomeConfigProvider';
-import { NCHomeConfigWebviewProvider } from './project/nc-home/config/NCHomeConfigWebviewProvider';
 import { PatchExportWebviewProvider } from './project/ui/PatchExportWebviewProvider';
 import { OpenApiProvider } from './openapi/OpenApiProvider';
 import { NCHomeConfigService } from './project/nc-home/config/NCHomeConfigService';
@@ -23,10 +20,6 @@ import { McpService } from './mcp/McpService';
 import { LibraryService } from './project/library/LibraryService';
 import { HomeService } from './project/nc-home/HomeService';
 import { MacHomeConversionService } from './project/mac/MacHomeConversionService';
-
-// 导入项目装饰器提供者
-import { ProjectDecorationProvider } from './project/project-management/ProjectDecorationProvider';
-
 // 导入密码加密解密工具类
 import { PasswordEncryptor } from './utils/PasswordEncryptor';
 
@@ -52,13 +45,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 设置PasswordEncryptor的扩展路径
 	PasswordEncryptor.setExtensionPath(context.extensionPath);
-
-	// 注册项目装饰器提供者
-	const projectDecorationProvider = new ProjectDecorationProvider(context);
-	context.subscriptions.push(projectDecorationProvider);
-
-	// 设置装饰器提供者实例
-	ProjectContextCommands.setDecorationProvider(projectDecorationProvider);
 
 	// 设置扩展上下文
 	ProjectContextCommands.setExtensionContext(context);
