@@ -1877,9 +1877,7 @@ export class HomeService {
 
                         // 尝试从resources目录获取补丁文件
                         const patchFile = path.join(
-                            __dirname,
-                            '..',
-                            '..',
+                            this.context.extensionPath,
                             'resources',
                             'replacement',
                             'DirectJDKLog.class'
