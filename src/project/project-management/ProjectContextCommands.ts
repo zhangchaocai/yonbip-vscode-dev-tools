@@ -149,24 +149,6 @@ export class ProjectContextCommands {
                 await libraryService.initLibrary(homePath!, false, undefined, selectedPath);
             });
 
-            // 创建标记文件来标识已初始化的项目
-            const markerFilePath = path.join(selectedPath, '.yonbip-premium-project');
-            console.log(`创建标记文件: ${markerFilePath}`);
-
-            try {
-                fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP Premium Project.');
-                console.log('标记文件创建成功');
-
-                // 验证文件是否真的创建了
-                if (fs.existsSync(markerFilePath)) {
-                    console.log('标记文件存在验证成功');
-                } else {
-                    console.log('警告：标记文件创建后不存在');
-                }
-            } catch (error) {
-                console.error('创建标记文件失败:', error);
-            }
-
             // 添加项目目录标识
             console.log(`准备标记目录为已初始化: ${selectedPath}`);
             if (this.decorationProvider) {

@@ -229,21 +229,6 @@ export class LibraryService {
             // 修复：生成Eclipse项目文件时传递正确的路径参数
             await this.generateEclipseProjectFiles(homePath, targetPath);
 
-            // 只有在通过ProjectContextCommands调用时才创建标记文件
-            // 当通过LibraryCommands直接调用时不创建标记文件，避免重复创建
-            if (selectedPath) {
-                // 创建标记文件来标识已初始化的项目（修复图标消失问题）
-                const markerFilePath = path.join(targetPath, '.yonbip-premium-project');
-                this.outputChannel.appendLine(`创建标记文件: ${markerFilePath}`);
-
-                try {
-                    fs.writeFileSync(markerFilePath, 'This directory is initialized as a YonBIP Premium Project.');
-                    this.outputChannel.appendLine('标记文件创建成功');
-                } catch (error) {
-                    this.outputChannel.appendLine(`创建标记文件失败: ${error}`);
-                }
-            }
-
             this.outputChannel.appendLine('库初始化完成');
             vscode.window.showInformationMessage('Java项目库初始化完成');
 
@@ -819,10 +804,10 @@ export class LibraryService {
         const projectFilePath = path.join(workspacePath, '.project');
 
         // 检查文件是否已存在
-        if (fs.existsSync(projectFilePath)) {
-            this.outputChannel.appendLine('.project 文件已存在，跳过生成');
-            return;
-        }
+        // if (fs.existsSync(projectFilePath)) {
+        //     this.outputChannel.appendLine('.project 文件已存在，跳过生成');
+        //     return;
+        // }
 
         // 获取项目名称
         const projectName = path.basename(workspacePath);
@@ -858,10 +843,10 @@ export class LibraryService {
         const classpathFilePath = path.join(workspacePath, '.classpath');
 
         // 检查文件是否已存在
-        if (fs.existsSync(classpathFilePath)) {
-            this.outputChannel.appendLine('.classpath 文件已存在，跳过生成');
-            return;
-        }
+        // if (fs.existsSync(classpathFilePath)) {
+        //     this.outputChannel.appendLine('.classpath 文件已存在，跳过生成');
+        //     return;
+        // }
 
         // 获取所有jar文件路径
         const jarPaths = this.getAllJarPaths(homePath);

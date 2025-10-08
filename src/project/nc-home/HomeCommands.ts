@@ -106,8 +106,8 @@ export class HomeCommands {
                 selectedPath = uri.fsPath;
             }
 
-            // 检查目录是否包含.yonbip-premium-project标记文件
-            const markerFilePath = path.join(selectedPath, '.yonbip-premium-project');
+            // 检查目录是否包含.project标记文件
+            const markerFilePath = path.join(selectedPath, '.project');
             if (!fs.existsSync(markerFilePath)) {
                 vscode.window.showErrorMessage('只有已初始化的YonBIP项目目录才能启动中间件服务。请先使用"🚀 YONBIP 工程初始化"命令初始化项目或者创建YonBIP项目进行启动。');
                 return;
