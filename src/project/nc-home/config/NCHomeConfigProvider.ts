@@ -27,6 +27,19 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         this.macHomeConversionService = macHomeConversionService || new MacHomeConversionService(this.configService);
     }
 
+    /**
+     * 检查是否已配置NC Home路径
+     * @returns 如果已配置返回true，否则返回false并发送错误消息到WebView
+     */
+    private checkHomePathConfigured(): boolean {
+        const config = this.configService.getConfig();
+        if (!config.homePath) {
+            // 发送错误消息到WebView，由调用者决定发送什么类型的消息
+            return false;
+        }
+        return true;
+    }
+
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
         context: vscode.WebviewViewResolveContext,
@@ -225,6 +238,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleOpenHomeDirectory() {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'homeDirectoryOpened',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             await this.configService.openHomeDirectory();
             this._view?.webview.postMessage({
                 type: 'homeDirectoryOpened',
@@ -244,6 +267,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleOpenSysConfig() {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'sysConfigOpened',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             await this.configService.openSysConfig();
             this._view?.webview.postMessage({
                 type: 'sysConfigOpened',
@@ -263,6 +296,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleViewLogs() {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'logsLoaded',
+                    logs: [],
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             const logs = await this.configService.getLatestLogs();
             this._view?.webview.postMessage({
                 type: 'logsLoaded',
@@ -302,6 +345,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleStopHomeService() {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'homeServiceStopped',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             // 执行停止HOME服务的命令
             const result = await vscode.commands.executeCommand('yonbip.home.stop');
             this._view?.webview.postMessage({
@@ -324,6 +377,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleTestConnection(dataSource: DataSourceMeta) {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'connectionTestResult',
+                    result: {
+                        success: false,
+                        message: '请先配置NC Home路径'
+                    }
+                });
+                return;
+            }
+            
             const result = await this.configService.testConnection(dataSource);
             this._view?.webview.postMessage({
                 type: 'connectionTestResult',
@@ -345,6 +410,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleAddDataSource(dataSource: DataSourceMeta) {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'dataSourceAdded',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             await this.configService.addDataSource(dataSource);
             // 注意：这里不再重新加载整个配置，只发送成功消息
             this._view?.webview.postMessage({
@@ -366,6 +441,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleUpdateDataSource(dataSource: DataSourceMeta) {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'dataSourceUpdated',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             await this.configService.updateDataSource(dataSource);
             // 注意：这里不再重新加载整个配置，只发送成功消息
             this._view?.webview.postMessage({
@@ -388,6 +473,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleDeleteDataSource(dataSourceName: string) {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'dataSourceDeleted',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             await this.configService.deleteDataSource(dataSourceName);
             // 注意：这里不再重新加载整个配置，只发送成功消息
             this._view?.webview.postMessage({
@@ -409,6 +504,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleSetDesignDatabase(dataSourceName: string) {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'designDatabaseSet',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             await this.configService.setAsDesignDatabase(dataSourceName);
             // 注意：这里不再传递整个config对象，而是重新加载配置以获取最新的数据源信息
             await this.handleLoadConfig();
@@ -430,6 +535,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleSetBaseDatabase(dataSourceName: string) {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'baseDatabaseSet',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             await this.configService.setBaseDatabase(dataSourceName);
             // 注意：这里不再传递整个config对象，而是重新加载配置以获取最新的数据源信息
             await this.handleLoadConfig();
@@ -472,6 +587,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleDebugHomeService() {
         try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'homeServiceDebugged',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+            
             // 执行调试启动HOME服务的命令
             await vscode.commands.executeCommand('yonbip.home.debug');
             this._view?.webview.postMessage({
@@ -487,7 +612,38 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
     }
 
-
+    /**
+     * 处理系统配置检查
+     */
+    private async handleCheckSystemConfig() {
+        try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'systemConfigCheckResult',
+                    result: {
+                        valid: false,
+                        message: '请先配置NC Home路径'
+                    }
+                });
+                return;
+            }
+            
+            const result = this.configService.checkSystemConfig();
+            this._view?.webview.postMessage({
+                type: 'systemConfigCheckResult',
+                result
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'systemConfigCheckResult',
+                result: {
+                    valid: false,
+                    message: `检查系统配置失败: ${error.message}`
+                }
+            });
+        }
+    }
 
     /**
      * 生成WebView HTML内容
@@ -1740,27 +1896,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     </script>
 </body>
 </html>`;
-    }
-
-    /**
-     * 处理系统配置检查
-     */
-    private async handleCheckSystemConfig() {
-        try {
-            const result = this.configService.checkSystemConfig();
-            this._view?.webview.postMessage({
-                type: 'systemConfigCheckResult',
-                result
-            });
-        } catch (error: any) {
-            this._view?.webview.postMessage({
-                type: 'systemConfigCheckResult',
-                result: {
-                    valid: false,
-                    message: `检查系统配置失败: ${error.message}`
-                }
-            });
-        }
     }
 
     /**

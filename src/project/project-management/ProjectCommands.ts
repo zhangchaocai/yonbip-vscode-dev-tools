@@ -352,6 +352,14 @@ export class ProjectCommands {
             return;
         }
 
+        // 检查NC Home配置
+        this.configService.reloadConfig();
+        const config = this.configService.getConfig();
+        if (!config.homePath) {
+            vscode.window.showWarningMessage('请先配置NC HOME路径');
+            return;
+        }
+
         // 让用户输入业务组件名称
         const componentName = await vscode.window.showInputBox({
             prompt: '请输入业务组件名称',
@@ -457,6 +465,14 @@ export class ProjectCommands {
      * 导出补丁
      */
     public async exportPatch(selectedPath?: string): Promise<void> {
+        // 检查NC Home配置
+        this.configService.reloadConfig();
+        const config = this.configService.getConfig();
+        if (!config.homePath) {
+            vscode.window.showWarningMessage('请先配置NC HOME路径');
+            return;
+        }
+
         // 将选择的路径存储到工作区状态中
         if (selectedPath) {
             this.context.workspaceState.update('selectedExportPath', selectedPath);
@@ -486,6 +502,14 @@ export class ProjectCommands {
 
             const targetPath = selectedPath || workspaceFolder.uri.fsPath;
 
+            // 检查NC Home配置
+            this.configService.reloadConfig();
+            const config = this.configService.getConfig();
+            if (!config.homePath) {
+                vscode.window.showWarningMessage('请先配置NC HOME路径');
+                return;
+            }
+
             // 显示进度条
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
@@ -495,7 +519,6 @@ export class ProjectCommands {
                 progress.report({ increment: 0, message: "开始复制文件..." });
 
                 // 获取HOME路径
-                const config = this.configService.getConfig();
                 const homePath = config.homePath;
 
                 // 根据HOME版本选择对应的脚手架文件

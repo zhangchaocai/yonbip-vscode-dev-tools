@@ -9,11 +9,16 @@ import * as os from 'os';
  */
 export class OracleClientService {
     private context: vscode.ExtensionContext;
+    private static outputChannelInstance: vscode.OutputChannel | null = null;
     private outputChannel: vscode.OutputChannel;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
-        this.outputChannel = vscode.window.createOutputChannel('Oracle Instant Client');
+        // 确保outputChannel只初始化一次
+        if (!OracleClientService.outputChannelInstance) {
+            OracleClientService.outputChannelInstance = vscode.window.createOutputChannel('Oracle Instant Client');
+        }
+        this.outputChannel = OracleClientService.outputChannelInstance;
     }
 
     /**
@@ -283,6 +288,10 @@ export class OracleClientService {
      * 释放资源
      */
     public dispose(): void {
-        this.outputChannel.dispose();
+        // 只有在扩展完全停用时才应该dispose outputChannel
+        if (OracleClientService.outputChannelInstance) {
+            OracleClientService.outputChannelInstance.dispose();
+            OracleClientService.outputChannelInstance = null;
+        }
     }
 }

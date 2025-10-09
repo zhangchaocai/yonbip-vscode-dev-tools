@@ -11,7 +11,6 @@ export interface McpConfig {
     jarPath: string;
     javaPath: string;
     maxMemory: string;
-    enableDebug: boolean;
 }
 
 /**
@@ -84,8 +83,7 @@ export class McpService {
             port: 9000,
             jarPath: '',
             javaPath: 'java',
-            maxMemory: '512m',
-            enableDebug: false
+            maxMemory: '512m'
         };
     }
 
@@ -97,8 +95,7 @@ export class McpService {
             port: 9000,
             jarPath: '',
             javaPath: 'java',
-            maxMemory: '512m',
-            enableDebug: false
+            maxMemory: '512m'
         };
     }
 
@@ -603,10 +600,6 @@ export class McpService {
             `-Xmx${this.config.maxMemory}`,
             '-Dfile.encoding=UTF-8'
         ];
-
-        if (this.config.enableDebug) {
-            args.push('-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005');
-        }
 
         args.push(
             '-jar',

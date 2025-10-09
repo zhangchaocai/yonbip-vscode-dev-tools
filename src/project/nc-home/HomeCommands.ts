@@ -77,6 +77,14 @@ export class HomeCommands {
         try {
             // 重新加载配置以确保使用当前工作区的配置
             this.configService.reloadConfig();
+            
+            // 检查是否已配置Home目录
+            const config = this.configService.getConfig();
+            if (!config.homePath) {
+                vscode.window.showWarningMessage('请先配置NC Home路径');
+                return;
+            }
+            
             await this.homeService.startHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`启动HOME服务失败: ${error.message}`);
@@ -115,6 +123,14 @@ export class HomeCommands {
 
             // 重新加载配置以确保使用当前工作区的配置
             this.configService.reloadConfig();
+            
+            // 检查是否已配置Home目录
+            const config = this.configService.getConfig();
+            if (!config.homePath) {
+                vscode.window.showWarningMessage('请先配置NC Home路径');
+                return;
+            }
+            
             await this.homeService.startHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`从指定目录启动HOME服务失败: ${error.message}`);
@@ -128,6 +144,14 @@ export class HomeCommands {
         try {
             // 重新加载配置以确保使用当前工作区的配置
             this.configService.reloadConfig();
+            
+            // 检查是否已配置Home目录
+            const config = this.configService.getConfig();
+            if (!config.homePath) {
+                vscode.window.showWarningMessage('请先配置NC Home路径');
+                return;
+            }
+            
             await this.homeDebugService.debugHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`调试启动HOME服务失败: ${error.message}`);
@@ -139,6 +163,13 @@ export class HomeCommands {
      */
     public async stopHomeService(): Promise<void> {
         try {
+            // 检查是否已配置Home目录
+            const config = this.configService.getConfig();
+            if (!config.homePath) {
+                vscode.window.showWarningMessage('请先配置NC Home路径');
+                return;
+            }
+            
             await this.homeService.stopHomeService();
         } catch (error: any) {
             vscode.window.showErrorMessage(`停止HOME服务失败: ${error.message}`);

@@ -35,10 +35,22 @@ export class NCHomeConfigCommands {
         });
 
         const openHomeCommand = vscode.commands.registerCommand('yonbip.nchome.openHome', async () => {
+            // 检查是否已配置Home目录
+            const config = this.service.getConfig();
+            if (!config.homePath) {
+                vscode.window.showWarningMessage('请先配置NC Home路径');
+                return;
+            }
             await this.service.openHomeDirectory();
         });
 
         const openSysConfigCommand = vscode.commands.registerCommand('yonbip.nchome.openSysConfig', async () => {
+            // 检查是否已配置Home目录
+            const config = this.service.getConfig();
+            if (!config.homePath) {
+                vscode.window.showWarningMessage('请先配置NC Home路径');
+                return;
+            }
             await this.service.openSysConfig();
         });
 
@@ -197,6 +209,12 @@ export class NCHomeConfigCommands {
     private async testCurrentConnection(): Promise<void> {
         try {
             const config = this.service.getConfig();
+
+            // 检查是否已配置Home目录
+            if (!config.homePath) {
+                vscode.window.showWarningMessage('请先配置NC Home路径');
+                return;
+            }
 
             if (!config.dataSources || config.dataSources.length === 0) {
                 vscode.window.showWarningMessage('请先配置数据源');

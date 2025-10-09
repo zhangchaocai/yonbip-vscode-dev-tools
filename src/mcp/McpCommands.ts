@@ -100,8 +100,7 @@ export class McpCommands {
                 detail: '配置MCP JAR文件路径'
             },
             { label: '$(terminal) Java路径', description: config.javaPath, detail: '配置Java可执行文件路径' },
-            { label: '$(memory) 最大内存', description: config.maxMemory, detail: '配置JVM最大内存' },
-            { label: '$(bug) 调试模式', description: config.enableDebug ? '已启用' : '已禁用', detail: '启用/禁用调试模式' }
+            { label: '$(memory) 最大内存', description: config.maxMemory, detail: '配置JVM最大内存' }
         ];
 
         quickPick.onDidChangeSelection(async (selection) => {
@@ -121,9 +120,6 @@ export class McpCommands {
                         break;
                     case '$(memory) 最大内存':
                         await this.configureMaxMemory();
-                        break;
-                    case '$(bug) 调试模式':
-                        await this.toggleDebugMode();
                         break;
                 }
             }
@@ -275,32 +271,6 @@ export class McpCommands {
         }
     }
 
-    /**
-     * 切换调试模式
-     */
-    private async toggleDebugMode(): Promise<void> {
-        const config = this.mcpService.getConfig();
-        config.enableDebug = !config.enableDebug;
-        await this.mcpService.saveConfig(config);
-
-        const status = config.enableDebug ? '已启用' : '已禁用';
-        vscode.window.showInformationMessage(`调试模式${status}`);
-
-        if (config.enableDebug) {
-            vscode.window.showInformationMessage(
-                '调试模式已启用，调试端口: 5005',
-                '了解更多'
-            ).then(selection => {
-                if (selection === '了解更多') {
-                    vscode.env.openExternal(vscode.Uri.parse(
-                        'https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/conninv.html'
-                    ));
-                }
-            });
-        }
-    }
-
-
 
     /**
      * 显示状态
@@ -325,8 +295,7 @@ export class McpCommands {
             `端口: ${config.port}\n` +
             `Java: ${config.javaPath}\n` +
             `JAR: ${jarInfo}\n` +
-            `内存: ${config.maxMemory}\n` +
-            `调试: ${config.enableDebug ? '已启用' : '已禁用'}`;
+            `内存: ${config.maxMemory}\n`;
 
         vscode.window.showInformationMessage(message);
     }

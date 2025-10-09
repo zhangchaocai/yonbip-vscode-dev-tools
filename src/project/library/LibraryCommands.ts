@@ -185,6 +185,14 @@ export class LibraryCommands {
                 return;
             }
 
+            // 检查NC Home配置
+            const config = vscode.workspace.getConfiguration('yonbip');
+            const homePath = config.get<string>('homePath');
+            if (!homePath) {
+                vscode.window.showWarningMessage('请先配置NC HOME路径');
+                return;
+            }
+
             const libDir = path.join(workspaceFolder.uri.fsPath, '.lib');
 
             if (!fs.existsSync(libDir)) {

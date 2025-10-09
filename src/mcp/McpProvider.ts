@@ -723,14 +723,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 </div>
                 
                 <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="enableDebug">
-                        <label for="enableDebug">启用调试模式</label>
-                    </div>
-                    <div class="help-text">启用后将输出详细的调试信息</div>
-                </div>
-                
-                <div class="form-group">
                     <button onclick="saveConfig()">💾 保存配置</button>
                     <button onclick="resetToDefaults()" class="secondary">🔄 重置为默认</button>
                 </div>
@@ -796,8 +788,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 port: parseInt(document.getElementById('port').value) || 9000,
                 jarPath: document.getElementById('jarPath').value,
                 javaPath: document.getElementById('javaPath').value || 'java',
-                maxMemory: document.getElementById('maxMemory').value || '512m',
-                enableDebug: document.getElementById('enableDebug').checked
+                maxMemory: document.getElementById('maxMemory').value || '512m'
             };
             
             vscode.postMessage({
@@ -823,7 +814,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
             document.getElementById('jarPath').value = config.jarPath || '';
             document.getElementById('javaPath').value = config.javaPath || 'java';
             document.getElementById('maxMemory').value = config.maxMemory || '512m';
-            document.getElementById('enableDebug').checked = config.enableDebug || false;
             
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;
