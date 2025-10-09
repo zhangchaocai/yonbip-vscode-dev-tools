@@ -5,17 +5,7 @@ import * as fs from 'fs';
 import * as iconv from 'iconv-lite';
 import { NCHomeConfigService } from './config/NCHomeConfigService';
 import { OracleClientService } from './OracleClientService';
-
-/**
- * NC HOME服务状态
- */
-export enum HomeStatus {
-    STOPPED = 'stopped',
-    STARTING = 'starting',
-    RUNNING = 'running',
-    STOPPING = 'stopping',
-    ERROR = 'error'
-}
+import { HomeStatus } from './homeStatus';
 
 /**
  * NC HOME服务管理类
@@ -417,22 +407,75 @@ export class HomeService {
                 mainClass
             ];
 
-            // this.outputChannel.appendLine('🚀 启动命令:');
-            // this.outputChannel.appendLine([javaExecutable, ...javaArgs].join(' '));
-            // this.outputChannel.appendLine('💡 如果服务启动失败，可在终端中手动运行上述命令以获取详细错误信息');
-
-            // 执行启动命令
-            this.process = spawn(javaExecutable, javaArgs, {
-                cwd: config.homePath,
-                stdio: ['pipe', 'pipe', 'pipe'],
-                env: {
-                    ...env,
-                    LANG: 'zh_CN.UTF-8',
-                    LC_ALL: 'zh_CN.UTF-8',
-                    LC_CTYPE: 'zh_CN.UTF-8',
-                    JAVA_OPTS: '-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8',
+            // 检查参数长度，如果过长则使用类路径文件方案（解决Windows ENAMETOOLONG错误）
+            const fullCommand = [javaExecutable, ...javaArgs].join(' ');
+            if (process.platform === 'win32' && fullCommand.length > 8191) {
+                this.outputChannel.appendLine('⚠️ 检测到命令行参数过长，正在使用类路径文件方案启动...');
+                
+                // 使用类路径文件方案（JDK 6+ 支持的 @classpath.txt 方式）
+                const tempDir = path.join(this.context.extensionPath, 'temp');
+                if (!fs.existsSync(tempDir)) {
+                    fs.mkdirSync(tempDir, { recursive: true });
                 }
-            });
+                
+                // 创建类路径文件
+                const classpathFile = path.join(tempDir, 'classpath.txt');
+                fs.writeFileSync(classpathFile, classpath, 'utf-8');
+                
+                this.outputChannel.appendLine(`📝 创建类路径文件: ${classpathFile}`);
+                this.outputChannel.appendLine(`📏 类路径长度: ${classpath.length} 字符`);
+                
+                // 检测 JDK 版本以确定使用哪种方式
+                const jdkVersion = this.getJDKVersion(config.homePath);
+                this.outputChannel.appendLine(`☕ 检测到 JDK 版本: ${jdkVersion}`);
+                
+                let modifiedJavaArgs: string[];
+                
+                if (jdkVersion >= 60) {
+                    // JDK 6+ 支持 @classpath.txt 语法
+                    modifiedJavaArgs = [
+                        ...vmParameters,
+                        '-cp',
+                        `@${classpathFile}`,
+                        mainClass
+                    ];
+                    this.outputChannel.appendLine('✅ 使用 JDK 6+ 的 @classpath.txt 语法');
+                } else {
+                    // JDK 5 及以下版本的兼容方案：使用系统属性传递类路径
+                    modifiedJavaArgs = [
+                        ...vmParameters,
+                        `-Djava.class.path=${classpath}`,
+                        mainClass
+                    ];
+                    this.outputChannel.appendLine('✅ 使用 JDK 5 兼容的系统属性方式');
+                }
+                
+                // 执行启动命令
+                this.process = spawn(javaExecutable, modifiedJavaArgs, {
+                    cwd: config.homePath,
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    env: {
+                        ...env,
+                        LANG: 'zh_CN.UTF-8',
+                        LC_ALL: 'zh_CN.UTF-8',
+                        LC_CTYPE: 'zh_CN.UTF-8',
+                        JAVA_OPTS: '-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8',
+                    }
+                });
+            } else {
+                // 执行启动命令
+                this.process = spawn(javaExecutable, javaArgs, {
+                    cwd: config.homePath,
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    env: {
+                        ...env,
+                        LANG: 'zh_CN.UTF-8',
+                        LC_ALL: 'zh_CN.UTF-8',
+                        LC_CTYPE: 'zh_CN.UTF-8',
+                        JAVA_OPTS: '-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8',
+                    }
+                });
+            }
 
             // 监听标准输出
             this.process.stdout?.on('data', (data: Buffer) => {
@@ -558,8 +601,7 @@ export class HomeService {
                     // 延长检查时间
                     this.startupCheckTimer = setTimeout(() => {
                         if (this.status === HomeStatus.STARTING) {
-                            this.outputChannel.appendLine('❌ 服务启动超时，请检查日志');
-                            this.setStatus(HomeStatus.ERROR);
+                            this.outputChannel.appendLine('⚠️ 服务启动可能需要更长时间，请耐心等待...');
                         }
                     }, 60000); // 增加1分钟等待时间
                 }
@@ -1451,6 +1493,22 @@ export class HomeService {
 
         if (this.process && !this.process.killed) {
             this.process.kill();
+        }
+
+        // 清理临时类路径文件
+        try {
+            const tempDir = path.join(this.context.extensionPath, 'temp');
+            if (fs.existsSync(tempDir)) {
+                const files = fs.readdirSync(tempDir);
+                for (const file of files) {
+                    if (file.endsWith('.txt')) {
+                        const filePath = path.join(tempDir, file);
+                        fs.unlinkSync(filePath);
+                    }
+                }
+            }
+        } catch (error: any) {
+            this.outputChannel.appendLine(`⚠️ 清理临时文件时出错: ${error.message}`);
         }
 
         // 只有在扩展完全停用时才应该dispose outputChannel

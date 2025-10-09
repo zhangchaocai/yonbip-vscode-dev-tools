@@ -1317,27 +1317,14 @@ export class LibraryService {
                 for (const line of lines) {
                     const match = line.match(/(\d+\.\d+\.?\d*).*?(\/.*?\/Contents\/Home)/);
                     if (match) {
-                        const version = match[1];
                         const path = match[2];
                         
                         // 验证路径是否存在且包含java可执行文件
                         if (fs.existsSync(path)) {
                             const javaExecutable = path.join(path, 'bin', 'java');
                             if (fs.existsSync(javaExecutable)) {
-                                // 根据Java版本确定运行时名称
-                                let runtimeName = "JavaSE-1.8";
-                                if (version.startsWith("1.8")) {
-                                    runtimeName = "JavaSE-1.8";
-                                } else if (version.startsWith("11")) {
-                                    runtimeName = "JavaSE-11";
-                                } else if (version.startsWith("17")) {
-                                    runtimeName = "JavaSE-17";
-                                } else if (version.startsWith("1.6")) {
-                                    runtimeName = "JavaSE-1.6";
-                                } else {
-                                    // 对于其他版本，使用通用名称
-                                    runtimeName = `JavaSE-${version}`;
-                                }
+                                // 使用统一的方法获取Java版本名称
+                                const runtimeName = this.getJavaVersionName(javaExecutable);
                                 
                                 javaRuntimes.push({
                                     "name": runtimeName,
@@ -1384,58 +1371,13 @@ export class LibraryService {
                     }
                 }
 
-                // 如果仍然没有找到，尝试使用java命令来获取
-                if (!jdkPath) {
-                    try {
-                        const { execSync } = require('child_process');
-                        const javaPath = execSync('which java', { encoding: 'utf-8' }).trim();
-                        if (javaPath) {
-                            // 从java命令路径推断JDK路径
-                            if (javaPath.includes('/bin/java')) {
-                                jdkPath = javaPath.replace(/\/bin\/java$/, '');
-                            } else {
-                                // 尝试使用java -XshowSettings:properties命令获取java.home
-                                const javaProperties = execSync('java -XshowSettings:properties -version 2>&1', { encoding: 'utf-8' });
-                                const javaHomeMatch = javaProperties.match(/java\.home = (.+)/);
-                                if (javaHomeMatch && javaHomeMatch[1]) {
-                                    jdkPath = javaHomeMatch[1].trim();
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        this.outputChannel.appendLine(`获取Java路径时出错: ${error}`);
-                    }
-                }
-
                 // 如果找到了JDK路径，返回配置
                 if (jdkPath && fs.existsSync(jdkPath)) {
                     // 验证是否包含java可执行文件
                     const javaExecutable = path.join(jdkPath, 'bin', 'java');
                     if (fs.existsSync(javaExecutable)) {
-                        // 尝试确定Java版本
-                        let runtimeName = "JavaSE-1.8";
-                        try {
-                            const { execSync } = require('child_process');
-                            const javaVersionOutput = execSync(`${javaExecutable} -version 2>&1`, { encoding: 'utf-8' });
-                            
-                            if (javaVersionOutput.includes('version "1.8')) {
-                                runtimeName = "JavaSE-1.8";
-                            } else if (javaVersionOutput.includes('version "11')) {
-                                runtimeName = "JavaSE-11";
-                            } else if (javaVersionOutput.includes('version "17')) {
-                                runtimeName = "JavaSE-17";
-                            } else if (javaVersionOutput.includes('version "1.6')) {
-                                runtimeName = "JavaSE-1.6";
-                            } else {
-                                // 尝试从输出中提取版本号
-                                const versionMatch = javaVersionOutput.match(/version "(\d+\.?\d*\.?\d*)/);
-                                if (versionMatch && versionMatch[1]) {
-                                    runtimeName = `JavaSE-${versionMatch[1]}`;
-                                }
-                            }
-                        } catch (versionError) {
-                            this.outputChannel.appendLine(`获取Java版本时出错: ${versionError}`);
-                        }
+                        // 使用新的方法获取Java版本
+                        const runtimeName = this.getJavaVersionName(javaExecutable);
                         
                         javaRuntimes.push({
                             "name": runtimeName,
@@ -1458,6 +1400,38 @@ export class LibraryService {
     }
 
     /**
+     * 获取Java版本信息
+     * @param javaExecutable Java可执行文件路径
+     * @returns Java运行时名称
+     */
+    private getJavaVersionName(javaExecutable: string): string {
+        let runtimeName = "JavaSE-1.8";
+        try {
+            const { execSync } = require('child_process');
+            const javaVersionOutput = execSync(`"${javaExecutable}" -version 2>&1`, { encoding: 'utf-8' });
+            
+            if (javaVersionOutput.includes('version "1.8')) {
+                runtimeName = "JavaSE-1.8";
+            } else if (javaVersionOutput.includes('version "11')) {
+                runtimeName = "JavaSE-11";
+            } else if (javaVersionOutput.includes('version "17')) {
+                runtimeName = "JavaSE-17";
+            } else if (javaVersionOutput.includes('version "1.6')) {
+                runtimeName = "JavaSE-1.6";
+            } else {
+                // 尝试从输出中提取版本号
+                const versionMatch = javaVersionOutput.match(/version "(\d+\.?\d*\.?\d*)/);
+                if (versionMatch && versionMatch[1]) {
+                    runtimeName = `JavaSE-${versionMatch[1]}`;
+                }
+            }
+        } catch (versionError) {
+            this.outputChannel.appendLine(`获取Java版本时出错: ${versionError}`);
+        }
+        return runtimeName;
+    }
+
+    /**
      * 获取Windows系统的Java运行时配置
      */
     private async getWindowsJavaRuntimeConfig(homePath: string): Promise<any[]> {
@@ -1472,8 +1446,11 @@ export class LibraryService {
                 // 验证是否包含java可执行文件
                 const javaExecutable = path.join(defaultJdkPath, 'bin', 'java.exe');
                 if (fs.existsSync(javaExecutable)) {
+                    // 使用新的方法获取Java版本
+                    const runtimeName = this.getJavaVersionName(javaExecutable);
+                    
                     javaRuntimes.push({
-                        "name": "JavaSE-ufjdk",
+                        "name": runtimeName,
                         "path": defaultJdkPath
                     });
                 }
@@ -1487,28 +1464,8 @@ export class LibraryService {
                 // 验证是否包含java可执行文件
                 const javaExecutable = path.join(jdkPath, 'bin', 'java.exe');
                 if (fs.existsSync(javaExecutable)) {
-                    // 尝试确定Java版本
-                    let runtimeName = "JavaSE-1.8";
-                    try {
-                        const { execSync } = require('child_process');
-                        const javaVersionOutput = execSync(`"${javaExecutable}" -version 2>&1`, { encoding: 'utf-8' });
-                        
-                        if (javaVersionOutput.includes('version "1.8')) {
-                            runtimeName = "JavaSE-1.8";
-                        } else if (javaVersionOutput.includes('version "11')) {
-                            runtimeName = "JavaSE-11";
-                        } else if (javaVersionOutput.includes('version "17')) {
-                            runtimeName = "JavaSE-17";
-                        } else {
-                            // 尝试从输出中提取版本号
-                            const versionMatch = javaVersionOutput.match(/version "(\d+\.?\d*\.?\d*)/);
-                            if (versionMatch && versionMatch[1]) {
-                                runtimeName = `JavaSE-${versionMatch[1]}`;
-                            }
-                        }
-                    } catch (versionError) {
-                        this.outputChannel.appendLine(`获取Java版本时出错: ${versionError}`);
-                    }
+                    // 使用新的方法获取Java版本
+                    const runtimeName = this.getJavaVersionName(javaExecutable);
                     
                     javaRuntimes.push({
                         "name": runtimeName,
