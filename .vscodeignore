@@ -35,6 +35,7 @@ PUBLISH_GUIDE.md
 MCP_EXIT_CODE_143_SOLUTION.md
 
 # 保留必要文件
+!out/**
 !dist/**
 !resources/**
 !README.md

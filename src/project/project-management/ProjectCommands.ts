@@ -6,6 +6,7 @@ import * as StreamZip from 'node-stream-zip';
 import { ProjectService } from './ProjectService';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { LibraryService } from '../library/LibraryService';
+import { getHomeVersion } from '../../utils/HomeVersionUtils';
 
 /**
  * 项目相关命令类
@@ -526,7 +527,7 @@ export class ProjectCommands {
 
                 if (homePath) {
                     // 获取HOME版本
-                    const homeVersion = this.getHomeVersion(homePath);
+                    const homeVersion = getHomeVersion(homePath);
 
                     // 根据版本选择脚手架文件
                     if (homeVersion) {
@@ -577,48 +578,7 @@ export class ProjectCommands {
         }
     }
 
-    /**
-     * 从setup.ini文件中获取HOME版本信息
-     * @param homePath NC HOME路径
-     * @returns 版本号，如果无法获取则返回null
-     */
-    private getHomeVersion(homePath: string): string | null {
-        try {
-            // 构建setup.ini文件路径
-            const setupIniPath = path.join(homePath, 'ncscript', 'uapServer', 'setup.ini');
 
-            // 检查文件是否存在
-            if (!fs.existsSync(setupIniPath)) {
-                return null;
-            }
-
-            // 读取文件内容
-            const content = fs.readFileSync(setupIniPath, 'utf-8');
-
-            // 解析版本信息
-            // 查找version=开头的行
-            const versionMatch = content.match(/^version\s*=\s*(.+)$/m);
-            if (!versionMatch) {
-                return null;
-            }
-
-            const versionLine = versionMatch[1];
-
-            // 解析版本字符串 "YonBIP V3 (R2_2311_1 Premium) 20230830171835"
-            // 提取其中的 "2311" 部分
-            const versionPattern = /R2_(\d+)_\d+/;
-            const versionParts = versionLine.match(versionPattern);
-
-            if (versionParts && versionParts[1]) {
-                const version = versionParts[1];
-                return version;
-            } else {
-                return null;
-            }
-        } catch (error) {
-            return null;
-        }
-    }
 
     /**
      * 下载文件

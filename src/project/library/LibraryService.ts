@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
+import { getHomeVersion } from '../../utils/HomeVersionUtils';
 
 /**
  * Jar包信息VO
@@ -178,16 +179,6 @@ export class LibraryService {
                     throw new Error('未找到工作区文件夹');
                 }
                 targetPath = workspaceFolder.uri.fsPath;
-            }
-
-            // 根据HOME版本获取对应的脚手架路径
-            const scaffoldPath = this.getScaffoldPathByHomeVersion(homePath);
-            if (scaffoldPath && fs.existsSync(scaffoldPath)) {
-                // 如果有版本对应的脚手架，则复制对应的脚手架
-                this.outputChannel.appendLine(`复制版本对应的脚手架: ${scaffoldPath}`);
-                await this.copyScaffold(scaffoldPath, targetPath);
-            } else {
-                this.outputChannel.appendLine('使用默认脚手架处理逻辑');
             }
 
             // 创建.lib目录用于存储库配置
@@ -1068,80 +1059,6 @@ export class LibraryService {
         }
     }
 
-    /**
-     * 从setup.ini文件中获取HOME版本信息
-     * @param homePath NC HOME路径
-     * @returns 版本号，如果无法获取则返回null
-     */
-    private getHomeVersion(homePath: string): string | null {
-        try {
-            // 构建setup.ini文件路径
-            const setupIniPath = path.join(homePath, 'ncscript', 'uapServer', 'setup.ini');
-
-            // 检查文件是否存在
-            if (!fs.existsSync(setupIniPath)) {
-                this.outputChannel.appendLine(`setup.ini文件不存在: ${setupIniPath}`);
-                return null;
-            }
-
-            // 读取文件内容
-            const content = fs.readFileSync(setupIniPath, 'utf-8');
-
-            // 解析版本信息
-            // 查找version=开头的行
-            const versionMatch = content.match(/^version\s*=\s*(.+)$/m);
-            if (!versionMatch) {
-                this.outputChannel.appendLine('未在setup.ini中找到版本信息');
-                return null;
-            }
-
-            const versionLine = versionMatch[1];
-            this.outputChannel.appendLine(`从setup.ini中读取到版本信息: ${versionLine}`);
-
-            // 解析版本字符串 "YonBIP V3 (R2_2311_1 Premium) 20230830171835"
-            // 提取其中的 "2311" 部分
-            const versionPattern = /R2_(\d+)_\d+/;
-            const versionParts = versionLine.match(versionPattern);
-
-            if (versionParts && versionParts[1]) {
-                const version = versionParts[1];
-                this.outputChannel.appendLine(`提取到版本号: ${version}`);
-                return version;
-            } else {
-                this.outputChannel.appendLine('无法从版本字符串中提取版本号');
-                return null;
-            }
-        } catch (error: any) {
-            this.outputChannel.appendLine(`读取setup.ini文件失败: ${error.message}`);
-            return null;
-        }
-    }
-
-    /**
-     * 根据HOME版本获取对应的脚手架路径
-     * @param homePath NC HOME路径
-     * @returns 脚手架路径
-     */
-    private getScaffoldPathByHomeVersion(homePath: string): string | null {
-        const version = this.getHomeVersion(homePath);
-
-        if (!version) {
-            this.outputChannel.appendLine('无法获取HOME版本，使用默认脚手架路径');
-            return null;
-        }
-
-        // 根据版本号确定脚手架路径
-        // 这里可以根据实际需求进行调整
-        const scaffoldPath = path.join(homePath, 'scaffolds', `v${version}`);
-
-        if (fs.existsSync(scaffoldPath)) {
-            this.outputChannel.appendLine(`使用版本对应的脚手架路径: ${scaffoldPath}`);
-            return scaffoldPath;
-        } else {
-            this.outputChannel.appendLine(`版本对应的脚手架路径不存在: ${scaffoldPath}，使用默认脚手架路径`);
-            return null;
-        }
-    }
 
     /**
      * 自动初始化库（如果配置了HOME路径）
@@ -1284,13 +1201,13 @@ export class LibraryService {
             // 检查操作系统类型
             if (process.platform === 'darwin') {
                 // macOS系统
-                return await this.getMacJavaRuntimeConfig();
+                return await this.getMacJavaRuntimeConfig(homePath);
             } else if (process.platform === 'win32') {
                 // Windows系统
                 return await this.getWindowsJavaRuntimeConfig(homePath);
             } else {
                 // 其他系统（Linux等）
-                return await this.getMacJavaRuntimeConfig();
+                return await this.getMacJavaRuntimeConfig(homePath);
             }
         } catch (error) {
             this.outputChannel.appendLine(`获取Java运行时配置失败: ${error}`);
@@ -1302,40 +1219,58 @@ export class LibraryService {
     /**
      * 获取macOS系统的Java运行时配置
      */
-    private async getMacJavaRuntimeConfig(): Promise<any[]> {
+    private async getMacJavaRuntimeConfig(homePath: string): Promise<any[]> {
         try {
             const javaRuntimes: any[] = [];
-            
-            // 尝试使用/usr/libexec/java_home命令获取所有已安装的JDK
+            //获取home版本
+            const versionStr = getHomeVersion(homePath);
+            const version = versionStr ? parseInt(versionStr, 10) : 0;
+
+            // 根据home版本确定需要的JDK版本
+            let requiredJavaVersion = "JavaSE-1.8"; // 默认JDK8
+            let requiredJavaVersionNumber = "1.8";
+            if (version >= 2312) {
+                requiredJavaVersion = "JavaSE-17"; // JDK17
+                requiredJavaVersionNumber = "17";
+            } else if (version < 1903) {
+                requiredJavaVersion = "JavaSE-1.7"; // JDK7
+                requiredJavaVersionNumber = "1.7";
+            }
+            // 1903 <= version < 2312 的情况使用默认的 JDK8
+
+            // 尝试使用/usr/libexec/java_home命令获取特定版本的JDK
             try {
                 const { execSync } = require('child_process');
-                // 获取所有已安装的Java版本
-                const javaVersionsOutput = execSync('/usr/libexec/java_home -V', { encoding: 'utf-8' });
-                const lines = javaVersionsOutput.split('\n');
                 
-                // 解析每个Java版本
-                for (const line of lines) {
-                    const match = line.match(/(\d+\.\d+\.?\d*).*?(\/.*?\/Contents\/Home)/);
-                    if (match) {
-                        const path = match[2];
+                // 直接获取特定版本的JDK路径
+                let jdkPath = "";
+                try {
+                    jdkPath = execSync(`/usr/libexec/java_home -F -v ${requiredJavaVersionNumber}`, { encoding: 'utf-8' }).trim();
+                } catch (versionError) {
+                    this.outputChannel.appendLine(`无法找到JDK ${requiredJavaVersionNumber}: ${versionError}`);
+                }
+                
+                // 如果找到了JDK路径，验证并添加到结果中
+                if (jdkPath && fs.existsSync(jdkPath)) {
+                    // 验证是否包含java可执行文件
+                    const javaExecutable = path.join(jdkPath, 'bin', 'java');
+                    if (fs.existsSync(javaExecutable)) {
+                        // 使用统一的方法获取Java版本名称
+                        const runtimeName = this.getJavaVersionName(javaExecutable);
                         
-                        // 验证路径是否存在且包含java可执行文件
-                        if (fs.existsSync(path)) {
-                            const javaExecutable = path.join(path, 'bin', 'java');
-                            if (fs.existsSync(javaExecutable)) {
-                                // 使用统一的方法获取Java版本名称
-                                const runtimeName = this.getJavaVersionName(javaExecutable);
-                                
-                                javaRuntimes.push({
-                                    "name": runtimeName,
-                                    "path": path
-                                });
-                            }
+                        // 验证获取到的版本是否符合要求
+                        if (runtimeName === requiredJavaVersion) {
+                            javaRuntimes.push({
+                                "name": runtimeName,
+                                "path": jdkPath
+                            });
+                        } else {
+                            this.outputChannel.appendLine(`找到的JDK版本不匹配，需要: ${requiredJavaVersion}, 实际: ${runtimeName}`);
                         }
                     }
                 }
             } catch (error) {
-                this.outputChannel.appendLine(`使用/usr/libexec/java_home -V命令获取JDK路径失败: ${error}`);
+                this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
             }
             
             // 如果没有通过/usr/libexec/java_home -V获取到Java版本，使用原来的逻辑
@@ -1379,17 +1314,20 @@ export class LibraryService {
                         // 使用新的方法获取Java版本
                         const runtimeName = this.getJavaVersionName(javaExecutable);
                         
-                        javaRuntimes.push({
-                            "name": runtimeName,
-                            "path": jdkPath
-                        });
+                        // 只添加符合要求的JDK版本
+                        if (runtimeName === requiredJavaVersion) {
+                            javaRuntimes.push({
+                                "name": runtimeName,
+                                "path": jdkPath
+                            });
+                        }
                     }
                 }
             }
 
             // 如果无法找到有效的JDK路径，返回空数组
             if (javaRuntimes.length === 0) {
-                this.outputChannel.appendLine('无法自动检测到有效的JDK路径');
+                this.outputChannel.appendLine(`无法自动检测到有效的JDK路径，需要的JDK版本: ${requiredJavaVersion}`);
             }
             
             return javaRuntimes;
@@ -1410,7 +1348,9 @@ export class LibraryService {
             const { execSync } = require('child_process');
             const javaVersionOutput = execSync(`"${javaExecutable}" -version 2>&1`, { encoding: 'utf-8' });
             
-            if (javaVersionOutput.includes('version "1.8')) {
+            if (javaVersionOutput.includes('version "1.7')) {
+                runtimeName = "JavaSE-1.7";
+            } else if (javaVersionOutput.includes('version "1.8')) {
                 runtimeName = "JavaSE-1.8";
             } else if (javaVersionOutput.includes('version "11')) {
                 runtimeName = "JavaSE-11";

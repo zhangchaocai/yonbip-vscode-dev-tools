@@ -309,10 +309,10 @@ export class HomeService {
             const portsAndDataSourcesFromProp = this.configService.getPortFromPropXml();
             const serverPort = portsAndDataSourcesFromProp.port || config.port || 8077;
             const wsPort = portsAndDataSourcesFromProp.wsPort || config.wsPort || 8080;
-
+            const debugPort = config.debugPort || 8888;
 
             this.outputChannel.appendLine(`🔍 检查端口占用情况...`);
-            await this.checkAndKillPortProcesses(serverPort, wsPort);
+            await this.checkAndKillPortProcesses(serverPort, wsPort,debugPort);
 
             // 确保必要的配置文件存在
             await this.ensureDesignDataSource(config);
@@ -679,21 +679,10 @@ export class HomeService {
 
         // 首先添加工作区编译输出目录
         if (workspaceFolder) {
-            const targetClasses = path.join(workspaceFolder, 'target', 'classes'); // Maven项目
             const buildClasses = path.join(workspaceFolder, 'build', 'classes'); // YonBIP项目
-            const binClasses = path.join(workspaceFolder, 'bin'); // 普通项目
-            if (fs.existsSync(targetClasses)) {
-                classpathEntries.push(targetClasses);
-                this.outputChannel.appendLine(`📁 添加Maven编译输出目录: ${targetClasses}`);
-            }
-
             if (fs.existsSync(buildClasses)) {
                 classpathEntries.push(buildClasses);
                 this.outputChannel.appendLine(`📁 添加YonBIP编译输出目录: ${buildClasses}`);
-            }
-            if (fs.existsSync(binClasses)) {
-                classpathEntries.push(binClasses);
-                this.outputChannel.appendLine(`📁 添加普通Java编译输出目录: ${binClasses}`);
             }
         }
 
@@ -1033,18 +1022,32 @@ export class HomeService {
             // 查找默认的Java运行时版本
             const defaultRuntime = runtimes.find(runtime => runtime.default === true);
             if (defaultRuntime && defaultRuntime.name) {
-                const versionMatch = defaultRuntime.name.match(/(\d+)/);
+                // 改进的版本匹配正则表达式，支持Java 1.8, 11, 17等格式
+                const versionMatch = defaultRuntime.name.match(/(\d+\.\d+|\d+)/);
                 if (versionMatch && versionMatch[1]) {
-                    javaVersion = parseInt(versionMatch[1]);
+                    // 对于1.8这样的版本号，只取小数点后的数字
+                    if (versionMatch[1].includes('.')) {
+                        const parts = versionMatch[1].split('.');
+                        javaVersion = parseInt(parts[1]); // 对于1.8，取8
+                    } else {
+                        javaVersion = parseInt(versionMatch[1]); // 对于11, 17等，直接使用
+                    }
                     this.outputChannel.appendLine(`从VS Code配置获取Java版本: ${javaVersion}`);
                 }
             }
             
             // 如果没有默认运行时，尝试使用第一个配置的运行时版本
             if (javaVersion === 0 && runtimes.length > 0 && runtimes[0].name) {
-                const versionMatch = runtimes[0].name.match(/(\d+)/);
+                // 改进的版本匹配正则表达式，支持Java 1.8, 11, 17等格式
+                const versionMatch = runtimes[0].name.match(/(\d+\.\d+|\d+)/);
                 if (versionMatch && versionMatch[1]) {
-                    javaVersion = parseInt(versionMatch[1]);
+                    // 对于1.8这样的版本号，只取小数点后的数字
+                    if (versionMatch[1].includes('.')) {
+                        const parts = versionMatch[1].split('.');
+                        javaVersion = parseInt(parts[1]); // 对于1.8，取8
+                    } else {
+                        javaVersion = parseInt(versionMatch[1]); // 对于11, 17等，直接使用
+                    }
                     this.outputChannel.appendLine(`从VS Code配置获取第一个Java运行时版本: ${javaVersion}`);
                 }
             }
@@ -1064,11 +1067,12 @@ export class HomeService {
         }
 
         // 仅在Java 8及以下版本添加MaxPermSize参数
-        if (javaVersion < 9 && javaVersion !== 0) {
+        if (javaVersion < 8 && javaVersion !== 0) {
             vmParameters.push('-XX:MaxPermSize=512m');
             this.outputChannel.appendLine('添加MaxPermSize参数');
         } else {
-            this.outputChannel.appendLine('Java版本 >= 9，不添加MaxPermSize参数');
+             vmParameters.push('-XX:MetaspaceSize=512m');
+            this.outputChannel.appendLine('Java版本 >= 8，添加MetaspaceSize参数');
         }
 
         vmParameters.push('-XX:+HeapDumpOnOutOfMemoryError');
@@ -1134,9 +1138,6 @@ export class HomeService {
             vmParameters.push('--add-opens=java.desktop/sun.swing=ALL-UNNAMED');
             vmParameters.push('--add-opens=java.desktop/java.awt.color=ALL-UNNAMED');
         }
-
-        // 添加对java.lang包的开放访问权限，解决InaccessibleObjectException问题
-        vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
 
         // macOS参数
         if (process.platform === 'darwin') {
@@ -1701,10 +1702,11 @@ export class HomeService {
      * 检查端口占用并终止占用进程
      * @param serverPort 服务端口
      * @param wsPort WebService端口
+     * @param debugPort 调试端口
      */
-    private async checkAndKillPortProcesses(serverPort: number, wsPort: number): Promise<void> {
+    private async checkAndKillPortProcesses(serverPort: number, wsPort: number, debugPort: number): Promise<void> {
         return new Promise((resolve) => {
-            this.outputChannel.appendLine(`🔍 检查HOME服务端口 ${serverPort} 和 WAS端口 ${wsPort} 是否被占用...`);
+            this.outputChannel.appendLine(`🔍 检查HOME服务端口 ${serverPort} 和 WAS端口 ${wsPort} 和调试端口 ${debugPort} 是否被占用...`);
 
             // 根据不同平台使用不同命令
             let command: string;
@@ -1748,9 +1750,11 @@ export class HomeService {
                         // 查找TCP连接中包含指定端口且状态为LISTENING的行
                         const serverPortRegex = new RegExp(`TCP\\s+[^:]+:${serverPort}\\s+[^:]+:\\d+\\s+LISTENING\\s+(\\d+)`);
                         const wsPortRegex = new RegExp(`TCP\\s+[^:]+:${wsPort}\\s+[^:]+:\\d+\\s+LISTENING\\s+(\\d+)`);
+                        const debugPortRegex = new RegExp(`TCP\\s+[^:]+:${debugPort}\\s+[^:]+:\\d+\\s+LISTENING\\s+(\\d+)`);
 
                         const serverMatch = line.match(serverPortRegex);
                         const wsMatch = line.match(wsPortRegex);
+                        const debugMatch = line.match(debugPortRegex);
 
                         if (serverMatch) {
                             const pid = parseInt(serverMatch[1]);
@@ -1767,6 +1771,14 @@ export class HomeService {
                                 this.outputChannel.appendLine(`🔍 发现端口 ${wsPort} 被进程 ${pid} 占用`);
                             }
                         }
+
+                        if (debugMatch) {
+                            const pid = parseInt(debugMatch[1]);
+                            if (!isNaN(pid) && !processesToKill.includes(pid)) {
+                                processesToKill.push(pid);
+                                this.outputChannel.appendLine(`🔍 发现端口 ${debugPort} 被进程 ${pid} 占用`);
+                            }
+                        }
                     }
                 } else {
                     // Unix-like平台处理
@@ -1779,31 +1791,56 @@ export class HomeService {
                                 this.outputChannel.appendLine(`🔍 发现端口 ${serverPort} 被进程 ${pid} 占用`);
                             }
                         }
+                    }
 
-                        // 检查wsPort
-                        try {
-                            const wsProcessList = spawn('lsof', ['-i', `:${wsPort}`, '-t']);
-                            let wsOutput = '';
+                    // 检查wsPort
+                    try {
+                        const wsProcessList = spawn('lsof', ['-i', `:${wsPort}`, '-t']);
+                        let wsOutput = '';
 
-                            wsProcessList.stdout?.on('data', (data) => {
-                                wsOutput += data.toString();
-                            });
+                        wsProcessList.stdout?.on('data', (data) => {
+                            wsOutput += data.toString();
+                        });
 
-                            wsProcessList.on('close', (wsCode) => {
-                                if (wsCode === 0) {
-                                    const wsLines = wsOutput.split('\n').filter(line => line.trim() !== '');
-                                    for (const line of wsLines) {
-                                        const pid = parseInt(line.trim());
-                                        if (!isNaN(pid) && !processesToKill.includes(pid)) {
-                                            processesToKill.push(pid);
-                                            this.outputChannel.appendLine(`🔍 发现端口 ${wsPort} 被进程 ${pid} 占用`);
-                                        }
+                        wsProcessList.on('close', (wsCode) => {
+                            if (wsCode === 0) {
+                                const wsLines = wsOutput.split('\n').filter(line => line.trim() !== '');
+                                for (const line of wsLines) {
+                                    const pid = parseInt(line.trim());
+                                    if (!isNaN(pid) && !processesToKill.includes(pid)) {
+                                        processesToKill.push(pid);
+                                        this.outputChannel.appendLine(`🔍 发现端口 ${wsPort} 被进程 ${pid} 占用`);
                                     }
                                 }
-                            });
-                        } catch (error) {
-                            this.outputChannel.appendLine(`⚠️ 检查ws端口时出现错误: ${error}`);
-                        }
+                            }
+                        });
+                    } catch (error) {
+                        this.outputChannel.appendLine(`⚠️ 检查ws端口时出现错误: ${error}`);
+                    }
+
+                    // 检查debugPort
+                    try {
+                        const debugProcessList = spawn('lsof', ['-i', `:${debugPort}`, '-t']);
+                        let debugOutput = '';
+
+                        debugProcessList.stdout?.on('data', (data) => {
+                            debugOutput += data.toString();
+                        });
+
+                        debugProcessList.on('close', (debugCode) => {
+                            if (debugCode === 0) {
+                                const debugLines = debugOutput.split('\n').filter(line => line.trim() !== '');
+                                for (const line of debugLines) {
+                                    const pid = parseInt(line.trim());
+                                    if (!isNaN(pid) && !processesToKill.includes(pid)) {
+                                        processesToKill.push(pid);
+                                        this.outputChannel.appendLine(`🔍 发现端口 ${debugPort} 被进程 ${pid} 占用`);
+                                    }
+                                }
+                            }
+                        });
+                    } catch (error) {
+                        this.outputChannel.appendLine(`⚠️ 检查调试端口时出现错误: ${error}`);
                     }
                 }
 
