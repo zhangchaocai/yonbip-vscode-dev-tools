@@ -332,15 +332,23 @@ export class PropXmlUpdater {
             content = iconv.decode(buffer, 'utf8');
         }
 
+        // 转义XML特殊字符
+        const escapedVmParameters = vmParameters
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+
         // 更新JVM参数
         const jvmArgsRegex = /<jvmArgs>([^<]*)<\/jvmArgs>/;
         if (jvmArgsRegex.test(content)) {
-            content = content.replace(jvmArgsRegex, `<jvmArgs>${vmParameters}</jvmArgs>`);
+            content = content.replace(jvmArgsRegex, `<jvmArgs>${escapedVmParameters}</jvmArgs>`);
         } else {
             // 如果找不到jvmArgs标签，尝试在<server>标签内添加
             const serverRegex = /(<server>\s*<javaHome>[^<]*<\/javaHome>\s*<name>[^<]*<\/name>)/;
             if (serverRegex.test(content)) {
-                content = content.replace(serverRegex, `$1\n\t\t\t<jvmArgs>${vmParameters}</jvmArgs>`);
+                content = content.replace(serverRegex, `$1\n\t\t\t<jvmArgs>${escapedVmParameters}</jvmArgs>`);
             } else {
                 throw new Error('无法在prop.xml中找到合适的位置插入JVM参数');
             }
@@ -349,5 +357,7 @@ export class PropXmlUpdater {
         // 写入文件（使用gb2312编码，不添加BOM）
         const newBuffer = iconv.encode(content, 'gb2312', { addBOM: false });
         fs.writeFileSync(propXmlPath, newBuffer);
+        
+        console.log('Updated JVM parameters in prop.xml:', vmParameters);
     }
 }

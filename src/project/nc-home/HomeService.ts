@@ -6,6 +6,7 @@ import * as iconv from 'iconv-lite';
 import { NCHomeConfigService } from './config/NCHomeConfigService';
 import { OracleClientService } from './OracleClientService';
 import { HomeStatus } from './homeStatus';
+import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
 
 /**
  * NC HOME服务管理类
@@ -387,7 +388,7 @@ export class HomeService {
             const env = this.buildEnvironment(config);
 
             // 构建JVM参数 (使用与IDEA插件一致的参数)
-            const vmParameters = this.buildVMParameters(config, serverPort, wsPort);
+            const vmParameters = await this.buildVMParameters(config, serverPort, wsPort);
 
             // 确定Java可执行文件路径
             let javaExecutable = this.getJavaExecutable(config);
@@ -459,7 +460,6 @@ export class HomeService {
                         LANG: 'zh_CN.UTF-8',
                         LC_ALL: 'zh_CN.UTF-8',
                         LC_CTYPE: 'zh_CN.UTF-8',
-                        JAVA_OPTS: '-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8',
                     }
                 });
             } else {
@@ -472,7 +472,6 @@ export class HomeService {
                         LANG: 'zh_CN.UTF-8',
                         LC_ALL: 'zh_CN.UTF-8',
                         LC_CTYPE: 'zh_CN.UTF-8',
-                        JAVA_OPTS: '-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8',
                     }
                 });
             }
@@ -968,7 +967,7 @@ export class HomeService {
     /**
      * 构建JVM参数 (与IDEA插件保持一致)
      */
-    private buildVMParameters(config: any, serverPort: number, wsPort: number): string[] {
+    private async buildVMParameters(config: any, serverPort: number, wsPort: number): Promise<string[]> {
         const vmParameters: string[] = [];
 
         // 添加IDEA插件中的默认VM参数 (与IDEA插件保持一致)
@@ -984,6 +983,13 @@ export class HomeService {
         vmParameters.push('-Xmx1024m');
         vmParameters.push('-Dfile.encoding=UTF-8');
         vmParameters.push('-Duser.timezone=GMT+8');
+
+   
+        // 自定义JVM参数
+        if (config.vmParameters && config.vmParameters.length > 0) {
+            vmParameters.push(...config.vmParameters);
+        }
+
         vmParameters.push('-Dnc.log.console=true');      // 强制输出日志到控制台
         vmParameters.push('-Dnc.debug=true');            // 开启调试模式
         vmParameters.push('-Dnc.log.level=DEBUG');       // 设置日志级别为 DEBUG
@@ -1015,53 +1021,7 @@ export class HomeService {
         // MaxPermSize参数在Java 9+版本中已被移除
         let javaVersion = 0;
         try {
-            // 优先从VS Code配置中获取Java版本
-            const javaConfig = vscode.workspace.getConfiguration('java.configuration');
-            const runtimes = javaConfig.get<any[]>('runtimes', []);
-            
-            // 查找默认的Java运行时版本
-            const defaultRuntime = runtimes.find(runtime => runtime.default === true);
-            if (defaultRuntime && defaultRuntime.name) {
-                // 改进的版本匹配正则表达式，支持Java 1.8, 11, 17等格式
-                const versionMatch = defaultRuntime.name.match(/(\d+\.\d+|\d+)/);
-                if (versionMatch && versionMatch[1]) {
-                    // 对于1.8这样的版本号，只取小数点后的数字
-                    if (versionMatch[1].includes('.')) {
-                        const parts = versionMatch[1].split('.');
-                        javaVersion = parseInt(parts[1]); // 对于1.8，取8
-                    } else {
-                        javaVersion = parseInt(versionMatch[1]); // 对于11, 17等，直接使用
-                    }
-                    this.outputChannel.appendLine(`从VS Code配置获取Java版本: ${javaVersion}`);
-                }
-            }
-            
-            // 如果没有默认运行时，尝试使用第一个配置的运行时版本
-            if (javaVersion === 0 && runtimes.length > 0 && runtimes[0].name) {
-                // 改进的版本匹配正则表达式，支持Java 1.8, 11, 17等格式
-                const versionMatch = runtimes[0].name.match(/(\d+\.\d+|\d+)/);
-                if (versionMatch && versionMatch[1]) {
-                    // 对于1.8这样的版本号，只取小数点后的数字
-                    if (versionMatch[1].includes('.')) {
-                        const parts = versionMatch[1].split('.');
-                        javaVersion = parseInt(parts[1]); // 对于1.8，取8
-                    } else {
-                        javaVersion = parseInt(versionMatch[1]); // 对于11, 17等，直接使用
-                    }
-                    this.outputChannel.appendLine(`从VS Code配置获取第一个Java运行时版本: ${javaVersion}`);
-                }
-            }
-            
-            // 如果从VS Code配置中无法获取版本，则通过命令行检测
-            if (javaVersion === 0) {
-                const { execSync } = require('child_process');
-                const versionOutput = execSync('java -version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-                const versionMatch = (versionOutput || '').match(/version\s+"(\d+)/i);
-                if (versionMatch && versionMatch[1]) {
-                    javaVersion = parseInt(versionMatch[1]);
-                    this.outputChannel.appendLine(`通过命令行检测到Java版本: ${javaVersion}`);
-                }
-            }
+            javaVersion = await JavaVersionUtils.getJavaVersion(this.outputChannel);
         } catch (error: any) {
             this.outputChannel.appendLine(`警告: 无法检测Java版本，将假设使用Java 8+: ${error.message}`);
         }
@@ -1090,7 +1050,6 @@ export class HomeService {
         vmParameters.push('-Dws.port=' + (wsPort || 8080));
 
         // 添加编码参数
-        vmParameters.push('-Dfile.encoding=UTF-8');
         vmParameters.push('-Dconsole.encoding=UTF-8');
         vmParameters.push('-Dsun.jnu.encoding=UTF-8');
         vmParameters.push('-Dclient.encoding.override=UTF-8');
@@ -1153,11 +1112,6 @@ export class HomeService {
         // 添加project.dir作为系统属性
         if (config.projectDir) {
             vmParameters.push('-Dproject.dir=' + config.projectDir);
-        }
-
-        // 自定义JVM参数
-        if (config.vmParameters && config.vmParameters.length > 0) {
-            vmParameters.push(...config.vmParameters);
         }
 
         return vmParameters;

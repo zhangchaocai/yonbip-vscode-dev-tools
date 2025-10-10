@@ -123,7 +123,7 @@ export class NCHomeConfigService {
             if (this.config.vmParameters !== undefined && this.config.homePath) {
                 try {
                     PropXmlUpdater.updateVmParametersInPropXml(this.config.homePath, this.config.vmParameters);
-                    this.outputChannel.appendLine(`JVM参数已更新到prop.xml文件`);
+                    this.outputChannel.appendLine(`JVM参数已更新到prop.xml文件: ${this.config.vmParameters}`);
                 } catch (error: any) {
                     this.outputChannel.appendLine(`更新JVM参数到prop.xml文件失败: ${error.message}`);
                     // 不抛出错误，因为这不应该阻止配置保存
@@ -208,6 +208,8 @@ export class NCHomeConfigService {
             await config.update('exModules', this.config.exModules, vscode.ConfigurationTarget.Global);
             await config.update('home.debugPort', this.config.debugPort, vscode.ConfigurationTarget.Global);
             await config.update('home.vmParameters', this.config.vmParameters, vscode.ConfigurationTarget.Global);
+            
+            console.log('Saved JVM parameters to workspace config:', this.config.vmParameters);
         } catch (error: any) {
             this.outputChannel.appendLine(`保存到工作区配置失败: ${error.message}`);
         }
@@ -1307,6 +1309,7 @@ export class NCHomeConfigService {
             if (vmParametersMatch && vmParametersMatch[1]) {
                 vmParameters = vmParametersMatch[1].trim();
                 this.outputChannel.appendLine(`从prop.xml中读取到JVM参数: ${vmParameters}`);
+                console.log('Read JVM parameters from prop.xml:', vmParameters);
             }
 
             // 提取数据源信息

@@ -139,6 +139,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             }
             if (portsAndDataSourcesFromProp.vmParameters !== undefined) {
                 config.vmParameters = portsAndDataSourcesFromProp.vmParameters;
+                console.log('Loaded JVM parameters from prop.xml:', portsAndDataSourcesFromProp.vmParameters);
             }
 
             // 从prop.xml中获取数据源信息
@@ -161,6 +162,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         if (config.baseDatabase === undefined) {
             config.baseDatabase = undefined;
         }
+
+        console.log('Sending config to frontend:', config);
 
         this._view?.webview.postMessage({
             type: 'configLoaded',
@@ -1451,8 +1454,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             // 移除了autoClient相关的代码
             document.getElementById('debugMode').checked = config.debugMode !== false;
             document.getElementById('debugPort').value = config.debugPort || 8888;
-            if (config.vmParameters) {
+            if (config.vmParameters !== undefined) {
                 document.getElementById('vmParameters').value = config.vmParameters;
+                console.log('Displaying JVM parameters:', config.vmParameters);
             }
 
             
@@ -1639,6 +1643,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             if (typeof config.debugPort !== 'number' || isNaN(config.debugPort)) {
                 config.debugPort = 8888;
             }
+            
+            // 记录JVM参数以便调试
+            console.log('Saving JVM parameters:', config.vmParameters);
             
             vscode.postMessage({
                 type: 'saveConfig',
