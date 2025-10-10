@@ -455,6 +455,20 @@ export class ProjectCommands {
 </module>`;
             fs.writeFileSync(componentXmlPath, componentXmlContent, 'utf-8');
 
+            // 在src/client下创建测试类
+            const comPath = path.join(clientPath, 'com', 'yonyou');
+            fs.mkdirSync(comPath, { recursive: true });
+            
+            const classPath = path.join(comPath, 'Application.java');
+            const classContent = `/**
+* Hello world! 
+**/
+public class Application{
+    public static void main(String[] args) {
+        System.out.println("Hello world!");
+    }
+}`;
+            fs.writeFileSync(classPath, classContent, 'utf-8');
 
         } catch (error) {
             console.error('创建业务组件目录结构失败:', error);
