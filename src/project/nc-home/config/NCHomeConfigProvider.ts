@@ -176,7 +176,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
         this._view?.webview.postMessage({
             type: 'configLoaded',
-            config
+            config,
+            homeVersions: HOME_VERSIONS
         });
     }
 
@@ -1149,18 +1150,15 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         const vscode = acquireVsCodeApi();
         let currentConfig = {};
         
-        // NC HOME版本枚举值
-        const HOME_VERSIONS = ['1903', '1909', '2005', '2105', '2111', '2207', '2305', '2312', '2411', '2505'];
-        
         // 初始化HOME版本下拉框
-        function initializeHomeVersionSelect() {
+        function initializeHomeVersionSelect(homeVersions) {
             const select = document.getElementById('homeVersion');
             if (select) {
                 // 清空现有选项
                 select.innerHTML = '<option value="">请选择HOME版本</option>';
                 
                 // 添加版本选项
-                HOME_VERSIONS.forEach(version => {
+                homeVersions.forEach(version => {
                     const option = document.createElement('option');
                     option.value = version;
                     option.textContent = version;
@@ -1509,6 +1507,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             }
 
             
+            // 更新HOME版本选择框
+            if (config.homeVersion) {
+                const homeVersionSelect = document.getElementById('homeVersion');
+                if (homeVersionSelect) {
+                    homeVersionSelect.value = config.homeVersion;
+                }
+            }
+            
             // 更新数据源列表
             updateDataSourceList(config.dataSources || []);
         }
@@ -1684,7 +1690,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 // 移除了autoClient相关的代码
                 debugMode: document.getElementById('debugMode').checked,
                 debugPort: parseInt(document.getElementById('debugPort').value) || 8888,
-                vmParameters: document.getElementById('vmParameters').value
+                vmParameters: document.getElementById('vmParameters').value,
+                homeVersion: document.getElementById('homeVersion').value
 
             };
             
@@ -1716,6 +1723,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             
             switch (message.type) {
                 case 'configLoaded':
+                    // 初始化HOME版本下拉框
+                    if (message.homeVersions) {
+                        initializeHomeVersionSelect(message.homeVersions);
+                    }
                     updateConfigDisplay(message.config);
                     break;
                     
@@ -1965,7 +1976,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         // 页面加载完成后加载配置
-        initializeHomeVersionSelect();
+        // initializeHomeVersionSelect将通过configLoaded消息调用
         vscode.postMessage({ type: 'loadConfig' });
     </script>
 </body>
@@ -2011,6 +2022,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     // 移除了autoClient相关的代码
                     debugMode: true,
                     debugPort: 8888,
+                    homeVersion: '',
 
                 };
 

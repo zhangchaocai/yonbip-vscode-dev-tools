@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
-import { getHomeVersion } from '../../utils/HomeVersionUtils';
 import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
 
 /**
@@ -1224,7 +1223,8 @@ export class LibraryService {
         try {
             const javaRuntimes: any[] = [];
             //获取home版本
-            const versionStr = getHomeVersion(homePath);
+            const versionStr = this.configService.getConfig().homeVersion 
+
             const version = versionStr ? parseInt(versionStr, 10) : 0;
 
             // 根据home版本确定需要的JDK版本
