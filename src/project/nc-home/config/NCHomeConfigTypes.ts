@@ -50,6 +50,9 @@ export interface NCHomeConfig {
     // JVM参数
     vmParameters?: string;
 
+    // HOME版本
+    homeVersion?: string;
+
     provider?: string;
     department?: string;
     versions?: string;

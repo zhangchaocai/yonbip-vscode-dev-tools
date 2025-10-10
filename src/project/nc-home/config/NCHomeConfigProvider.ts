@@ -4,7 +4,7 @@ import * as path from 'path';
 import { NCHomeConfigService } from './NCHomeConfigService';
 import { DataSourceMeta, NCHomeConfig } from './NCHomeConfigTypes';
 import { MacHomeConversionService } from '../../mac/MacHomeConversionService';
-
+import { getHomeVersion, findClosestHomeVersion, HOME_VERSIONS } from '../../../utils/HomeVersionUtils';
 /**
  * NC Home配置WebView提供者
  */
@@ -147,6 +147,15 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 // 直接使用从prop.xml读取的数据源信息
                 config.dataSources = portsAndDataSourcesFromProp.dataSources;
             }
+
+            // 如果homeVersion未设置，尝试从HOME目录获取版本信息
+            if (!config.homeVersion) {
+                const homeVersion = getHomeVersion(config.homePath);
+                const closestVersion = findClosestHomeVersion(homeVersion);
+                if (closestVersion) {
+                    config.homeVersion = closestVersion;
+                }
+            }
         }
 
         // 确保所有相关字段正确初始化
@@ -199,6 +208,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             if (homePath) {
                 const config = this.configService.getConfig();
                 config.homePath = homePath;
+
+                // 获取HOME版本并设置默认值
+                const homeVersion = getHomeVersion(homePath);
+                const closestVersion = findClosestHomeVersion(homeVersion);
+                if (closestVersion) {
+                    config.homeVersion = closestVersion;
+                }
+                
                 await this.configService.saveConfig(config);
 
                 // 如果是Mac系统，自动执行Mac HOME转换
@@ -1101,6 +1118,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     <div class="help-text">自定义JVM启动参数，每行一个参数</div>
                 </div>
             </div>
+
+            <div class="section">
+                <div class="section-title">HOME版本配置</div>
+                
+                <div class="form-group">
+                    <label for="homeVersion">HOME版本:</label>
+                    <select id="homeVersion">
+                        <option value="">请选择HOME版本</option>
+                    </select>
+                    <div class="help-text">选择NC HOME的版本，用于适配不同版本的配置</div>
+                </div>
+            </div>
             
             <div class="section">
                 <div class="section-title">操作</div>
@@ -1120,6 +1149,26 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         const vscode = acquireVsCodeApi();
         let currentConfig = {};
         
+        // NC HOME版本枚举值
+        const HOME_VERSIONS = ['1903', '1909', '2005', '2105', '2111', '2207', '2305', '2312', '2411', '2505'];
+        
+        // 初始化HOME版本下拉框
+        function initializeHomeVersionSelect() {
+            const select = document.getElementById('homeVersion');
+            if (select) {
+                // 清空现有选项
+                select.innerHTML = '<option value="">请选择HOME版本</option>';
+                
+                // 添加版本选项
+                HOME_VERSIONS.forEach(version => {
+                    const option = document.createElement('option');
+                    option.value = version;
+                    option.textContent = version;
+                    select.appendChild(option);
+                });
+            }
+        }
+
         // 切换选项卡
         function switchTab(tabName) {
             const tabs = document.querySelectorAll('.tab-content');
@@ -1916,6 +1965,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         // 页面加载完成后加载配置
+        initializeHomeVersionSelect();
         vscode.postMessage({ type: 'loadConfig' });
     </script>
 </body>
