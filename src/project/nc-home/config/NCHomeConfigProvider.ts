@@ -807,7 +807,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             }
         }
         
-        input, select {
+        input, select, textarea {
             width: 100%;
             padding: 8px 12px;
             border: 1px solid var(--vscode-input-border);
@@ -824,10 +824,22 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             letter-spacing: 5px; /* 增加字符间距以更好地隐藏密码 */
         }
         
-        input:focus, select:focus {
+        input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--vscode-focusBorder);
             box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+        }
+        
+        /* JVM参数文本域占满区域 */
+        #vmParameters {
+            display: block;
+            width: 100%;
+            height: 40vh; /* 使其在视口中占据更大高度 */
+            min-height: 240px;
+            max-height: 70vh;
+            font-family: monospace;
+            line-height: 1.5;
+            resize: vertical; /* 允许垂直方向调整大小 */
         }
         
         .form-row input {
