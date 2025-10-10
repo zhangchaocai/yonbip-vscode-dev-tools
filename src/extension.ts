@@ -10,6 +10,7 @@ import { NCHomeConfigProvider } from './project/nc-home/config/NCHomeConfigProvi
 import { PatchExportWebviewProvider } from './project/ui/PatchExportWebviewProvider';
 import { OpenApiProvider } from './openapi/OpenApiProvider';
 import { NCHomeConfigService } from './project/nc-home/config/NCHomeConfigService';
+import { HomeCommands } from './project/nc-home/HomeCommands';
 import { NCHomeConfigCommands } from './project/nc-home/config/NCHomeConfigCommands';
 import { LibraryCommands } from './project/library/LibraryCommands';
 import { ProjectContextCommands } from './project/project-management/ProjectContextCommands';
@@ -87,6 +88,9 @@ export function activate(context: vscode.ExtensionContext) {
 	macHomeConversionService = new MacHomeConversionService(ncHomeConfigService);
 	const ncHomeConfigCommands = new NCHomeConfigCommands(context, macHomeConversionService);
 	// NCHomeConfigCommands类没有实现dispose方法，因此不能添加到context.subscriptions中
+
+	// 注册HOME服务命令
+	HomeCommands.registerCommands(context, ncHomeConfigService);
 
 	// 注册库管理命令
 	LibraryCommands.registerCommands(context, ncHomeConfigService);

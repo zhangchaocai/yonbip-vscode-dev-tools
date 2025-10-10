@@ -408,73 +408,19 @@ export class HomeService {
                 mainClass
             ];
 
-            // 检查参数长度，如果过长则使用类路径文件方案（解决Windows ENAMETOOLONG错误）
-            const fullCommand = [javaExecutable, ...javaArgs].join(' ');
-            if (process.platform === 'win32' && fullCommand.length > 8191) {
-                this.outputChannel.appendLine('⚠️ 检测到命令行参数过长，正在使用类路径文件方案启动...');
-                
-                // 使用类路径文件方案（JDK 6+ 支持的 @classpath.txt 方式）
-                const tempDir = path.join(this.context.extensionPath, 'temp');
-                if (!fs.existsSync(tempDir)) {
-                    fs.mkdirSync(tempDir, { recursive: true });
+             // 执行启动命令
+            this.process = spawn(javaExecutable, javaArgs, {
+                cwd: config.homePath,
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: {
+                    ...env,
+                    LANG: 'zh_CN.UTF-8',
+                    LC_ALL: 'zh_CN.UTF-8',
+                    LC_CTYPE: 'zh_CN.UTF-8',
                 }
-                
-                // 创建类路径文件
-                const classpathFile = path.join(tempDir, 'classpath.txt');
-                fs.writeFileSync(classpathFile, classpath, 'utf-8');
-                
-                this.outputChannel.appendLine(`📝 创建类路径文件: ${classpathFile}`);
-                this.outputChannel.appendLine(`📏 类路径长度: ${classpath.length} 字符`);
-                
-                // 检测 JDK 版本以确定使用哪种方式
-                const jdkVersion = this.getJDKVersion(config.homePath);
-                this.outputChannel.appendLine(`☕ 检测到 JDK 版本: ${jdkVersion}`);
-                
-                let modifiedJavaArgs: string[];
-                
-                if (jdkVersion >= 60) {
-                    // JDK 6+ 支持 @classpath.txt 语法
-                    modifiedJavaArgs = [
-                        ...vmParameters,
-                        '-cp',
-                        `@${classpathFile}`,
-                        mainClass
-                    ];
-                    this.outputChannel.appendLine('✅ 使用 JDK 6+ 的 @classpath.txt 语法');
-                } else {
-                    // JDK 5 及以下版本的兼容方案：使用系统属性传递类路径
-                    modifiedJavaArgs = [
-                        ...vmParameters,
-                        `-Djava.class.path=${classpath}`,
-                        mainClass
-                    ];
-                    this.outputChannel.appendLine('✅ 使用 JDK 5 兼容的系统属性方式');
-                }
-                
-                // 执行启动命令
-                this.process = spawn(javaExecutable, modifiedJavaArgs, {
-                    cwd: config.homePath,
-                    stdio: ['pipe', 'pipe', 'pipe'],
-                    env: {
-                        ...env,
-                        LANG: 'zh_CN.UTF-8',
-                        LC_ALL: 'zh_CN.UTF-8',
-                        LC_CTYPE: 'zh_CN.UTF-8',
-                    }
-                });
-            } else {
-                // 执行启动命令
-                this.process = spawn(javaExecutable, javaArgs, {
-                    cwd: config.homePath,
-                    stdio: ['pipe', 'pipe', 'pipe'],
-                    env: {
-                        ...env,
-                        LANG: 'zh_CN.UTF-8',
-                        LC_ALL: 'zh_CN.UTF-8',
-                        LC_CTYPE: 'zh_CN.UTF-8',
-                    }
-                });
-            }
+            });
+
+            
 
             // 监听标准输出
             this.process.stdout?.on('data', (data: Buffer) => {
