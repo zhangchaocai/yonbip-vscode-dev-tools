@@ -635,11 +635,10 @@ export class HomeService {
         const externalLibDir = path.join(config.homePath, 'external', 'lib');
         const externalClassesDir = path.join(config.homePath, 'external', 'classes');
 
+        // 使用通配符形式添加external/lib目录
         if (fs.existsSync(externalLibDir)) {
-            const jarFiles = fs.readdirSync(externalLibDir).filter(file => file.endsWith('.jar'));
-            const jars = jarFiles.map(file => path.join(externalLibDir, file));
-            classpathEntries.push(...jars);
-            this.outputChannel.appendLine(`📁 添加预处理后的external/lib目录，共包含 ${jarFiles.length} 个jar文件`);
+            classpathEntries.push(path.join(externalLibDir, '*'));
+            this.outputChannel.appendLine(`📁 添加预处理后的external/lib目录(通配符形式)`);
         }
 
         if (fs.existsSync(externalClassesDir)) {
@@ -686,14 +685,19 @@ export class HomeService {
 
         this.outputChannel.appendLine('开始构建类路径...');
 
-        // 遍历所有目录，添加其中的jar包到类路径
+        // 遍历所有目录，使用通配符形式添加jar包到类路径
         for (const dir of libDirs) {
             if (fs.existsSync(dir)) {
                 try {
+                    // 检查目录中是否有jar文件
                     const files = fs.readdirSync(dir);
-                    const jars = files.filter(file => file.endsWith('.jar'))
-                        .map(file => path.join(dir, file));
-                    classpathEntries.push(...jars);
+                    const hasJars = files.some(file => file.endsWith('.jar'));
+                    
+                    // 如果有jar文件，使用通配符形式添加整个目录
+                    if (hasJars) {
+                        classpathEntries.push(path.join(dir, '*'));
+                        this.outputChannel.appendLine(`📁 添加目录(通配符形式): ${dir}`);
+                    }
                 } catch (err: any) {
                     this.outputChannel.appendLine(`⚠️ 读取目录失败: ${dir}, 错误: ${err}`);
                 }
@@ -715,11 +719,15 @@ export class HomeService {
                 for (const moduleDir of moduleDirs) {
                     const moduleLibDir = path.join(modulesDir, moduleDir, 'lib');
                     if (fs.existsSync(moduleLibDir)) {
+                        // 检查模块lib目录中是否有jar文件
                         const files = fs.readdirSync(moduleLibDir);
-                        const jars = files.filter(file => file.endsWith('.jar'))
-                            .map(file => path.join(moduleLibDir, file));
-                        classpathEntries.push(...jars);
-                        //this.outputChannel.appendLine(`📁 添加模块 ${moduleDir} 的lib目录: ${moduleLibDir} (${jars.length} 个jar包)`);
+                        const hasJars = files.some(file => file.endsWith('.jar'));
+                        
+                        // 如果有jar文件，使用通配符形式添加整个目录
+                        if (hasJars) {
+                            classpathEntries.push(path.join(moduleLibDir, '*'));
+                            //this.outputChannel.appendLine(`📁 添加模块lib目录(通配符形式): ${moduleLibDir}`);
+                        }
                     }
                 }
             } catch (err: any) {
@@ -728,6 +736,7 @@ export class HomeService {
         }
 
         // 特别检查并添加与web服务相关的jar包
+        // 注意：这里仍然添加特定的jar包，因为需要确保ws相关类能被正确加载
         this.checkAndAddWSJars(config.homePath, classpathEntries);
 
         // 在所有jar包添加完成后，保守地添加resources目录（避免类加载冲突）
@@ -766,7 +775,7 @@ export class HomeService {
         const validatedClasspathEntries = uniqueClasspathEntries.filter(entry => {
             try {
                 // 检查是否为有效的文件系统路径
-                if (fs.existsSync(entry)) {
+                if (fs.existsSync(entry) || entry.endsWith('*')) {
                     return true;
                 }
                 // 检查是否为有效的目录或文件路径（即使当前不存在）
