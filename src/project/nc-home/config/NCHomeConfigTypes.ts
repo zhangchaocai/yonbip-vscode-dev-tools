@@ -47,6 +47,8 @@ export interface NCHomeConfig {
     debugMode?: boolean;
     debugPort?: number;  // 添加调试端口配置
 
+    // JVM参数
+    vmParameters?: string;
 
     provider?: string;
     department?: string;

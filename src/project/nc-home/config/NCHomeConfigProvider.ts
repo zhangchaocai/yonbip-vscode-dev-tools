@@ -137,6 +137,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             if (portsAndDataSourcesFromProp.wsPort !== null) {
                 config.wsPort = portsAndDataSourcesFromProp.wsPort;
             }
+            if (portsAndDataSourcesFromProp.vmParameters !== undefined) {
+                config.vmParameters = portsAndDataSourcesFromProp.vmParameters;
+            }
 
             // 从prop.xml中获取数据源信息
             if (portsAndDataSourcesFromProp.dataSources.length > 0) {
@@ -1087,6 +1090,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             </div>
             
             <div class="section">
+                <div class="section-title">JVM参数配置</div>
+                
+                <div class="form-group">
+                    <label for="vmParameters">JVM参数:</label>
+                    <textarea id="vmParameters" rows="10" placeholder="每行输入一个JVM参数，例如：&#10;-Xms512m&#10;-Xmx2048m&#10;-XX:MaxPermSize=512m"></textarea>
+                    <div class="help-text">自定义JVM启动参数，每行一个参数</div>
+                </div>
+            </div>
+            
+            <div class="section">
                 <div class="section-title">操作</div>
                 <div class="button-group">
                     <button onclick="saveAdvancedConfig()">
@@ -1438,6 +1451,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             // 移除了autoClient相关的代码
             document.getElementById('debugMode').checked = config.debugMode !== false;
             document.getElementById('debugPort').value = config.debugPort || 8888;
+            if (config.vmParameters) {
+                document.getElementById('vmParameters').value = config.vmParameters;
+            }
 
             
             // 更新数据源列表
@@ -1615,6 +1631,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 // 移除了autoClient相关的代码
                 debugMode: document.getElementById('debugMode').checked,
                 debugPort: parseInt(document.getElementById('debugPort').value) || 8888,
+                vmParameters: document.getElementById('vmParameters').value
 
             };
             

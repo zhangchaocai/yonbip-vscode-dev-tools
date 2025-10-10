@@ -307,4 +307,47 @@ export class PropXmlUpdater {
     private static escapeRegExp(string: string): string {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
+
+    /**
+     * 更新prop.xml文件中的JVM参数
+     * @param homePath NC HOME路径
+     * @param vmParameters JVM参数字符串
+     */
+    public static updateVmParametersInPropXml(homePath: string, vmParameters: string): void {
+        const propXmlPath = path.join(homePath, 'ierp', 'bin', 'prop.xml');
+
+        // 检查文件是否存在
+        if (!fs.existsSync(propXmlPath)) {
+            throw new Error(`prop.xml文件不存在: ${propXmlPath}`);
+        }
+
+        // 读取文件内容（使用gb2312编码）
+        const buffer = fs.readFileSync(propXmlPath);
+        let content: string;
+        try {
+            content = iconv.decode(buffer, 'gb2312');
+        } catch (error) {
+            // 如果gb2312解码失败，尝试使用UTF-8解码
+            console.warn('gb2312解码失败，尝试使用UTF-8解码:', error);
+            content = iconv.decode(buffer, 'utf8');
+        }
+
+        // 更新JVM参数
+        const jvmArgsRegex = /<jvmArgs>([^<]*)<\/jvmArgs>/;
+        if (jvmArgsRegex.test(content)) {
+            content = content.replace(jvmArgsRegex, `<jvmArgs>${vmParameters}</jvmArgs>`);
+        } else {
+            // 如果找不到jvmArgs标签，尝试在<server>标签内添加
+            const serverRegex = /(<server>\s*<javaHome>[^<]*<\/javaHome>\s*<name>[^<]*<\/name>)/;
+            if (serverRegex.test(content)) {
+                content = content.replace(serverRegex, `$1\n\t\t\t<jvmArgs>${vmParameters}</jvmArgs>`);
+            } else {
+                throw new Error('无法在prop.xml中找到合适的位置插入JVM参数');
+            }
+        }
+
+        // 写入文件（使用gb2312编码，不添加BOM）
+        const newBuffer = iconv.encode(content, 'gb2312', { addBOM: false });
+        fs.writeFileSync(propXmlPath, newBuffer);
+    }
 }

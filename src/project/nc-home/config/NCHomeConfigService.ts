@@ -119,6 +119,17 @@ export class NCHomeConfigService {
             // 同时保存到VS Code配置
             await this.saveToWorkspaceConfig();
 
+            // 如果配置了JVM参数并且homePath存在，更新prop.xml文件
+            if (this.config.vmParameters !== undefined && this.config.homePath) {
+                try {
+                    PropXmlUpdater.updateVmParametersInPropXml(this.config.homePath, this.config.vmParameters);
+                    this.outputChannel.appendLine(`JVM参数已更新到prop.xml文件`);
+                } catch (error: any) {
+                    this.outputChannel.appendLine(`更新JVM参数到prop.xml文件失败: ${error.message}`);
+                    // 不抛出错误，因为这不应该阻止配置保存
+                }
+            }
+
             this.outputChannel.appendLine(`配置已保存: ${this.configFilePath}`);
             vscode.window.showInformationMessage('NC Home配置已保存');
 
@@ -160,6 +171,7 @@ export class NCHomeConfigService {
         // 从工作区配置中获取debugPort的值，如果获取不到则使用默认值8888
         const workspaceConfig = vscode.workspace.getConfiguration('yonbip');
         const debugPort = workspaceConfig.get<number>('home.debugPort') || 8888;
+        const vmParameters = workspaceConfig.get<string>('home.vmParameters') || '';
 
         return {
             homePath: '',
@@ -174,7 +186,8 @@ export class NCHomeConfigService {
             port: 9999,
             wsPort: 8080,
             debugMode: true,  // 默认启用调试模式
-            debugPort: debugPort   // 使用工作区配置的调试端口，默认为8888
+            debugPort: debugPort,   // 使用工作区配置的调试端口，默认为8888
+            vmParameters: vmParameters  // 使用工作区配置的JVM参数，默认为空
         };
     }
 
@@ -194,6 +207,7 @@ export class NCHomeConfigService {
             await config.update('hotwebs', this.config.hotwebs, vscode.ConfigurationTarget.Global);
             await config.update('exModules', this.config.exModules, vscode.ConfigurationTarget.Global);
             await config.update('home.debugPort', this.config.debugPort, vscode.ConfigurationTarget.Global);
+            await config.update('home.vmParameters', this.config.vmParameters, vscode.ConfigurationTarget.Global);
         } catch (error: any) {
             this.outputChannel.appendLine(`保存到工作区配置失败: ${error.message}`);
         }
@@ -1244,12 +1258,12 @@ export class NCHomeConfigService {
      * 从prop.xml文件中获取服务端口信息和数据源信息
      * @returns 包含http端口、service端口和数据源列表的对象，如果无法获取则对应值为null
      */
-    public getPortFromPropXml(): { port: number | null, wsPort: number | null, dataSources: DataSourceMeta[] } {
+    public getPortFromPropXml(): { port: number | null, wsPort: number | null, dataSources: DataSourceMeta[], vmParameters?: string } {
         try {
             // 检查homePath是否已配置
             if (!this.config.homePath) {
                 this.outputChannel.appendLine('Home路径未配置，无法读取prop.xml');
-                return { port: null, wsPort: null, dataSources: [] };
+                return { port: null, wsPort: null, dataSources: [], vmParameters: undefined };
             }
 
             // 构建prop.xml文件路径
@@ -1258,7 +1272,7 @@ export class NCHomeConfigService {
             // 检查文件是否存在
             if (!fs.existsSync(propXmlPath)) {
                 this.outputChannel.appendLine(`prop.xml文件不存在: ${propXmlPath}`);
-                return { port: null, wsPort: null, dataSources: [] };
+                return { port: null, wsPort: null, dataSources: [], vmParameters: undefined };
             }
 
             // 读取文件内容，文件编码为gb2312
@@ -1285,6 +1299,14 @@ export class NCHomeConfigService {
                     this.outputChannel.appendLine(`从prop.xml中读取到service端口: ${parsedWsPort}`);
                     wsPort = parsedWsPort;
                 }
+            }
+
+            // 使用正则表达式查找jvmArgs元素
+            const vmParametersMatch = content.match(/<jvmArgs>([^<]*)<\/jvmArgs>/);
+            let vmParameters: string | undefined = undefined;
+            if (vmParametersMatch && vmParametersMatch[1]) {
+                vmParameters = vmParametersMatch[1].trim();
+                this.outputChannel.appendLine(`从prop.xml中读取到JVM参数: ${vmParameters}`);
             }
 
             // 提取数据源信息
@@ -1423,10 +1445,10 @@ export class NCHomeConfigService {
                 this.outputChannel.appendLine('未在prop.xml中找到有效的端口配置或数据源配置');
             }
 
-            return { port, wsPort, dataSources };
+            return { port, wsPort, dataSources, vmParameters };
         } catch (error: any) {
             this.outputChannel.appendLine(`读取prop.xml文件失败: ${error.message}`);
-            return { port: null, wsPort: null, dataSources: [] };
+            return { port: null, wsPort: null, dataSources: [], vmParameters: undefined };
         }
     }
 
