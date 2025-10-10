@@ -638,7 +638,7 @@ export class HomeService {
         // 使用通配符形式添加external/lib目录
         if (fs.existsSync(externalLibDir)) {
             classpathEntries.push(path.join(externalLibDir, '*'));
-            this.outputChannel.appendLine(`📁 添加预处理后的external/lib目录(通配符形式)`);
+            //this.outputChannel.appendLine(`📁 添加预处理后的external/lib目录(通配符形式)`);
         }
 
         if (fs.existsSync(externalClassesDir)) {
@@ -696,7 +696,7 @@ export class HomeService {
                     // 如果有jar文件，使用通配符形式添加整个目录
                     if (hasJars) {
                         classpathEntries.push(path.join(dir, '*'));
-                        this.outputChannel.appendLine(`📁 添加目录(通配符形式): ${dir}`);
+                        //this.outputChannel.appendLine(`📁 添加目录(通配符形式): ${dir}`);
                     }
                 } catch (err: any) {
                     this.outputChannel.appendLine(`⚠️ 读取目录失败: ${dir}, 错误: ${err}`);
@@ -854,7 +854,7 @@ export class HomeService {
         for (const wsJarPath of wsJarPaths) {
             if (!classpathEntries.includes(wsJarPath)) {
                 classpathEntries.push(wsJarPath);
-                this.outputChannel.appendLine(`🚨 特别添加WS相关jar包: ${path.basename(wsJarPath)}`);
+                //this.outputChannel.appendLine(`🚨 特别添加WS相关jar包: ${path.basename(wsJarPath)}`);
             }
         }
 
@@ -862,7 +862,7 @@ export class HomeService {
         for (const graniteJarPath of graniteJarPaths) {
             if (!classpathEntries.includes(graniteJarPath)) {
                 classpathEntries.push(graniteJarPath);
-                this.outputChannel.appendLine(`🚨 特别添加Granite相关jar包: ${path.basename(graniteJarPath)}`);
+                //this.outputChannel.appendLine(`🚨 特别添加Granite相关jar包: ${path.basename(graniteJarPath)}`);
             }
         }
     }
