@@ -923,54 +923,39 @@ export class HomeService {
      * 构建JVM参数 (与IDEA插件保持一致)
      */
     private async buildVMParameters(config: any, serverPort: number, wsPort: number): Promise<string[]> {
-        const vmParameters: string[] = [];
+        // 默认JVM参数数组
+        const defaultVmParameters: string[] = [];
 
         // 添加IDEA插件中的默认VM参数 (与IDEA插件保持一致)
         // 使用path.resolve确保所有路径都是绝对路径，避免URI格式问题
-        vmParameters.push('-Dnc.exclude.modules=' + (config.exModules || ''));
-        vmParameters.push('-Dnc.runMode=develop');
-        vmParameters.push('-Dnc.server.location=' + path.resolve(config.homePath));
-        vmParameters.push('-DEJBConfigDir=' + path.resolve(config.homePath, 'ejbXMLs'));
-        vmParameters.push('-Dorg.owasp.esapi.resources=' + path.resolve(config.homePath, 'ierp', 'bin', 'esapi'));
-        vmParameters.push('-DExtServiceConfigDir=' + path.resolve(config.homePath, 'ejbXMLs'));
-        vmParameters.push('-Duap.hotwebs=' + (config.hotwebs || 'nccloud,fs,yonbip'));
-        vmParameters.push('-Duap.disable.codescan=false');
-        vmParameters.push('-Xmx1024m');
-        vmParameters.push('-Dfile.encoding=UTF-8');
-        vmParameters.push('-Duser.timezone=GMT+8');
-
-   
-        // 自定义JVM参数
-        if (config.vmParameters && config.vmParameters.length > 0) {
-            vmParameters.push(...config.vmParameters);
-        }
-
-        vmParameters.push('-Dnc.log.console=true');      // 强制输出日志到控制台
-        vmParameters.push('-Dnc.debug=true');            // 开启调试模式
-        vmParameters.push('-Dnc.log.level=DEBUG');       // 设置日志级别为 DEBUG
-        vmParameters.push('-Dnc.startup.trace=true');    // 启动跟踪
+        defaultVmParameters.push('-Dnc.exclude.modules=' + (config.exModules || ''));
+        defaultVmParameters.push('-Dnc.runMode=develop');
+        defaultVmParameters.push('-Dnc.server.location=' + path.resolve(config.homePath));
+        defaultVmParameters.push('-DEJBConfigDir=' + path.resolve(config.homePath, 'ejbXMLs'));
+        defaultVmParameters.push('-Dorg.owasp.esapi.resources=' + path.resolve(config.homePath, 'ierp', 'bin', 'esapi'));
+        defaultVmParameters.push('-DExtServiceConfigDir=' + path.resolve(config.homePath, 'ejbXMLs'));
+        defaultVmParameters.push('-Duap.hotwebs=' + (config.hotwebs || 'nccloud,fs,yonbip'));
+        defaultVmParameters.push('-Duap.disable.codescan=false');
+        defaultVmParameters.push('-Xmx1024m');
+        defaultVmParameters.push('-Dfile.encoding=UTF-8');
+        defaultVmParameters.push('-Duser.timezone=GMT+8');
+        defaultVmParameters.push('-Dnc.log.console=true');      // 强制输出日志到控制台
+        defaultVmParameters.push('-Dnc.debug=true');            // 开启调试模式
+        defaultVmParameters.push('-Dnc.log.level=DEBUG');       // 设置日志级别为 DEBUG
+        defaultVmParameters.push('-Dnc.startup.trace=true');    // 启动跟踪
 
         // 添加数据源配置目录参数 - 与IDEA插件保持一致
         const propDir = path.resolve(config.homePath, 'ierp', 'bin');
-        vmParameters.push('-Dnc.prop.dir=' + propDir);
-        vmParameters.push('-Dprop.dir=' + propDir);
-
-        // 检查prop.xml文件是否存在
-        const propFile = path.join(propDir, 'prop.xml');
-        if (fs.existsSync(propFile)) {
-            this.outputChannel.appendLine(`✅ 找到系统配置文件: ${propFile}`);
-        } else {
-            this.outputChannel.appendLine(`❌ 未找到系统配置文件: ${propFile}`);
-        }
+        defaultVmParameters.push('-Dnc.prop.dir=' + propDir);
+        defaultVmParameters.push('-Dprop.dir=' + propDir);
 
         // 添加默认数据源配置参数
         if (config.selectedDataSource) {
-            vmParameters.push('-Dnc.datasource.default=' + config.selectedDataSource);
+            defaultVmParameters.push('-Dnc.datasource.default=' + config.selectedDataSource);
         }
 
         // 默认JVM参数
-        vmParameters.push('-Xms256m');
-        vmParameters.push('-Xmx1024m');
+        defaultVmParameters.push('-Xms256m');
 
         // 检测Java版本，决定是否添加MaxPermSize参数
         // MaxPermSize参数在Java 9+版本中已被移除
@@ -983,91 +968,151 @@ export class HomeService {
 
         // 仅在Java 8及以下版本添加MaxPermSize参数
         if (javaVersion < 8 && javaVersion !== 0) {
-            vmParameters.push('-XX:MaxPermSize=512m');
+            defaultVmParameters.push('-XX:MaxPermSize=512m');
             this.outputChannel.appendLine('添加MaxPermSize参数');
         } else {
-             vmParameters.push('-XX:MetaspaceSize=512m');
+            defaultVmParameters.push('-XX:MetaspaceSize=512m');
             this.outputChannel.appendLine('Java版本 >= 8，添加MetaspaceSize参数');
         }
 
-        vmParameters.push('-XX:+HeapDumpOnOutOfMemoryError');
-        vmParameters.push('-XX:HeapDumpPath=' + path.join(config.homePath, 'logs', 'nc_heapdump.hprof'));
+        defaultVmParameters.push('-XX:+HeapDumpOnOutOfMemoryError');
+        defaultVmParameters.push('-XX:HeapDumpPath=' + path.join(config.homePath, 'logs', 'nc_heapdump.hprof'));
 
         // 添加系统属性
-        vmParameters.push('-Dnc.server.home=' + path.resolve(config.homePath));
-        vmParameters.push('-Dnc.home=' + path.resolve(config.homePath));
-        vmParameters.push('-Dnc.idesupport=true');
-        vmParameters.push('-Dnc.scan=true');
-        vmParameters.push('-Dnc.server.port=' + serverPort);
+        defaultVmParameters.push('-Dnc.server.home=' + path.resolve(config.homePath));
+        defaultVmParameters.push('-Dnc.home=' + path.resolve(config.homePath));
+        defaultVmParameters.push('-Dnc.idesupport=true');
+        defaultVmParameters.push('-Dnc.scan=true');
+        defaultVmParameters.push('-Dnc.server.port=' + serverPort);
 
         // 特别添加与web服务相关的系统属性
-        vmParameters.push('-Dws.server=true');
-        vmParameters.push('-Dws.port=' + (wsPort || 8080));
+        defaultVmParameters.push('-Dws.server=true');
+        defaultVmParameters.push('-Dws.port=' + (wsPort || 8080));
 
         // 添加编码参数
-        vmParameters.push('-Dconsole.encoding=UTF-8');
-        vmParameters.push('-Dsun.jnu.encoding=UTF-8');
-        vmParameters.push('-Dclient.encoding.override=UTF-8');
+        defaultVmParameters.push('-Dconsole.encoding=UTF-8');
+        defaultVmParameters.push('-Dsun.jnu.encoding=UTF-8');
+        defaultVmParameters.push('-Dclient.encoding.override=UTF-8');
 
         // 添加XML解析器配置
-        vmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
-        vmParameters.push('-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl');
-        vmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
+        defaultVmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
+        defaultVmParameters.push('-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl');
+        defaultVmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
 
         // 添加Java 17兼容性参数 (如果Java版本 >= 17)
         if (javaVersion >= 17) {
-            vmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/jdk.internal.reflect=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.lang.invoke=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.io=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.nio.charset=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.net=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.util.concurrent=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.util=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.xml/javax.xml=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.xml/javax.xml.stream=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.naming/javax.naming=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.management/javax.management=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED');
-            vmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/java.awt.image=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/sun.awt=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.security=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.base/java.lang.ref=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/javax.swing=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/javax.accessibility=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/java.beans=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/java.awt=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/sun.swing=ALL-UNNAMED');
-            vmParameters.push('--add-opens=java.desktop/java.awt.color=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/jdk.internal.reflect=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.lang.invoke=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.io=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.nio.charset=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.net=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.util.concurrent=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.util=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.xml/javax.xml=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.xml/javax.xml.stream=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.naming/javax.naming=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.management/javax.management=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.desktop/java.awt.image=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.desktop/sun.awt=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.security=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.base/java.lang.ref=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.desktop/javax.swing=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.desktop/javax.accessibility=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.desktop/java.beans=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.desktop/java.awt=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.desktop/sun.swing=ALL-UNNAMED');
+            defaultVmParameters.push('--add-opens=java.desktop/java.awt.color=ALL-UNNAMED');
         }
 
         // macOS参数
         if (process.platform === 'darwin') {
-            vmParameters.push('-Dapple.awt.UIElement=true');
+            defaultVmParameters.push('-Dapple.awt.UIElement=true');
         }
 
         // 调试模式参数
         if (config.debugMode) {
             const debugPort = config.debugPort || 8888;  // 使用配置的调试端口，默认为8888
-            vmParameters.push(`-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${debugPort}`);
+            defaultVmParameters.push(`-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${debugPort}`);
         }
 
         // 添加project.dir作为系统属性
         if (config.projectDir) {
-            vmParameters.push('-Dproject.dir=' + config.projectDir);
+            defaultVmParameters.push('-Dproject.dir=' + config.projectDir);
         }
+
+        // 处理用户配置的JVM参数
+        let userVmParameters: string[] = [];
+        if (config.vmParameters && config.vmParameters.length > 0) {
+            // 按行分割用户配置的参数
+            userVmParameters = config.vmParameters.split('\n').map((param: string) => param.trim()).filter((param: string) => param.length > 0);
+        }
+
+        // 合并参数，用户参数优先
+        // 首先提取所有参数的key（参数名）
+        const getUserParamKey = (param: string): string => {
+            // 移除开头的横杠
+            let cleanParam = param;
+            while (cleanParam.startsWith('-')) {
+                cleanParam = cleanParam.substring(1);
+            }
+            
+            // 对于Xmx、Xms等参数，只取Xmx、Xms作为key
+            if (cleanParam.startsWith('Xmx')) {
+                return 'Xmx';
+            }
+            if (cleanParam.startsWith('Xms')) {
+                return 'Xms';
+            }
+            if (cleanParam.startsWith('XX:')) {
+                // 对于XX:参数，取冒号后的内容作为key
+                const parts = cleanParam.split(':');
+                if (parts.length > 1) {
+                    return 'XX:' + parts[1].split('=')[0];
+                }
+            }
+            
+            // 如果包含等号，只取等号前的部分作为key
+            if (cleanParam.includes('=')) {
+                return cleanParam.split('=')[0];
+            }
+            
+            // 否则整个参数作为key
+            return cleanParam;
+        };
+
+        // 创建用户参数key到完整参数的映射
+        const userParamMap = new Map<string, string>();
+        for (const param of userVmParameters) {
+            const key = getUserParamKey(param);
+            userParamMap.set(key, param);
+        }
+
+        // 从默认参数中过滤掉被用户参数覆盖的参数
+        const filteredDefaultParams: string[] = [];
+        for (const param of defaultVmParameters) {
+            const key = getUserParamKey(param);
+            // 如果用户没有配置相同key的参数，则保留默认参数
+            if (!userParamMap.has(key)) {
+                filteredDefaultParams.push(param);
+            }
+        }
+
+        // 合并参数：默认参数 + 用户参数
+        const vmParameters = [...filteredDefaultParams, ...userVmParameters];
 
         return vmParameters;
     }
