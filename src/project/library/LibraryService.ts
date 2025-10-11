@@ -339,10 +339,10 @@ export class LibraryService {
         const pathList: string[] = [];
 
         // 获取classes目录
-        const classesPath = path.join(scanPath, 'classes');
-        if (fs.existsSync(classesPath) && fs.readdirSync(classesPath).length > 0) {
-            pathList.push(classesPath);
-        }
+        // const classesPath = path.join(scanPath, 'classes');
+        // if (fs.existsSync(classesPath) && fs.readdirSync(classesPath).length > 0) {
+        //     pathList.push(classesPath);
+        // }
 
         // 获取lib目录下的jar文件
         const jarPath = hasLibPath ? path.join(scanPath, 'lib') : scanPath;
@@ -839,11 +839,10 @@ export class LibraryService {
         //     return;
         // }
 
-        // 获取所有jar文件路径
-        const jarPaths = this.getAllJarPaths(homePath);
-
         // 获取所有modules下模块的classes路径
         const moduleClassesPaths = this.getModuleClassesPaths(homePath);
+        // 获取所有jar文件路径
+        const jarPaths = this.getAllJarPaths(homePath);
 
         // 修复：正确计算相对于工作区的源码和输出路径
         // 获取工作区根目录
@@ -861,6 +860,15 @@ export class LibraryService {
     <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
     <classpathentry kind="output" path="build/classes"/>`;
 
+        // 添加所有模块的classes路径
+        for (const classesPath of moduleClassesPaths) {
+            // 转换为相对路径（如果可能）
+            const relativePath = path.relative(workspacePath, classesPath);
+            const usePath = relativePath.startsWith('..') ? classesPath : relativePath;
+
+            classpathContent += `\n    <classpathentry kind="lib" path="${usePath}"/>`;
+        }
+
         // 添加所有jar文件
         for (const jarPath of jarPaths) {
             // 转换为相对路径（如果可能）
@@ -870,14 +878,7 @@ export class LibraryService {
             classpathContent += `\n    <classpathentry kind="lib" path="${usePath}"/>`;
         }
 
-        // 添加所有模块的classes路径
-        for (const classesPath of moduleClassesPaths) {
-            // 转换为相对路径（如果可能）
-            const relativePath = path.relative(workspacePath, classesPath);
-            const usePath = relativePath.startsWith('..') ? classesPath : relativePath;
 
-            classpathContent += `\n    <classpathentry kind="lib" path="${usePath}"/>`;
-        }
 
         classpathContent += '\n</classpath>';
 
