@@ -240,6 +240,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     }
                 }
 
+                // 同步配置信息从prop.xml文件
+                this.configService.syncConfigFromPropXml();
+                
+                // 保存同步后的配置
+                await this.configService.saveConfig(this.configService.getConfig());
+                
                 // 重新加载配置以获取新home目录中的数据源信息
                 await this.handleLoadConfig();
             }

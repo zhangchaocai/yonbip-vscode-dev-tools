@@ -1257,6 +1257,61 @@ export class NCHomeConfigService {
     }
 
     /**
+     * 同步配置信息从prop.xml文件
+     * 这个方法会从prop.xml中读取所有配置信息并更新当前配置
+     */
+    public syncConfigFromPropXml(): void {
+        try {
+            const portsAndDataSourcesFromProp = this.getPortFromPropXml();
+            
+            // 更新端口信息
+            if (portsAndDataSourcesFromProp.port !== null) {
+                this.config.port = portsAndDataSourcesFromProp.port;
+                this.outputChannel.appendLine(`已同步HTTP端口: ${portsAndDataSourcesFromProp.port}`);
+            }
+            
+            if (portsAndDataSourcesFromProp.wsPort !== null) {
+                this.config.wsPort = portsAndDataSourcesFromProp.wsPort;
+                this.outputChannel.appendLine(`已同步Service端口: ${portsAndDataSourcesFromProp.wsPort}`);
+            }
+            
+            // 更新JVM参数
+            if (portsAndDataSourcesFromProp.vmParameters !== undefined) {
+                this.config.vmParameters = portsAndDataSourcesFromProp.vmParameters;
+                this.outputChannel.appendLine(`已同步JVM参数: ${portsAndDataSourcesFromProp.vmParameters}`);
+            }
+            
+            // 更新数据源信息
+            if (portsAndDataSourcesFromProp.dataSources.length > 0) {
+                this.config.dataSources = portsAndDataSourcesFromProp.dataSources;
+                this.outputChannel.appendLine(`已同步${portsAndDataSourcesFromProp.dataSources.length}个数据源`);
+                
+                // 如果有design数据源，设置为选中的数据源
+                const designDataSource = portsAndDataSourcesFromProp.dataSources.find(ds => ds.name === 'design');
+                if (designDataSource) {
+                    this.config.selectedDataSource = 'design';
+                    this.config.baseDatabase = 'design';
+                    this.outputChannel.appendLine('已设置design为默认数据源');
+                } else if (portsAndDataSourcesFromProp.dataSources.length > 0) {
+                    // 如果没有design数据源，选择第一个数据源
+                    this.config.selectedDataSource = portsAndDataSourcesFromProp.dataSources[0].name;
+                    this.outputChannel.appendLine(`已设置${portsAndDataSourcesFromProp.dataSources[0].name}为默认数据源`);
+                }
+            } else {
+                // 如果没有从prop.xml读取到数据源，清空现有数据源配置
+                this.config.dataSources = [];
+                this.config.selectedDataSource = undefined;
+                this.config.baseDatabase = undefined;
+                this.outputChannel.appendLine('未找到数据源配置，已清空数据源信息');
+            }
+            
+            this.outputChannel.appendLine('配置同步完成');
+        } catch (error: any) {
+            this.outputChannel.appendLine(`同步配置失败: ${error.message}`);
+        }
+    }
+
+    /**
      * 从prop.xml文件中获取服务端口信息和数据源信息
      * @returns 包含http端口、service端口和数据源列表的对象，如果无法获取则对应值为null
      */
