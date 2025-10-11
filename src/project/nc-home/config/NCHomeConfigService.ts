@@ -330,7 +330,7 @@ export class NCHomeConfigService {
                 // 对于Unix系统上的shell脚本，确保有执行权限
                 terminal.sendText(`chmod +x "${configPath}" && "${configPath}"`);
             } else {
-                terminal.sendText(`"${configPath}"`);
+                terminal.sendText(`${configPath}`);
             }
             terminal.show();
         } catch (error: any) {
