@@ -302,7 +302,11 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                             if (['.java'].includes(ext)) {
                                 fileType = 'source';
                             } else if (['.xml', '.upm', '.rest', '.aop'].includes(ext)) {
-                                fileType = 'resource';
+                                // 过滤掉特定的XML文件
+                                const fileName = path.basename(item).toLowerCase();
+                                if (fileName !== 'module.xml' && fileName !== 'component.xml') {
+                                    fileType = 'resource';
+                                }
                             }
 
                             if (fileType) {
@@ -809,9 +813,6 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             document.getElementById('patchVersion').value = data.version || '';
             document.getElementById('patchDescription').value = data.description || '';
             document.getElementById('patchAuthor').value = data.author || 'yonyou';
-            document.getElementById('includeSource').checked = data.includeSource !== false;
-            document.getElementById('includeResources').checked = data.includeResources !== false;
-            document.getElementById('includeConfig').checked = data.includeConfig === true;
             document.getElementById('includeJavaSource').checked = data.includeJavaSource !== false;
             document.getElementById('outputDir').value = data.outputDir || './patches';
         }
@@ -855,10 +856,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 version,
                 description: document.getElementById('patchDescription').value.trim(),
                 author: document.getElementById('patchAuthor').value.trim(),
-                includeSource: document.getElementById('includeSource').checked,
-                includeResources: document.getElementById('includeResources').checked,
-                includeConfig: document.getElementById('includeConfig').checked,
-                includeJavaSource: document.getElementById('includeJavaSource').checked,
+                includeJavaSource: document.getElementById('includeJavaSource') ? document.getElementById('includeJavaSource').checked : true,
                 outputDir: document.getElementById('outputDir').value.trim()
             };
 
@@ -956,9 +954,6 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 version: '1',
                 description: '',
                 author: 'yonyou',
-                includeSource: true,
-                includeResources: true,
-                includeConfig: false,
                 includeJavaSource: true, // 默认包含Java源码
                 outputDir: './patches'
             });

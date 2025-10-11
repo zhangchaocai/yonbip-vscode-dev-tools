@@ -23,7 +23,7 @@ export class ClasspathService {
             // 1. 校验选中目录是否包含.classpath文件或其上级目录包含
             const classpathFile = this.findClasspathFile(selectedPath);
             if (!classpathFile) {
-                vscode.window.showErrorMessage('未找到.classpath文件，请确保选中的目录是包含.classpath文件的项目目录或其子目录');
+                vscode.window.showErrorMessage('未找到.classpath文件，请确保选中的目录是包含.classpath文件的项目目录');
                 return;
             }
 
@@ -60,17 +60,22 @@ export class ClasspathService {
 
     /**
      * 查找.classpath文件
-     * 从选中目录开始向上查找，直到找到.classpath文件
+     * 只检查当前选中目录的直接子目录中是否有.classpath文件
      */
-    private findClasspathFile(startPath: string): string | null {
-        let currentPath = startPath;
-        
-        while (currentPath !== path.dirname(currentPath)) {
-            const classpathFile = path.join(currentPath, '.classpath');
-            if (fs.existsSync(classpathFile)) {
-                return classpathFile;
+    private findClasspathFile(selectedPath: string): string | null {
+        try {
+            // 只检查选中目录的直接子目录
+            const items = fs.readdirSync(selectedPath, { withFileTypes: true });
+            for (const item of items) {
+                if (!item.isDirectory() && item.name === '.classpath') {
+                    const classpathFile = path.join(selectedPath, '.classpath');
+                    if (fs.existsSync(classpathFile)) {
+                        return classpathFile;
+                    }
+                }
             }
-            currentPath = path.dirname(currentPath);
+        } catch (error) {
+            this.outputChannel.appendLine(`检查目录时出错: ${error}`);
         }
         
         return null;
