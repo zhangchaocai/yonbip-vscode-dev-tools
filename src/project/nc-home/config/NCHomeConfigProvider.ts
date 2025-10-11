@@ -1349,6 +1349,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 // 数据库类型需要映射到下拉框的值
                 const databaseTypeMap = {
                     'ORACLE': 'oracle',
+                    'ORACLE11G': 'oracle',
+                    'ORACLE12C': 'oracle',
+                    'ORACLE19C': 'oracle',
                     'MYSQL': 'mysql',
                     'SQLSERVER': 'sqlserver',
                     'POSTGRESQL': 'postgresql',
