@@ -159,7 +159,7 @@
       },
       {
         "command": "yonbip.home.startFromDirectory",
-        "title": "🖥️ YONBIP 中间件启动",
+        "title": "🖥️ 启动YonBIP Premium中间件",
         "category": "YonBIP/HOME"
       },
       {
@@ -201,6 +201,12 @@
         "command": "yonbip.test.oracleClient",
         "title": "🧪 测试Oracle客户端",
         "category": "YonBIP/测试"
+      },
+      {
+        "command": "yonbip.home.startFromToolbar",
+        "title": "🖥️ 启动YonBIP Premium中间件 \n 1️⃣递归到的第一个.project文件的上级目录作为启动目录",
+        "category": "YonBIP/HOME",
+        "icon": "$(debug-start)"
       }
     ],
     "submenus": [
@@ -215,6 +221,18 @@
           "submenu": "yonbip.project.submenu",
           "when": "explorerResourceIsFolder || explorerResourceIsFile",
           "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "yonbip.home.startFromToolbar",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "yonbip.home.startFromToolbar",
+          "group": "navigation@1"
         }
       ],
       "yonbip.project.submenu": [
