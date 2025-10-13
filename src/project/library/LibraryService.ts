@@ -1260,14 +1260,20 @@ export class LibraryService {
                         // 使用统一的方法获取Java版本名称
                         const runtimeName = JavaVersionUtils.getJavaVersionName(javaExecutable, this.outputChannel);
                         
-                        // 验证获取到的版本是否符合要求
+                        // 如果版本匹配，则将其设为默认
                         if (runtimeName === requiredJavaVersion) {
+                            // 添加匹配的JDK作为默认JDK
+                            javaRuntimes.push({
+                                "name": runtimeName,
+                                "path": jdkPath,
+                                "default": true  // 将匹配的JDK设为默认
+                            });
+                        } else {
+                            // 版本不匹配，但仍添加到列表中（非默认）
                             javaRuntimes.push({
                                 "name": runtimeName,
                                 "path": jdkPath
                             });
-                        } else {
-                            this.outputChannel.appendLine(`找到的JDK版本不匹配，需要: ${requiredJavaVersion}, 实际: ${runtimeName}`);
                         }
                     }
                 }
@@ -1275,7 +1281,7 @@ export class LibraryService {
                 this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
             }
             
-            // 如果没有通过/usr/libexec/java_home -V获取到Java版本，使用原来的逻辑
+            // 如果没有通过/usr/libexec/java_home -F -v获取到Java版本，使用原来的逻辑
             if (javaRuntimes.length === 0) {
                 // 首先尝试从环境变量中获取JDK路径
                 let jdkPath = process.env.JAVA_HOME || process.env.JDK_HOME;
@@ -1316,13 +1322,12 @@ export class LibraryService {
                         // 使用新的方法获取Java版本
                         const runtimeName = JavaVersionUtils.getJavaVersionName(javaExecutable, this.outputChannel);
                         
-                        // 只添加符合要求的JDK版本
-                        if (runtimeName === requiredJavaVersion) {
-                            javaRuntimes.push({
-                                "name": runtimeName,
-                                "path": jdkPath
-                            });
-                        }
+                        // 添加找到的第一个JDK作为默认JDK
+                        javaRuntimes.push({
+                            "name": runtimeName,
+                            "path": jdkPath,
+                            "default": true  // 将第一个找到的JDK设为默认
+                        });
                     }
                 }
             }
@@ -1348,6 +1353,19 @@ export class LibraryService {
         try {
             const javaRuntimes: any[] = [];
             
+            // 获取home版本
+            const versionStr = this.configService.getConfig().homeVersion;
+            const version = versionStr ? parseInt(versionStr, 10) : 0;
+
+            // 根据home版本确定需要的JDK版本
+            let requiredJavaVersion = "JavaSE-1.8"; // 默认JDK8
+            if (version >= 2312) {
+                requiredJavaVersion = "JavaSE-17"; // JDK17
+            } else if (version < 1903) {
+                requiredJavaVersion = "JavaSE-1.7"; // JDK7
+            }
+            // 1903 <= version < 2312 的情况使用默认的 JDK8
+
             // 在Windows系统上，默认使用homepath/ufjdk作为JDK路径
             const defaultJdkPath = path.join(homePath, 'ufjdk');
 
@@ -1359,10 +1377,21 @@ export class LibraryService {
                     // 使用新的方法获取Java版本
                     const runtimeName = JavaVersionUtils.getJavaVersionName(javaExecutable, this.outputChannel);
                     
-                    javaRuntimes.push({
-                        "name": runtimeName,
-                        "path": defaultJdkPath
-                    });
+                    // 如果版本匹配，则将其设为默认
+                    if (runtimeName === requiredJavaVersion) {
+                        // 添加匹配的JDK作为默认JDK
+                        javaRuntimes.push({
+                            "name": runtimeName,
+                            "path": defaultJdkPath,
+                            "default": true  // 将匹配的JDK设为默认
+                        });
+                    } else {
+                        // 版本不匹配，但仍添加到列表中（非默认）
+                        javaRuntimes.push({
+                            "name": runtimeName,
+                            "path": defaultJdkPath
+                        });
+                    }
                 }
             }
 
@@ -1377,10 +1406,24 @@ export class LibraryService {
                     // 使用新的方法获取Java版本
                     const runtimeName = JavaVersionUtils.getJavaVersionName(javaExecutable, this.outputChannel);
                     
-                    javaRuntimes.push({
-                        "name": runtimeName,
-                        "path": jdkPath
-                    });
+                    // 检查是否已经添加了默认JDK
+                    const hasDefault = javaRuntimes.some(runtime => runtime.default === true);
+                    
+                    // 如果版本匹配且还没有默认JDK，则将其设为默认
+                    if (runtimeName === requiredJavaVersion && !hasDefault) {
+                        javaRuntimes.push({
+                            "name": runtimeName,
+                            "path": jdkPath,
+                            "default": true  // 将匹配的JDK设为默认
+                        });
+                    } else if (!javaRuntimes.some(runtime => runtime.path === jdkPath)) {
+                        // 避免重复添加，且版本不匹配或已有默认JDK时作为普通JDK添加
+                        javaRuntimes.push({
+                            "name": runtimeName,
+                            "path": jdkPath,
+                            "default": !hasDefault  // 如果还没有默认JDK，则设为默认
+                        });
+                    }
                 }
             }
 
