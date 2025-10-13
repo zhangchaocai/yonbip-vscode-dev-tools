@@ -37,8 +37,8 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onView:explorer",  
-    "workspaceContains:.classpath" 
+    "onView:explorer",
+    "workspaceContains:.classpath"
   ],
   "main": "./out/extension.js",
   "contributes": {

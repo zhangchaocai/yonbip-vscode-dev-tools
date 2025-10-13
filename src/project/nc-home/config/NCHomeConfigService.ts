@@ -19,6 +19,10 @@ export class NCHomeConfigService {
     private config: NCHomeConfig;
     private configFilePath: string;
     private oracleClientService: OracleClientService;
+    // 添加配置缓存相关属性
+    private configCache: NCHomeConfig | null = null;
+    private configCacheTimestamp: number = 0;
+    private readonly CACHE_TTL: number = 5000; // 5秒缓存时间
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
@@ -64,8 +68,17 @@ export class NCHomeConfigService {
 
     /**
      * 获取配置（在返回给前端前处理密码解密）
+     * 实现缓存机制，避免频繁读取和解密操作
      */
     public getConfig(): NCHomeConfig {
+        const now = Date.now();
+        
+        // 检查缓存是否有效
+        if (this.configCache && (now - this.configCacheTimestamp) < this.CACHE_TTL) {
+            // 返回缓存的配置副本
+            return JSON.parse(JSON.stringify(this.configCache));
+        }
+        
         // 创建配置的深拷贝，避免修改原始配置
         const configCopy: NCHomeConfig = JSON.parse(JSON.stringify(this.config));
 
@@ -89,8 +102,21 @@ export class NCHomeConfigService {
                 }
             }
         }
+        
+        // 更新缓存
+        this.configCache = JSON.parse(JSON.stringify(configCopy));
+        this.configCacheTimestamp = now;
 
         return configCopy;
+    }
+    
+    /**
+     * 使配置缓存失效
+     * 在配置更新后调用此方法以确保下次获取最新配置
+     */
+    public invalidateConfigCache(): void {
+        this.configCache = null;
+        this.configCacheTimestamp = 0;
     }
 
     /**
@@ -129,6 +155,9 @@ export class NCHomeConfigService {
                     // 不抛出错误，因为这不应该阻止配置保存
                 }
             }
+
+            // 使配置缓存失效，确保下次获取最新配置
+            this.invalidateConfigCache();
 
             this.outputChannel.appendLine(`配置已保存: ${this.configFilePath}`);
             vscode.window.showInformationMessage('NC Home配置已保存');
@@ -1262,6 +1291,9 @@ export class NCHomeConfigService {
      */
     public syncConfigFromPropXml(): void {
         try {
+            // 保存当前的homeVersion，避免被覆盖
+            const currentHomeVersion = this.config.homeVersion;
+            
             const portsAndDataSourcesFromProp = this.getPortFromPropXml();
             
             // 更新端口信息
@@ -1275,11 +1307,12 @@ export class NCHomeConfigService {
                 this.outputChannel.appendLine(`已同步Service端口: ${portsAndDataSourcesFromProp.wsPort}`);
             }
             
+            // 确保不从prop.xml中获取JVM参数，始终使用用户在界面中设置的参数
             // 更新JVM参数
-            if (portsAndDataSourcesFromProp.vmParameters !== undefined) {
-                this.config.vmParameters = portsAndDataSourcesFromProp.vmParameters;
-                this.outputChannel.appendLine(`已同步JVM参数: ${portsAndDataSourcesFromProp.vmParameters}`);
-            }
+            // if (portsAndDataSourcesFromProp.vmParameters !== undefined) {
+            //     this.config.vmParameters = portsAndDataSourcesFromProp.vmParameters;
+            //     this.outputChannel.appendLine(`已同步JVM参数: ${portsAndDataSourcesFromProp.vmParameters}`);
+            // }
             
             // 更新数据源信息
             if (portsAndDataSourcesFromProp.dataSources.length > 0) {
@@ -1304,6 +1337,14 @@ export class NCHomeConfigService {
                 this.config.baseDatabase = undefined;
                 this.outputChannel.appendLine('未找到数据源配置，已清空数据源信息');
             }
+            
+            // 恢复homeVersion（如果之前有设置）
+            if (currentHomeVersion) {
+                this.config.homeVersion = currentHomeVersion;
+            }
+            
+            // 使配置缓存失效，确保下次获取最新配置
+            this.invalidateConfigCache();
             
             this.outputChannel.appendLine('配置同步完成');
         } catch (error: any) {
@@ -1358,14 +1399,20 @@ export class NCHomeConfigService {
                 }
             }
 
+            // 确保不从prop.xml中获取JVM参数，始终使用用户在界面中设置的参数
             // 使用正则表达式查找jvmArgs元素
-            const vmParametersMatch = content.match(/<jvmArgs>([^<]*)<\/jvmArgs>/);
-            let vmParameters: string | undefined = undefined;
-            if (vmParametersMatch && vmParametersMatch[1]) {
-                vmParameters = vmParametersMatch[1].trim();
-                this.outputChannel.appendLine(`从prop.xml中读取到JVM参数: ${vmParameters}`);
-                console.log('Read JVM parameters from prop.xml:', vmParameters);
-            }
+            // const vmParametersMatch = content.match(/<jvmArgs>([^<]*)<\/jvmArgs>/);
+            // let vmParameters: string | undefined = undefined;
+            // if (vmParametersMatch && vmParametersMatch[1]) {
+            //     vmParameters = vmParametersMatch[1].trim();
+            //     // 将参数按照空格进行换行处理，方便在界面中显示和编辑
+            //     if (vmParameters) {
+            //         // 先按空格分割，然后过滤掉空字符串，最后用换行符连接
+            //         vmParameters = vmParameters.split(' ').filter(param => param.trim() !== '').join('\n');
+            //     }
+            //     this.outputChannel.appendLine(`从prop.xml中读取到JVM参数: ${vmParameters}`);
+            //     console.log('Read JVM parameters from prop.xml:', vmParameters);
+            // }
 
             // 提取数据源信息
             const dataSources: DataSourceMeta[] = [];
@@ -1503,7 +1550,7 @@ export class NCHomeConfigService {
                 this.outputChannel.appendLine('未在prop.xml中找到有效的端口配置或数据源配置');
             }
 
-            return { port, wsPort, dataSources, vmParameters };
+            return { port, wsPort, dataSources, vmParameters: undefined };
         } catch (error: any) {
             this.outputChannel.appendLine(`读取prop.xml文件失败: ${error.message}`);
             return { port: null, wsPort: null, dataSources: [], vmParameters: undefined };

@@ -5,6 +5,7 @@ import { NCHomeConfigService } from './NCHomeConfigService';
 import { DataSourceMeta, NCHomeConfig } from './NCHomeConfigTypes';
 import { MacHomeConversionService } from '../../mac/MacHomeConversionService';
 import { getHomeVersion, findClosestHomeVersion, HOME_VERSIONS } from '../../../utils/HomeVersionUtils';
+import { ConfigurationUtils } from '../../../utils/ConfigurationUtils';
 /**
  * NC Home配置WebView提供者
  */
@@ -37,7 +38,32 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             // 发送错误消息到WebView，由调用者决定发送什么类型的消息
             return false;
         }
+        
         return true;
+    }
+
+    /**
+     * 自动执行配置更新
+     * 包括更新杂项配置文件和prop.xml中的address标签
+     */
+    private async autoUpdateConfigurations(): Promise<void> {
+        try {
+            const configUtils = new ConfigurationUtils(this.configService);
+            
+            // 并行执行所有配置更新操作以提高性能
+            const updatePromises = [
+                configUtils.updateMiscellaneousConfiguration(),
+                configUtils.updatePropXmlAddress(),
+                configUtils.authorizeHomeDirectoryPermissions()
+            ];
+            
+            // 等待所有操作完成
+            await Promise.all(updatePromises);
+            
+            console.log('自动配置更新完成');
+        } catch (error) {
+            console.error('自动配置更新失败:', error);
+        }
     }
 
     public resolveWebviewView(
@@ -140,10 +166,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             if (portsAndDataSourcesFromProp.wsPort !== null) {
                 config.wsPort = portsAndDataSourcesFromProp.wsPort;
             }
-            if (portsAndDataSourcesFromProp.vmParameters !== undefined) {
-                config.vmParameters = portsAndDataSourcesFromProp.vmParameters;
-                console.log('Loaded JVM parameters from prop.xml:', portsAndDataSourcesFromProp.vmParameters);
-            }
+            // 确保不从prop.xml中获取JVM参数，始终使用用户在界面中设置的参数
+            // if (portsAndDataSourcesFromProp.vmParameters !== undefined) {
+            //     config.vmParameters = portsAndDataSourcesFromProp.vmParameters;
+            //     console.log('Loaded JVM parameters from prop.xml:', portsAndDataSourcesFromProp.vmParameters);
+            // }
 
             // 从prop.xml中获取数据源信息
             if (portsAndDataSourcesFromProp.dataSources.length > 0) {
@@ -208,54 +235,73 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
      */
     private async handleSelectHomeDirectory() {
         try {
-            const homePath = await this.configService.selectHomeDirectory();
-            if (homePath) {
-                const config = this.configService.getConfig();
-                config.homePath = homePath;
-
-                // 获取HOME版本并设置默认值
-                const homeVersion = getHomeVersion(homePath);
-                const closestVersion = findClosestHomeVersion(homeVersion);
-                if (closestVersion) {
-                    config.homeVersion = closestVersion;
-                }
+            // 显示进度条
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "正在处理Home目录选择",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: "正在选择Home目录..." });
                 
-                await this.configService.saveConfig(config);
+                const homePath = await this.configService.selectHomeDirectory();
+                if (homePath) {
+                    progress.report({ message: "正在配置Home路径..." });
+                    const config = this.configService.getConfig();
+                    config.homePath = homePath;
 
-                // 如果是Mac系统，自动执行Mac HOME转换
-                if (process.platform === 'darwin') {
-                    // 检查home/bin目录下是否已存在sysConfig.sh文件
-                    const sysConfigPath = path.join(homePath, 'bin', 'sysConfig.sh');
-                    if (fs.existsSync(sysConfigPath)) {
-                        // 如果sysConfig.sh文件已存在，则不再执行MAC HOME转换
-                        this.macHomeConversionService['outputChannel'].appendLine('检测到sysConfig.sh文件已存在，跳过MAC HOME转换');
-                        vscode.window.showInformationMessage('检测到sysConfig.sh文件已存在，跳过MAC HOME转换');
-                    } else {
-                        const convert = await vscode.window.showInformationMessage(
-                            '检测到您使用的是Mac系统，是否需要自动执行Mac HOME转换？',
-                            '是',
-                            '否'
-                        );
+                    // 获取HOME版本并设置默认值
+                    const homeVersion = getHomeVersion(homePath);
+                    const closestVersion = findClosestHomeVersion(homeVersion);
+                    if (closestVersion) {
+                        config.homeVersion = closestVersion;
+                    }
+                    
+                    // 保存初始配置（包含homeVersion）
+                    await this.configService.saveConfig(config);
 
-                        if (convert === '是') {
-                            await this.macHomeConversionService.convertToMacHome(homePath);
+                    // 自动执行配置更新（仅在选择HOME目录后执行一次）
+                    progress.report({ message: "正在更新配置..." });
+                    await this.autoUpdateConfigurations();
+
+                    // 如果是Mac/Linux系统，自动执行Mac HOME转换
+                    if (process.platform === 'darwin' || process.platform === 'linux') {
+                        // 检查home/bin目录下是否已存在sysConfig.sh文件
+                        const sysConfigPath = path.join(homePath, 'bin', 'sysConfig.sh');
+                        if (fs.existsSync(sysConfigPath)) {
+                            // 如果sysConfig.sh文件已存在，则不再执行MAC HOME转换
+                            this.macHomeConversionService['outputChannel'].appendLine('检测到sysConfig.sh文件已存在，跳过MAC HOME转换');
+                            vscode.window.showInformationMessage('检测到sysConfig.sh文件已存在，跳过MAC HOME转换');
+                        } else {
+                            const convert = await vscode.window.showInformationMessage(
+                                '检测到您使用的是Mac系统，是否需要自动执行Mac HOME转换？',
+                                '是',
+                                '否'
+                            );
+
+                            if (convert === '是') {
+                                progress.report({ message: "正在执行Mac HOME转换..." });
+                                await this.macHomeConversionService.convertToMacHome(homePath);
+                            }
                         }
                     }
-                }
 
-                // 同步配置信息从prop.xml文件
-                this.configService.syncConfigFromPropXml();
+                    // 同步配置信息从prop.xml文件
+                    progress.report({ message: "正在同步配置信息..." });
+                    this.configService.syncConfigFromPropXml();
+                    
+                    // 保存同步后的配置
+                    await this.configService.saveConfig(this.configService.getConfig());
+                    
+                    // 重新加载配置以获取新home目录中的数据源信息
+                    progress.report({ message: "正在加载配置..." });
+                    await this.handleLoadConfig();
+                }
                 
-                // 保存同步后的配置
-                await this.configService.saveConfig(this.configService.getConfig());
-                
-                // 重新加载配置以获取新home目录中的数据源信息
-                await this.handleLoadConfig();
-            }
-            this._view?.webview.postMessage({
-                type: 'homeDirectorySelected',
-                homePath,
-                success: !!homePath
+                this._view?.webview.postMessage({
+                    type: 'homeDirectorySelected',
+                    homePath,
+                    success: !!homePath
+                });
             });
         } catch (error: any) {
             this._view?.webview.postMessage({
@@ -280,6 +326,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 });
                 return;
             }
+            
+
             
             await this.configService.openHomeDirectory();
             this._view?.webview.postMessage({
@@ -310,6 +358,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+
+            
             await this.configService.openSysConfig();
             this._view?.webview.postMessage({
                 type: 'sysConfigOpened',
@@ -339,6 +389,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+
+            
             const logs = await this.configService.getLatestLogs();
             this._view?.webview.postMessage({
                 type: 'logsLoaded',
@@ -367,6 +419,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 });
                 return;
             }
+            
+
 
             const config = this.configService.getConfig();
             const homePath = config.homePath;
@@ -432,6 +486,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+
+            
             // 执行停止HOME服务的命令
             const result = await vscode.commands.executeCommand('yonbip.home.stop');
             this._view?.webview.postMessage({
@@ -466,6 +522,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+
+            
             const result = await this.configService.testConnection(dataSource);
             this._view?.webview.postMessage({
                 type: 'connectionTestResult',
@@ -497,6 +555,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+
+            
             await this.configService.addDataSource(dataSource);
             // 注意：这里不再重新加载整个配置，只发送成功消息
             this._view?.webview.postMessage({
@@ -527,6 +587,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 });
                 return;
             }
+            
+
             
             await this.configService.updateDataSource(dataSource);
             // 注意：这里不再重新加载整个配置，只发送成功消息
@@ -560,6 +622,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+
+            
             await this.configService.deleteDataSource(dataSourceName);
             // 注意：这里不再重新加载整个配置，只发送成功消息
             this._view?.webview.postMessage({
@@ -591,6 +655,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+
+            
             await this.configService.setAsDesignDatabase(dataSourceName);
             // 注意：这里不再传递整个config对象，而是重新加载配置以获取最新的数据源信息
             await this.handleLoadConfig();
@@ -621,6 +687,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 });
                 return;
             }
+            
+
             
             await this.configService.setBaseDatabase(dataSourceName);
             // 注意：这里不再传递整个config对象，而是重新加载配置以获取最新的数据源信息
@@ -674,6 +742,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
+
+            
             // 执行调试启动HOME服务的命令
             await vscode.commands.executeCommand('yonbip.home.debug');
             this._view?.webview.postMessage({
@@ -705,6 +775,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 });
                 return;
             }
+            
+
             
             const result = this.configService.checkSystemConfig();
             this._view?.webview.postMessage({
@@ -1222,16 +1294,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         function initializeHomeVersionSelect(homeVersions) {
             const select = document.getElementById('homeVersion');
             if (select) {
-                // 清空现有选项
+                // 清空现有选项，但保留默认选项
                 select.innerHTML = '<option value="">请选择HOME版本</option>';
                 
                 // 添加版本选项
-                homeVersions.forEach(version => {
-                    const option = document.createElement('option');
-                    option.value = version;
-                    option.textContent = version;
-                    select.appendChild(option);
-                });
+                if (homeVersions && Array.isArray(homeVersions)) {
+                    homeVersions.forEach(version => {
+                        const option = document.createElement('option');
+                        option.value = version;
+                        option.textContent = version;
+                        select.appendChild(option);
+                    });
+                }
             }
         }
 
@@ -1588,6 +1662,24 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             if (config.homeVersion) {
                 const homeVersionSelect = document.getElementById('homeVersion');
                 if (homeVersionSelect) {
+                    // 检查选项是否已存在，如果不存在则添加
+                    let optionExists = false;
+                    for (let i = 0; i < homeVersionSelect.options.length; i++) {
+                        if (homeVersionSelect.options[i].value === config.homeVersion) {
+                            optionExists = true;
+                            break;
+                        }
+                    }
+                    
+                    // 如果选项不存在，添加它
+                    if (!optionExists) {
+                        const option = document.createElement('option');
+                        option.value = config.homeVersion;
+                        option.textContent = config.homeVersion;
+                        homeVersionSelect.appendChild(option);
+                    }
+                    
+                    // 设置选中值
                     homeVersionSelect.value = config.homeVersion;
                 }
             }
@@ -1800,6 +1892,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             
             switch (message.type) {
                 case 'configLoaded':
+                    // 初始化HOME版本下拉框（如果尚未初始化）
+                    if (message.homeVersions) {
+                        initializeHomeVersionSelect(message.homeVersions);
+                    }
                     updateConfigDisplay(message.config);
                     // 检查是否为Mac系统，如果是则显示转换按钮
                     if (message.config.homePath && navigator.userAgent.includes('Mac')) {
