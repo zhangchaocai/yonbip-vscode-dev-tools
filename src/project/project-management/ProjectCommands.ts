@@ -460,7 +460,8 @@ export class ProjectCommands {
             fs.mkdirSync(comPath, { recursive: true });
             
             const classPath = path.join(comPath, 'Application.java');
-            const classContent = `/**
+            const classContent = `package com.yonyou;
+/**
 * Hello world! 
 **/
 public class Application{
