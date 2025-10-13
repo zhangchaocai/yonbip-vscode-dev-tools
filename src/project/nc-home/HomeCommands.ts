@@ -68,6 +68,14 @@ export class HomeCommands {
             }
         );
 
+        // 注册从工具栏停止HOME服务命令
+        const stopFromToolbarCommand = vscode.commands.registerCommand(
+            'yonbip.home.stopFromToolbar',
+            () => {
+                homeCommands.stopHomeService();
+            }
+        );
+
         context.subscriptions.push(
             startCommand,
             debugCommand,
@@ -75,7 +83,8 @@ export class HomeCommands {
             statusCommand,
             logsCommand,
             startFromDirectoryCommand,
-            startFromToolbarCommand
+            startFromToolbarCommand,
+            stopFromToolbarCommand
         );
     }
 
