@@ -36,7 +36,9 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:explorer",  
+    "workspaceContains:.classpath" 
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -229,27 +231,15 @@
           "group": "navigation"
         }
       ],
-      "explorer/toolbar": [
-        {
-          "command": "yonbip.home.startFromToolbar",
-          "when": "explorerViewletVisible",
-          "group": "navigation"
-        },
-        {
-          "command": "yonbip.home.stop",
-          "when": "explorerViewletVisible",
-          "group": "navigation"
-        }
-      ],
       "view/title": [
         {
           "command": "yonbip.home.startFromToolbar",
-          "when": "explorerViewletVisible",
+          "when": "view == yonbip-nchome || yonbip:isWebViewActive || explorerViewletVisible",
           "group": "navigation@1"
         },
-               {
+        {
           "command": "yonbip.home.stopFromToolbar",
-          "when": "explorerViewletVisible",
+          "when": "view == yonbip-nchome || yonbip:isWebViewActive || explorerViewletVisible",
           "group": "navigation"
         }
       ],
