@@ -840,9 +840,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         #vmParameters {
             display: block;
             width: 100%;
-            height: 40vh; /* 使其在视口中占据更大高度 */
-            min-height: 240px;
-            max-height: 70vh;
+            height: 20vh; /* 使其在视口中占据更大高度 */
+            min-height: 200px;
+            max-height: 50vh;
             font-family: monospace;
             line-height: 1.5;
             resize: vertical; /* 允许垂直方向调整大小 */
@@ -1133,7 +1133,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 
                 <div class="form-group">
                     <label for="vmParameters">JVM参数:</label>
-                    <textarea id="vmParameters" rows="10" placeholder="每行输入一个JVM参数，例如：&#10;-Xms512m&#10;-Xmx2048m&#10;-XX:MaxPermSize=512m"></textarea>
+                    <textarea id="vmParameters" rows="10" placeholder="仅配置调优参数即可,已经有默认的参数,每行输入一个JVM参数，例如：&#10;-Xms512m&#10;-Xmx2048m&#10;-XX:MaxPermSize=512m"></textarea>
                     <div class="help-text">自定义JVM启动参数，每行一个参数</div>
                 </div>
             </div>
