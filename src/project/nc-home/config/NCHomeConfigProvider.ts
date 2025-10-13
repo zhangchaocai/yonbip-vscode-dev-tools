@@ -108,6 +108,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'debugHomeService':
                     await this.handleDebugHomeService();
                     break;
+                case 'convertToMacHome':
+                    await this.handleConvertToMacHome();
+                    break;
 
                 case 'confirmResetDefaults':
                     await this.handleConfirmResetDefaults();
@@ -345,6 +348,50 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             this._view?.webview.postMessage({
                 type: 'logsLoaded',
                 logs: [],
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理Mac HOME转换
+     */
+    private async handleConvertToMacHome() {
+        try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'macHomeConversionResult',
+                    success: false,
+                    error: '请先配置NC Home路径'
+                });
+                return;
+            }
+
+            const config = this.configService.getConfig();
+            const homePath = config.homePath;
+
+            // 检查是否为Mac系统
+            if (process.platform !== 'darwin') {
+                this._view?.webview.postMessage({
+                    type: 'macHomeConversionResult',
+                    success: false,
+                    error: '当前系统不是Mac系统，无需执行转换'
+                });
+                return;
+            }
+
+            // 执行Mac HOME转换
+            const result = await this.macHomeConversionService.convertToMacHome(homePath);
+            
+            this._view?.webview.postMessage({
+                type: 'macHomeConversionResult',
+                success: result
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'macHomeConversionResult',
+                success: false,
                 error: error.message
             });
         }
@@ -1080,6 +1127,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         <button class="secondary" onclick="viewLogs()">
                             <span style="margin-right: 6px;">📋</span> 查看日志
                         </button>
+                        <button class="secondary" onclick="convertToMacHome()" id="convertToMacHomeBtn" style="display: none;">
+                            <span style="margin-right: 6px;">🔄</span> 转换为Mac/Linux HOME
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1222,9 +1272,15 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'viewLogs' });
         }
         
+        // 转换为Mac/Linux HOME
+        function convertToMacHome() {
+            vscode.postMessage({ type: 'convertToMacHome' });
+        }
+        
         // 启动HOME服务
         // function startHomeService() {
         //     vscode.postMessage({ type: 'startHomeService' });
+        // }
         // }
         
         // 调试启动HOME服务
@@ -1744,11 +1800,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             
             switch (message.type) {
                 case 'configLoaded':
-                    // 初始化HOME版本下拉框
-                    if (message.homeVersions) {
-                        initializeHomeVersionSelect(message.homeVersions);
-                    }
                     updateConfigDisplay(message.config);
+                    // 检查是否为Mac系统，如果是则显示转换按钮
+                    if (message.config.homePath && navigator.userAgent.includes('Mac')) {
+                        document.getElementById('convertToMacHomeBtn').style.display = 'inline-block';
+                    }
                     break;
                     
                 case 'homeDirectorySelected':
@@ -1880,6 +1936,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         vscode.postMessage({ type: 'loadConfig' });
                     } else {
                         showMessage('设置开发库失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
+                case 'macHomeConversionResult':
+                    if (message.success) {
+                        showMessage('Mac HOME转换成功', 'success');
+                    } else {
+                        showMessage('Mac HOME转换失败: ' + message.error, 'error');
                     }
                     break;
                     

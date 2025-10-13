@@ -36,7 +36,10 @@ export class MacHomeConversionService {
             // 2. 使用本目录resource/sysconfig/sysConfig.sh替换home/bin/sysConfig.sh
             await this.replaceSysConfigSh(homePath);
 
-            // 3. 设置权限
+            // 3. 使用本目录resource/sysconfig/uapSetupCmdLine.sh替换home/bin/uapSetupCmdLine.sh
+            await this.replaceUapSetupCmdLineSh(homePath);
+
+            // 4. 设置权限
             await this.setPermissions(homePath);
 
             this.outputChannel.appendLine('Mac HOME转换完成！');
@@ -103,6 +106,35 @@ export class MacHomeConversionService {
         fs.writeFileSync(targetSysConfigPath, content, 'utf-8');
         this.outputChannel.appendLine(`sysConfig.sh文件已替换: ${targetSysConfigPath}`);
         this.outputChannel.appendLine(`JDK路径设置为: ${jdkPath}`);
+    }
+
+    /**
+     * 替换uapSetupCmdLine.sh文件
+     * @param homePath HOME路径
+     */
+    private async replaceUapSetupCmdLineSh(homePath: string): Promise<void> {
+        this.outputChannel.appendLine('正在替换uapSetupCmdLine.sh文件...');
+
+        // 获取扩展路径
+        const extensionPath = vscode.extensions.getExtension('zhang-chaocai.yonbip-devtool')?.extensionPath;
+        if (!extensionPath) {
+            throw new Error('无法获取扩展路径');
+        }
+
+        const sourceUapSetupCmdLinePath = path.join(extensionPath, 'resources', 'sysconfig', 'uapSetupCmdLine.sh');
+        const targetUapSetupCmdLinePath = path.join(homePath, 'bin', 'uapSetupCmdLine.sh');
+
+        if (!fs.existsSync(sourceUapSetupCmdLinePath)) {
+            throw new Error(`未找到源uapSetupCmdLine.sh文件: ${sourceUapSetupCmdLinePath}`);
+        }
+
+        // 读取源文件内容
+        let content = fs.readFileSync(sourceUapSetupCmdLinePath, 'utf-8');
+
+
+        // 写入目标文件
+        fs.writeFileSync(targetUapSetupCmdLinePath, content, 'utf-8');
+        this.outputChannel.appendLine(`uapSetupCmdLine.sh文件已替换: ${targetUapSetupCmdLinePath}`);
     }
 
     /**
