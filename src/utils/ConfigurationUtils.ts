@@ -183,6 +183,7 @@ export class ConfigurationUtils {
 
     /**
      * 授权home路径下的所有目录具有读写权限 (仅限Mac和Linux系统)
+     * 优化版本：只授权必要的子目录，而不是整个home目录
      * @param homePath home路径
      */
     public async authorizeHomeDirectoryPermissions(): Promise<void> {
@@ -201,10 +202,26 @@ export class ConfigurationUtils {
                 return;
             }
 
-            // 使用chmod命令递归授权读写权限
+            // 只授权特定的关键子目录，而不是整个home目录
+            const keyDirectories = [
+                'bin',
+                'ierp/bin',
+                'hotwebs/nccloud/WEB-INF/config',
+                'middleware',
+                'lib',
+                'modules'
+            ];
+
             const { execSync } = require('child_process');
-            execSync(`chmod -R 755 "${homePath}"`, { stdio: 'pipe' });
-            console.log(`已成功授权路径 ${homePath} 下所有目录的读写权限`);
+            
+            // 逐个授权关键目录权限
+            for (const dir of keyDirectories) {
+                const fullPath = path.join(homePath, dir);
+                if (fs.existsSync(fullPath)) {
+                    execSync(`chmod -R 755 "${fullPath}"`, { stdio: 'pipe' });
+                    console.log(`已成功授权路径 ${fullPath} 的读写权限`);
+                }
+            }
         } catch (error) {
             console.error('授权目录权限时发生错误:', error);
         }
