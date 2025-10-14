@@ -1,21 +1,8 @@
 # YonBIP高级版开发者工具
 
-[![VSCode Marketplace](https://img.shields.io/visual-studio-marketplace/v/yonbip-community.yonbip-dev-tools?style=flat-square&label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=yonbip-community.yonbip-dev-tools)
-[![Downloads](https://img.shields.io/visual-studio-marketplace/d/yonbip-community.yonbip-dev-tools?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yonbip-community.yonbip-dev-tools)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/yonbip-community.yonbip-dev-tools?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yonbip-community.yonbip-dev-tools)
-
-一个专业的VSCode插件，为YonBIP高级版开发者提供完整的开发工具链支持。集成MCP智能服务、OpenAPI测试、多语言抽取、项目管理等核心功能，显著提升开发效率。
-
-![YonBIP开发工具](https://raw.githubusercontent.com/yonbip/vscode-dev-tools/main/resources/demo.gif)
+一个专业的VSCode插件，为YonBIP高级版开发者提供完整的开发工具链支持。集成MCP智能服务等核心功能，显著提升开发效率。
 
 ## ✨ 主要特性
-
-### 🌐 OpenAPI测试工具
-- **集成测试界面** - 无需外部工具，直接在VSCode中测试API
-- **多种HTTP方法** - 支持GET、POST、PUT、DELETE、PATCH等
-- **历史记录** - 自动保存请求历史，方便复用
-- **认证支持** - 支持多种认证方式配置
-- **响应美化** - JSON/XML响应自动格式化显示
 
 ### 🚀 MCP服务集成
 - **内置JAR文件** - 插件自带yonyou-mcp.jar，开箱即用
@@ -24,25 +11,12 @@
 - **错误自动诊断** - 智能识别和解决常见问题
 - **WebSocket支持** - 实时通信连接
 
-### 🌍 多语言抽取工具
-- **智能文本识别** - 从代码中自动识别多语言文本
-- **多文件格式支持** - Java、JavaScript、TypeScript、XML等
-- **文本过滤清理** - 智能过滤和清理提取的文本
-- **资源文件生成** - 自动生成多语言资源文件
-- **批量处理** - 支持整个项目的批量处理
 
-### 📦 项目管理工具
+### 📦 HOME管理工具
 - **快速项目创建** - 一键创建YonBIP高级版标准项目
 - **项目结构生成** - 自动生成标准目录结构
 - **补丁包导出** - 快速导出项目补丁包
-- **代码模板** - 内置常用代码模板
 - **版本化脚手架** - 根据HOME版本自动选择对应的脚手架
-
-### 🗄️ 数据库连接管理
-- **多数据库支持** - MySQL、Oracle、SQL Server、PostgreSQL、SQLite
-- **可视化配置** - 友好的数据库连接配置界面
-- **连接测试** - 一键测试数据库连接
-- **状态监控** - 实时显示连接状态
 
 ## 🎯 核心优势
 
@@ -143,25 +117,6 @@ npm run perf:analyze
 // 3. 如果遇到端口冲突，插件会自动处理
 ```
 
-### OpenAPI测试
-```javascript
-// 1. 打开API测试工具
-// 使用命令面板: YonBIP: 打开OpenAPI测试工具
-
-// 2. 配置请求
-{
-  "method": "POST",
-  "url": "http://localhost:9000/api/test",
-  "headers": {
-    "Content-Type": "application/json"
-  },
-  "body": {
-    "name": "test"
-  }
-}
-
-// 3. 发送请求并查看响应
-```
 
 ### 版本化脚手架功能
 插件现在支持根据NC HOME的版本自动选择对应的脚手架：
@@ -199,14 +154,5 @@ npm run perf:analyze
 2. **代理设置**: 如果使用代理，请配置相应设置
 3. **权限问题**: 确保有足够的文件读写权限
 
-## 🤝 贡献
-
-欢迎提交问题和功能请求！
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
 
 ## 📄 许可证
