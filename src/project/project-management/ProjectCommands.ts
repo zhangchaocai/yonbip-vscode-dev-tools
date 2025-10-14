@@ -208,6 +208,19 @@ export class ProjectCommands {
             vscode.window.showInformationMessage(isMultiModuleProject || isInMultiModuleRoot ?
                 `YonBIP模块项目 "${folderName}" 创建完成！` :
                 `YonBIP项目 "${folderName}" 创建完成！`);
+
+            // 在模块项目创建完成后，提示用户是否创建业务组件
+            const createComponentChoice = await vscode.window.showInformationMessage(
+                `是否需要在模块项目 "${folderName}" 中创建业务组件？`,
+                '创建业务组件',
+                '稍后手动创建'
+            );
+
+            if (createComponentChoice === '创建业务组件') {
+                // 调用创建业务组件命令，传入新创建的模块项目路径
+                await vscode.commands.executeCommand('yonbip.project.createComponent', vscode.Uri.file(selectedPath));
+            }
+            
         } catch (error: any) {
             console.error('项目初始化失败:', error);
             vscode.window.showErrorMessage(`项目初始化失败: ${error.message}`);
@@ -317,6 +330,18 @@ export class ProjectCommands {
             });
 
             vscode.window.showInformationMessage(`YonBIP多模块项目 "${folderName}" 创建完成！`);
+
+            // 在多模块项目创建完成后，提示用户是否创建业务组件
+            const createComponentChoice = await vscode.window.showInformationMessage(
+                `是否需要在多模块项目 "${folderName}" 中创建业务组件？`,
+                '创建业务组件',
+                '稍后手动创建'
+            );
+
+            if (createComponentChoice === '创建业务组件') {
+                // 调用创建业务组件命令，传入新创建的多模块项目路径
+                await vscode.commands.executeCommand('yonbip.project.createComponent', vscode.Uri.file(selectedPath));
+            }
         } catch (error: any) {
             console.error('多模块项目初始化失败:', error);
             vscode.window.showErrorMessage(`多模块项目初始化失败: ${error.message}`);
@@ -1054,19 +1079,6 @@ public class Application{
                 fs.mkdirSync(classesPath, { recursive: true });
             }
 
-            // 创建src目录结构
-            // const srcPrivatePath = path.join(basePath, 'src', 'private');
-            // const srcPublicPath = path.join(basePath, 'src', 'public');
-            // const srcClientPath = path.join(basePath, 'src', 'client');
-            // if (!fs.existsSync(srcPrivatePath)) {
-            //     fs.mkdirSync(srcPrivatePath, { recursive: true });
-            // }
-            // if (!fs.existsSync(srcPublicPath)) {
-            //     fs.mkdirSync(srcPublicPath, { recursive: true });
-            // }
-            // if (!fs.existsSync(srcClientPath)) {
-            //     fs.mkdirSync(srcClientPath, { recursive: true });
-            // }
 
             // 创建META-INF目录和module.xml文件
             const metaInfPath = path.join(basePath, 'META-INF');
@@ -1154,20 +1166,6 @@ public class Application{
 
             if (!fs.existsSync(classesPath)) {
                 fs.mkdirSync(classesPath, { recursive: true });
-            }
-
-            // 创建src目录结构
-            const srcPrivatePath = path.join(basePath, 'src', 'private');
-            const srcPublicPath = path.join(basePath, 'src', 'public');
-            const srcClientPath = path.join(basePath, 'src', 'client');
-            if (!fs.existsSync(srcPrivatePath)) {
-                fs.mkdirSync(srcPrivatePath, { recursive: true });
-            }
-            if (!fs.existsSync(srcPublicPath)) {
-                fs.mkdirSync(srcPublicPath, { recursive: true });
-            }
-            if (!fs.existsSync(srcClientPath)) {
-                fs.mkdirSync(srcClientPath, { recursive: true });
             }
 
             // 创建META-INF目录和module.xml文件
