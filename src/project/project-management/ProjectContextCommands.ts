@@ -5,6 +5,7 @@ import { LibraryService } from '../library/LibraryService';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { HomeService } from '../nc-home/HomeService';
 import { ClasspathService } from '../library/ClasspathService';
+import { AutoHotwebsAccessService } from './AutoHotwebsAccessService';
 
 // 添加一个静态属性来存储context
 let extensionContext: vscode.ExtensionContext | undefined;
@@ -105,8 +106,58 @@ export class ProjectContextCommands {
             }
         );
 
+        // 自动访问HOTWEBS资源命令（右键菜单）
+        const autoAccessHotwebsCommand = vscode.commands.registerCommand(
+            'yonbip.project.autoAccessHotwebs',
+            async (uri: vscode.Uri) => {
+                await this.handleAutoAccessHotwebs(uri, configService);
+            }
+        );
+
         context.subscriptions.push(initProjectContextCommand);
         context.subscriptions.push(addAllSourcePathsCommand);
+        context.subscriptions.push(autoAccessHotwebsCommand);
+    }
+
+    /**
+     * 处理自动访问HOTWEBS资源
+     */
+    private static async handleAutoAccessHotwebs(
+        uri: vscode.Uri | undefined,
+        configService: NCHomeConfigService
+    ): Promise<void> {
+        try {
+            // 如果没有提供URI，则提示用户选择目录
+            let selectedPath: string;
+            if (!uri) {
+                const result = await vscode.window.showOpenDialog({
+                    canSelectFiles: false,
+                    canSelectFolders: true,
+                    canSelectMany: false,
+                    openLabel: '选择脚手架目录'
+                });
+
+                if (!result || result.length === 0) {
+                    return;
+                }
+
+                selectedPath = result[0].fsPath;
+            } else {
+                selectedPath = uri.fsPath;
+            }
+
+            console.log(`用户选择的脚手架目录: ${selectedPath}`);
+
+            // 创建自动访问HOTWEBS资源服务
+            const autoHotwebsService = new AutoHotwebsAccessService(configService);
+            
+            // 执行自动访问HOTWEBS资源
+            await autoHotwebsService.autoAccessHotwebsResources(selectedPath);
+
+        } catch (error: any) {
+            console.error('自动访问HOTWEBS资源失败:', error);
+            vscode.window.showErrorMessage(`自动访问HOTWEBS资源失败: ${error.message}`);
+        }
     }
 
     /**

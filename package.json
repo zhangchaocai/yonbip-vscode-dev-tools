@@ -215,6 +215,11 @@
         "title": "⛔ 停用YonBIP Premium中间件",
         "category": "YonBIP/HOME",
         "icon": "$(debug-stop)"
+      },
+      {
+        "command": "yonbip.project.autoAccessHotwebs",
+        "title": "🌐 自动访问HOTWEBS资源",
+        "category": "YonBIP/项目管理"
       }
     ],
     "submenus": [
@@ -293,6 +298,11 @@
           "command": "yonbip.project.addAllSourcePaths",
           "when": "explorerResourceIsFolder",
           "group": "1@9"
+        },
+        {
+          "command": "yonbip.project.autoAccessHotwebs",
+          "when": "explorerResourceIsFolder",
+          "group": "1@10"
         }
       ]
     },
