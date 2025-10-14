@@ -44,8 +44,47 @@ export class ProjectCommands {
         });
 
         // 注册导出补丁命令
-        const exportPatchCommand = vscode.commands.registerCommand('yonbip.project.exportPatch', (uri: vscode.Uri) => {
-            projectCommands.exportPatch(uri?.fsPath);
+        const exportPatchCommand = vscode.commands.registerCommand('yonbip.project.exportPatch', async (...args: any[]) => {
+            // 收集所有选中的路径
+            const selectedPaths: string[] = [];
+            
+            // 处理不同类型的参数
+            if (args && args.length > 0) {
+                args.forEach(arg => {
+                    if (arg instanceof vscode.Uri) {
+                        // 单个URI对象
+                        selectedPaths.push(arg.fsPath);
+                    } else if (Array.isArray(arg)) {
+                        // URI数组
+                        arg.forEach(uri => {
+                            if (uri instanceof vscode.Uri) {
+                                selectedPaths.push(uri.fsPath);
+                            }
+                        });
+                    } else if (arg && typeof arg === 'object' && arg.fsPath) {
+                        // 包含fsPath属性的对象
+                        selectedPaths.push(arg.fsPath);
+                    }
+                });
+            }
+            
+            console.log('选中的路径:', selectedPaths);
+            
+            // 如果有选中的路径，将其存储到工作区状态中
+            if (selectedPaths.length > 0) {
+                // 如果只有一个路径，保持原有行为以确保向后兼容
+                if (selectedPaths.length === 1) {
+                    projectCommands.exportPatch(selectedPaths[0]);
+                } else {
+                    // 如果有多个路径，将数组存储到工作区状态中
+                    projectCommands.context.workspaceState.update('selectedExportPaths', selectedPaths);
+                    projectCommands.context.workspaceState.update('selectedExportPath', undefined);
+                    projectCommands.exportPatch(undefined);
+                }
+            } else {
+                // 没有选中路径，保持原有行为
+                projectCommands.exportPatch(undefined);
+            }
         });
 
         // 注册下载脚手架命令
@@ -516,9 +555,12 @@ public class Application{
 
         // 将选择的路径存储到工作区状态中
         if (selectedPath) {
+            // 单个路径的情况
             this.context.workspaceState.update('selectedExportPath', selectedPath);
+            this.context.workspaceState.update('selectedExportPaths', undefined);
         } else {
-            this.context.workspaceState.update('selectedExportPath', undefined);
+            // 不清除已设置的selectedExportPaths，因为可能是多选情况
+            // 只有在明确传入单个路径时才清除selectedExportPaths
         }
 
         // 显示补丁导出配置界面

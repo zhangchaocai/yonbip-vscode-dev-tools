@@ -208,7 +208,7 @@
         "command": "yonbip.home.startFromToolbar",
         "title": "🖥️ 启动YonBIP Premium中间件 \n 1️⃣ 递归到的第一个.project文件的上级目录作为启动目录",
         "category": "YonBIP/HOME",
-        "icon": "$(debug-alt)"
+        "icon": "$(zap)"
       },
       {
         "command": "yonbip.home.stopFromToolbar",
@@ -229,17 +229,22 @@
           "submenu": "yonbip.project.submenu",
           "when": "explorerResourceIsFolder || explorerResourceIsFile",
           "group": "navigation"
+        },
+        {
+          "command": "yonbip.project.exportPatch",
+          "when": "!explorerResourceIsFolder",
+          "group": "navigation"
         }
       ],
       "view/title": [
         {
           "command": "yonbip.home.startFromToolbar",
-          "when": "view == yonbip-nchome || yonbip:isWebViewActive || explorerViewletVisible",
+          "when": "view == yonbip-nchome",
           "group": "navigation@1"
         },
         {
           "command": "yonbip.home.stopFromToolbar",
-          "when": "view == yonbip-nchome || yonbip:isWebViewActive || explorerViewletVisible",
+          "when": "view == yonbip-nchome",
           "group": "navigation"
         }
       ],

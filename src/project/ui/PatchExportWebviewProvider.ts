@@ -170,20 +170,48 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         });
 
         try {
-            // 获取用户右键选择的路径
+            // 获取用户右键选择的路径（支持单个路径和多个路径）
             const selectedPath = this._context.workspaceState.get<string>('selectedExportPath');
+            const selectedPaths = this._context.workspaceState.get<string[]>('selectedExportPaths');
+            
+            console.log('导出补丁 - selectedPath:', selectedPath);
+            console.log('导出补丁 - selectedPaths:', selectedPaths);
 
             let files: { path: string, type: string, relativePath: string }[] = [];
 
-            if (!selectedPath) {
+            if (selectedPaths && selectedPaths.length > 0) {
+                console.log('处理多个路径导出:', selectedPaths);
+                // 处理多个路径的情况
+                const filePaths = new Set<string>(); // 用于去重
+                for (const path of selectedPaths) {
+                    console.log('处理路径:', path);
+                    const pathFiles = await this._collectExportableFiles(path);
+                    console.log('路径', path, '找到文件数量:', pathFiles.length);
+                    
+                    // 去重处理
+                    for (const file of pathFiles) {
+                        if (!filePaths.has(file.path)) {
+                            filePaths.add(file.path);
+                            files.push(file);
+                        }
+                    }
+                }
+            } else if (selectedPath) {
+                console.log('处理单个路径导出:', selectedPath);
+                // 仅使用用户选择的单个路径
+                files = await this._collectExportableFiles(selectedPath);
+            } else {
+                console.log('使用工作区根目录导出');
                 // 如果没有选择路径，使用工作区根目录
                 files = await this._collectExportableFiles(basePath);
-            } else {
-                // 仅使用用户选择目录下的文件
-                files = await this._collectExportableFiles(selectedPath);
             }
 
             console.log('收集到的文件数量:', files.length);
+            
+            // 打印所有文件路径以便调试
+            files.forEach((file, index) => {
+                console.log(`文件 ${index + 1}:`, file.path, `类型: ${file.type}`);
+            });
 
             if (files.length === 0) {
                 throw new Error('没有找到需要导出的文件');
@@ -219,17 +247,47 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
     private async _refreshExportableFiles(): Promise<void> {
         try {
-            // 获取用户右键选择的路径
+            // 获取用户右键选择的路径（支持单个路径和多个路径）
             const selectedPath = this._context.workspaceState.get<string>('selectedExportPath');
+            const selectedPaths = this._context.workspaceState.get<string[]>('selectedExportPaths');
+            
+            console.log('刷新文件列表 - selectedPath:', selectedPath);
+            console.log('刷新文件列表 - selectedPaths:', selectedPaths);
 
-            if (!selectedPath) {
-                // 如果没有选择路径，使用工作区根目录
-                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                if (!workspaceFolder) {
-                    return;
+            if (selectedPaths && selectedPaths.length > 0) {
+                console.log('处理多个路径:', selectedPaths);
+                // 处理多个路径的情况
+                let allFiles: { path: string, type: string, relativePath: string }[] = [];
+                const filePaths = new Set<string>(); // 用于去重
+                
+                for (const path of selectedPaths) {
+                    console.log('处理路径:', path);
+                    const pathFiles = await this._collectExportableFiles(path);
+                    console.log('路径', path, '找到文件数量:', pathFiles.length);
+                    
+                    // 去重处理
+                    for (const file of pathFiles) {
+                        if (!filePaths.has(file.path)) {
+                            filePaths.add(file.path);
+                            allFiles.push(file);
+                        }
+                    }
                 }
+                
+                console.log('总共找到文件数量:', allFiles.length);
 
-                const files = await this._collectExportableFiles(workspaceFolder.uri.fsPath);
+                // 发送文件列表到webview
+                if (this._view) {
+                    this._view.webview.postMessage({
+                        type: 'filesRefreshed',
+                        files: this._groupFilesByType(allFiles)
+                    });
+                }
+            } else if (selectedPath) {
+                console.log('处理单个路径:', selectedPath);
+                // 处理单个路径的情况
+                const files = await this._collectExportableFiles(selectedPath);
+                console.log('单个路径找到文件数量:', files.length);
 
                 // 发送文件列表到webview
                 if (this._view) {
@@ -239,8 +297,15 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                     });
                 }
             } else {
-                // 仅扫描用户选择的目录
-                const files = await this._collectExportableFiles(selectedPath);
+                console.log('使用工作区根目录');
+                // 如果没有选择路径，使用工作区根目录
+                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                if (!workspaceFolder) {
+                    return;
+                }
+
+                const files = await this._collectExportableFiles(workspaceFolder.uri.fsPath);
+                console.log('工作区根目录找到文件数量:', files.length);
 
                 // 发送文件列表到webview
                 if (this._view) {
@@ -273,6 +338,41 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         const files: { path: string, type: string, relativePath: string }[] = [];
         const fs = require('fs');
         const path = require('path');
+
+        // 首先检查传入的路径是否为文件
+        try {
+            const stat = await fs.promises.stat(basePath);
+            
+            // 如果是文件，直接判断文件类型并加入数组
+            if (stat.isFile()) {
+                const ext = path.extname(basePath).toLowerCase();
+                let fileType = '';
+
+                // 根据文件扩展名分类
+                if (['.java'].includes(ext)) {
+                    fileType = 'source';
+                } else if (['.xml', '.upm', '.rest', '.aop'].includes(ext)) {
+                    // 过滤掉特定的XML文件
+                    const fileName = path.basename(basePath).toLowerCase();
+                    if (fileName !== 'module.xml' && fileName !== 'component.xml') {
+                        fileType = 'resource';
+                    }
+                }
+
+                if (fileType) {
+                    files.push({
+                        path: basePath,
+                        type: fileType,
+                        relativePath: path.basename(basePath)
+                    });
+                }
+                
+                return files;
+            }
+        } catch (error) {
+            // 如果无法获取文件状态，继续执行目录扫描逻辑
+            console.warn(`无法获取文件状态: ${basePath}`, error);
+        }
 
         // 使用异步方式扫描目录，避免阻塞UI
         const scanDir = async (dirPath: string, relativePath: string = ''): Promise<void> => {
@@ -319,6 +419,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                         }
                     } catch (statError) {
                         // 忽略无法访问的文件
+                        console.warn(`无法访问文件: ${fullPath}`, statError);
                         return;
                     }
                 });
@@ -327,6 +428,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 await Promise.all(tasks);
             } catch (readError) {
                 // 忽略无法读取的目录
+                console.warn(`无法读取目录: ${dirPath}`, readError);
                 return;
             }
         };
