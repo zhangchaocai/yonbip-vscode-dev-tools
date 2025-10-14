@@ -208,7 +208,7 @@
         "command": "yonbip.home.startFromToolbar",
         "title": "🖥️ 启动YonBIP Premium中间件 \n 1️⃣ 递归到的第一个.project文件的上级目录作为启动目录",
         "category": "YonBIP/HOME",
-        "icon": "$(zap)"
+        "icon": "$(debug-alt)"
       },
       {
         "command": "yonbip.home.stopFromToolbar",
