@@ -1,10 +1,13 @@
 # 排除源代码文件
 src/**
 *.ts
+!out/**/*.js
+!out/**/*.js.map
 .vscode-test/**
 .vscode/**
 
 # 排除开发文件
+node_modules/**
 .gitignore
 .git/**
 .eslintrc.json
@@ -29,7 +32,10 @@ docs/**
 
 # 排除发布指南（用户不需要）
 PUBLISH_GUIDE.md
+SIMPLE_PUBLISH_GUIDE.md
 MCP_EXIT_CODE_143_SOLUTION.md
+QUICKSTART.md
+FEATURES.md
 
 # 保留必要文件
 !resources/**
@@ -37,3 +43,4 @@ MCP_EXIT_CODE_143_SOLUTION.md
 !CHANGELOG.md
 !LICENSE
 !package.json
+!out/**
