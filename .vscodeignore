@@ -22,9 +22,6 @@ tests/**
 .DS_Store
 Thumbs.db
 
-# 排除未捆绑的编译输出
-out/**
-
 # 排除文档（保留主要文档）
 docs/**
 .github/**
@@ -35,8 +32,6 @@ PUBLISH_GUIDE.md
 MCP_EXIT_CODE_143_SOLUTION.md
 
 # 保留必要文件
-!out/**
-!dist/**
 !resources/**
 !README.md
 !CHANGELOG.md
