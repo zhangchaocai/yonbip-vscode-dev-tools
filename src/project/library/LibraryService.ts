@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
+import { ClasspathUtils } from '../../utils/ClasspathUtils';
 
 /**
  * Jar包信息VO
@@ -209,7 +210,7 @@ export class LibraryService {
             }
 
             // 选中的文件夹生成VSCode的settings.json更新
-            await this.updateVSCodeSettings(libDir, targetPath);
+            //await this.updateVSCodeSettings(libDir, targetPath);
 
             // 工作区根目录下生成settings.json文件
             await this.generateWorkspaceSettings(homePath);
@@ -337,12 +338,6 @@ export class LibraryService {
      */
     private getJarAndClasses(scanPath: string, hasLibPath: boolean): string[] {
         const pathList: string[] = [];
-
-        // 获取classes目录
-        // const classesPath = path.join(scanPath, 'classes');
-        // if (fs.existsSync(classesPath) && fs.readdirSync(classesPath).length > 0) {
-        //     pathList.push(classesPath);
-        // }
 
         // 获取lib目录下的jar文件
         const jarPath = hasLibPath ? path.join(scanPath, 'lib') : scanPath;
@@ -893,59 +888,14 @@ export class LibraryService {
      * @returns 所有模块的classes路径数组
      */
     private getModuleClassesPaths(homePath: string): string[] {
-        const classesPaths: string[] = [];
-        const modulesPath = path.join(homePath, 'modules');
-
-        // 检查modules目录是否存在
-        if (!fs.existsSync(modulesPath)) {
-            this.outputChannel.appendLine(`modules目录不存在: ${modulesPath}`);
-            return classesPaths;
+        this.outputChannel.appendLine(`开始扫描模块classes路径: ${homePath}`);
+        const classesPaths = ClasspathUtils.getAllModuleClassesPaths(homePath);
+        
+        // 记录找到的路径
+        for (const classesPath of classesPaths) {
+            this.outputChannel.appendLine(`找到模块classes路径: ${classesPath}`);
         }
-
-        try {
-            // 读取所有模块目录
-            const moduleDirs = fs.readdirSync(modulesPath, { withFileTypes: true })
-                .filter(dirent => dirent.isDirectory())
-                .map(dirent => dirent.name);
-
-            // 遍历每个模块目录，查找classes路径
-            for (const moduleName of moduleDirs) {
-                const modulePath = path.join(modulesPath, moduleName);
-                
-                // 查找模块下的各种classes路径
-                const potentialClassesPaths = [
-                    // 主模块classes目录
-                    path.join(modulePath, 'classes'),
-                    // extension目录下的classes
-                    path.join(modulePath, 'extension', 'classes'),
-                    // hyext目录下的classes
-                    path.join(modulePath, 'hyext', 'classes'),
-                    // client目录下的classes
-                    path.join(modulePath, 'client', 'classes'),
-                    // client/extension目录下的classes
-                    path.join(modulePath, 'client', 'extension', 'classes'),
-                    // client/hyext目录下的classes
-                    path.join(modulePath, 'client', 'hyext', 'classes'),
-                    // META-INF目录下的classes
-                    path.join(modulePath, 'META-INF', 'classes'),
-                    // META-INF/extension目录下的classes
-                    path.join(modulePath, 'META-INF', 'extension', 'classes'),
-                    // META-INF/hyext目录下的classes
-                    path.join(modulePath, 'META-INF', 'hyext', 'classes')
-                ];
-
-                // 检查每个潜在的classes路径是否存在且不为空
-                for (const classesPath of potentialClassesPaths) {
-                    if (fs.existsSync(classesPath) && fs.readdirSync(classesPath).length > 0) {
-                        classesPaths.push(classesPath);
-                        this.outputChannel.appendLine(`找到模块classes路径: ${classesPath}`);
-                    }
-                }
-            }
-        } catch (error) {
-            this.outputChannel.appendLine(`扫描模块classes路径时出错: ${error}`);
-        }
-
+        
         return classesPaths;
     }
 

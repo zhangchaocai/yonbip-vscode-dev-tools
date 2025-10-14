@@ -7,6 +7,7 @@ import { NCHomeConfigService } from './config/NCHomeConfigService';
 import { OracleClientService } from './OracleClientService';
 import { HomeStatus } from './homeStatus';
 import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
+import { ClasspathUtils } from '../../utils/ClasspathUtils';
 
 /**
  * NC HOME服务管理类
@@ -685,6 +686,10 @@ export class HomeService {
 
         this.outputChannel.appendLine('开始构建类路径...');
 
+        // 使用工具类获取所有模块的classes路径
+        const moduleClassesPaths = ClasspathUtils.getAllModuleClassesPaths(config.homePath);
+        classpathEntries.push(...moduleClassesPaths);
+                
         // 遍历所有目录，使用通配符形式添加jar包到类路径
         for (const dir of libDirs) {
             if (fs.existsSync(dir)) {
@@ -709,10 +714,12 @@ export class HomeService {
             }
         }
 
-        // 特别处理modules目录，扫描每个子目录下的lib目录
+        // 特别处理modules目录，扫描每个子目录下的lib目录和classes目录
         const modulesDir = path.join(config.homePath, 'modules');
         if (fs.existsSync(modulesDir)) {
             try {
+    
+                // 保持原有的lib目录处理逻辑
                 const moduleDirs = fs.readdirSync(modulesDir);
                 //this.outputChannel.appendLine(`📁 发现modules目录: ${modulesDir}，包含 ${moduleDirs.length} 个模块`);
 
