@@ -7,7 +7,6 @@ src/**
 .vscode/**
 
 # 排除开发文件
-node_modules/**
 .gitignore
 .git/**
 .eslintrc.json
