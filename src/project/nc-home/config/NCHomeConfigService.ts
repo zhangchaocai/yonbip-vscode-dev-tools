@@ -1031,9 +1031,12 @@ export class NCHomeConfigService {
             }
         }
 
-        // 注意：这里不再将数据源添加到config.dataSources中，只保存到prop.xml文件
-        // this.config.dataSources.push(dataSource);
-        // await this.saveConfig(this.config);
+        // 同时更新内存中的config.dataSources
+        if (!this.config.dataSources) {
+            this.config.dataSources = [];
+        }
+        this.config.dataSources.push(dataSource);
+        await this.saveConfig(this.config);
 
         // 直接更新prop.xml文件
         if (this.config.homePath) {
@@ -1041,6 +1044,12 @@ export class NCHomeConfigService {
                 PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
                 this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 写入prop.xml文件`);
             } catch (error: any) {
+                // 如果更新prop.xml失败，回滚内存中的更改
+                const index = this.config.dataSources.findIndex(ds => ds.name === dataSource.name);
+                if (index !== -1) {
+                    this.config.dataSources.splice(index, 1);
+                    await this.saveConfig(this.config);
+                }
                 this.outputChannel.appendLine(`写入prop.xml文件失败: ${error.message}`);
                 throw new Error(`添加数据源失败: ${error.message}`);
             }
@@ -1086,19 +1095,26 @@ export class NCHomeConfigService {
 
         // 注意：密码字段可以为空，表示不修改密码
 
-        // 注意：这里不再更新config.dataSources，只更新prop.xml文件
-        // if (!this.config.dataSources) {
-        //     this.config.dataSources = [];
-        //     return;
-        // }
+        // 同时更新内存中的config.dataSources
+        if (!this.config.dataSources) {
+            this.config.dataSources = [];
+        }
 
-        // const index = this.config.dataSources.findIndex(ds => ds.name === dataSource.name);
-        // if (index === -1) {
-        //     throw new Error(`数据源 "${dataSource.name}" 不存在`);
-        // }
-
-        // this.config.dataSources[index] = dataSource;
-        // await this.saveConfig(this.config);
+        const index = this.config.dataSources.findIndex(ds => ds.name === dataSource.name);
+        let oldDataSource: DataSourceMeta | null = null;
+        if (index !== -1) {
+            // 保存旧的数据源信息用于回滚
+            oldDataSource = { ...this.config.dataSources[index] };
+            // 如果密码为空，表示不修改密码，保留原来的密码
+            if (!dataSource.password || dataSource.password.trim() === '') {
+                dataSource.password = oldDataSource.password;
+            }
+            this.config.dataSources[index] = dataSource;
+        } else {
+            // 如果找不到现有数据源，添加新的数据源
+            this.config.dataSources.push(dataSource);
+        }
+        await this.saveConfig(this.config);
 
         // 直接更新prop.xml文件
         if (this.config.homePath) {
@@ -1106,6 +1122,17 @@ export class NCHomeConfigService {
                 PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, true);
                 this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 更新到prop.xml文件`);
             } catch (error: any) {
+                // 如果更新prop.xml失败，回滚内存中的更改
+                if (index !== -1 && oldDataSource) {
+                    this.config.dataSources[index] = oldDataSource;
+                } else if (index === -1) {
+                    // 如果是新增的数据源，需要删除
+                    const newIndex = this.config.dataSources.findIndex(ds => ds.name === dataSource.name);
+                    if (newIndex !== -1) {
+                        this.config.dataSources.splice(newIndex, 1);
+                    }
+                }
+                await this.saveConfig(this.config);
                 this.outputChannel.appendLine(`更新prop.xml文件失败: ${error.message}`);
                 throw new Error(`更新数据源失败: ${error.message}`);
             }
@@ -1118,29 +1145,28 @@ export class NCHomeConfigService {
      * 删除数据源
      */
     public async deleteDataSource(dataSourceName: string): Promise<void> {
-        // 注意：这里不再从config.dataSources中删除，只从prop.xml文件中删除
-        // if (!this.config.dataSources) {
-        //     return;
-        // }
+        // 同时从内存中的config.dataSources中删除
+        if (!this.config.dataSources) {
+            this.config.dataSources = [];
+        }
 
-        // const index = this.config.dataSources.findIndex(ds => ds.name === dataSourceName);
-        // if (index === -1) {
-        //     throw new Error(`数据源 "${dataSourceName}" 不存在`);
-        // }
+        const index = this.config.dataSources.findIndex(ds => ds.name === dataSourceName);
+        let removedDataSource: DataSourceMeta | null = null;
+        if (index !== -1) {
+            removedDataSource = this.config.dataSources.splice(index, 1)[0];
+            
+            // 如果删除的是当前选中的数据源，清除选择
+            if (this.config.selectedDataSource === dataSourceName) {
+                this.config.selectedDataSource = undefined;
+            }
 
-        // this.config.dataSources.splice(index, 1);
+            // 如果删除的是基准库，清除基准库设置
+            if (this.config.baseDatabase === dataSourceName) {
+                this.config.baseDatabase = undefined;
+            }
 
-        // // 如果删除的是当前选中的数据源，清除选择
-        // if (this.config.selectedDataSource === dataSourceName) {
-        //     this.config.selectedDataSource = undefined;
-        // }
-
-        // // 如果删除的是基准库，清除基准库设置
-        // if (this.config.baseDatabase === dataSourceName) {
-        //     this.config.baseDatabase = undefined;
-        // }
-
-        // await this.saveConfig(this.config);
+            await this.saveConfig(this.config);
+        }
 
         // 直接从prop.xml文件中删除数据源
         if (this.config.homePath) {
@@ -1148,6 +1174,11 @@ export class NCHomeConfigService {
                 PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, dataSourceName);
                 this.outputChannel.appendLine(`已从prop.xml文件中删除数据源 "${dataSourceName}"`);
             } catch (error: any) {
+                // 如果删除prop.xml失败，回滚内存中的更改
+                if (index !== -1 && removedDataSource) {
+                    this.config.dataSources.splice(index, 0, removedDataSource);
+                    await this.saveConfig(this.config);
+                }
                 this.outputChannel.appendLine(`从prop.xml文件中删除数据源失败: ${error.message}`);
                 throw new Error(`删除数据源失败: ${error.message}`);
             }
