@@ -44,12 +44,16 @@ export class PasswordEncryptor {
 
             if (result.status === 0) {
                 // 解析输出，提取解密结果
-                const output = result.stdout || '';
-                const match = output.match(/解密结果:\s*(.*)/);
-                if (match && match[1]) {
-                    return match[1].trim();
+                let output = result.stdout || '';
+                // 统一处理不同操作系统的换行符
+                output = output.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                // 使用冒号分割，取数组中的第二值作为结果
+                const parts = output.split(':');
+                if (parts.length >= 2) {
+                    // 取第二部分并去除前后空格和换行符
+                    return parts[1].trim().replace(/[\r\n\s]+$/, '');
                 }
-                return encryptedPassword; // 如果没有匹配到结果，返回原始密码
+                return encryptedPassword; // 如果分割失败，返回原始密码
             } else {
                 console.error('密码解密失败:', result.stderr);
                 return encryptedPassword;
@@ -87,12 +91,16 @@ export class PasswordEncryptor {
 
             if (result.status === 0) {
                 // 解析输出，提取加密结果
-                const output = result.stdout || '';
-                const match = output.match(/加密结果:\s*(.*)/);
-                if (match && match[1]) {
-                    return match[1].trim();
+                let output = result.stdout || '';
+                // 统一处理不同操作系统的换行符
+                output = output.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                // 使用冒号分割，取数组中的第二值作为结果
+                const parts = output.split(':');
+                if (parts.length >= 2) {
+                    // 取第二部分并去除前后空格和换行符
+                    return parts[1].trim().replace(/[\r\n\s]+$/, '');
                 }
-                return plainPassword; // 如果没有匹配到结果，返回原始密码
+                return plainPassword; // 如果分割失败，返回原始密码
             } else {
                 console.error('密码加密失败:', result.stderr);
                 return plainPassword;
