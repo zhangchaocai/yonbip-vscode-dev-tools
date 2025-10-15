@@ -1268,6 +1268,16 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             </div>
 
             <div class="section">
+                <div class="section-title">模块配置</div>
+                
+                <div class="form-group">
+                    <label for="hotwebs">Hotwebs配置:</label>
+                    <input type="text" id="hotwebs" placeholder="请输入hotwebs配置，多个用逗号分隔">
+                    <div class="help-text">配置hotwebs模块，多个模块用逗号分隔</div>
+                </div>
+            </div>
+
+            <div class="section">
                 <div class="section-title">HOME版本配置</div>
                 
                 <div class="form-group">
@@ -1666,6 +1676,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 document.getElementById('vmParameters').value = config.vmParameters;
                 console.log('Displaying JVM parameters:', config.vmParameters);
             }
+            if (config.hotwebs !== undefined) {
+                document.getElementById('hotwebs').value = config.hotwebs;
+            }
 
             
             // 更新HOME版本选择框
@@ -1870,6 +1883,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 debugMode: document.getElementById('debugMode').checked,
                 debugPort: parseInt(document.getElementById('debugPort').value) || 8888,
                 vmParameters: document.getElementById('vmParameters').value,
+                hotwebs: document.getElementById('hotwebs').value,
                 homeVersion: document.getElementById('homeVersion').value
 
             };

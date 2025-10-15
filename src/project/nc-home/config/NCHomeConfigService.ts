@@ -201,6 +201,7 @@ export class NCHomeConfigService {
         const workspaceConfig = vscode.workspace.getConfiguration('yonbip');
         const debugPort = workspaceConfig.get<number>('home.debugPort') || 8888;
         const vmParameters = workspaceConfig.get<string>('home.vmParameters') || '';
+        const hotwebs = workspaceConfig.get<string>('hotwebs') || 'nccloud,fs,yonbip';
 
         return {
             homePath: '',
@@ -216,7 +217,8 @@ export class NCHomeConfigService {
             wsPort: 8080,
             debugMode: true,  // 默认启用调试模式
             debugPort: debugPort,   // 使用工作区配置的调试端口，默认为8888
-            vmParameters: vmParameters  // 使用工作区配置的JVM参数，默认为空
+            vmParameters: vmParameters,  // 使用工作区配置的JVM参数，默认为空
+            hotwebs: hotwebs  // 使用工作区配置的hotwebs参数，默认为'nccloud,fs,yonbip'
         };
     }
 
