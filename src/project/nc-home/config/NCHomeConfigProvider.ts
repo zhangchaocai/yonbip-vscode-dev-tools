@@ -522,12 +522,19 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
-
-            
-            const result = await this.configService.testConnection(dataSource);
-            this._view?.webview.postMessage({
-                type: 'connectionTestResult',
-                result
+            // 显示进度条
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "正在测试数据库连接",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: "正在连接数据库..." });
+                
+                const result = await this.configService.testConnection(dataSource);
+                this._view?.webview.postMessage({
+                    type: 'connectionTestResult',
+                    result
+                });
             });
         } catch (error: any) {
             this._view?.webview.postMessage({

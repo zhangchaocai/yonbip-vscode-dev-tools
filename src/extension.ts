@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
 		.then(selection => {
 			if (selection === '了解更多') {
 				// 这里可以打开文档或更多信息页面
-				vscode.env.openExternal(vscode.Uri.parse('https://community.yonyou.com'));
+				vscode.env.openExternal(vscode.Uri.parse('https://community.yonyou.com/article/detail/10786'));
 			}
 		});
 
