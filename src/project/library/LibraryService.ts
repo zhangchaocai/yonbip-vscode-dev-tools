@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
 import { ClasspathUtils } from '../../utils/ClasspathUtils';
@@ -1079,69 +1080,210 @@ export class LibraryService {
     }
 
     /**
-     * 在工作区根目录生成settings.json文件，设置文件编码为GBK
+     * 获取VS Code用户设置路径（跨平台兼容）
+     */
+    private getVSCodeUserSettingsPath(): string {
+        const platform = process.platform;
+        const homeDir = os.homedir();
+        
+        switch (platform) {
+            case 'win32': // Windows
+                return path.join(process.env.APPDATA || '', 'Code', 'User');
+            case 'darwin': // macOS
+                return path.join(homeDir, 'Library', 'Application Support', 'Code', 'User');
+            case 'linux': // Linux
+                return path.join(homeDir, '.config', 'Code', 'User');
+            default:
+                // 默认使用Unix风格路径
+                return path.join(homeDir, '.config', 'Code', 'User');
+        }
+    }
+
+    /**
+     * 在编辑器用户设置中添加配置信息
      */
     public async generateWorkspaceSettings(homePath: string): Promise<void> {
         try {
-            // 获取工作区文件夹
-            const workspaceFolder = this.getWorkspaceFolder();
-            if (!workspaceFolder) {
-                throw new Error('未找到工作区文件夹');
-            }
-
-            const workspacePath = workspaceFolder.uri.fsPath;
-            
-            // 确保.vscode目录存在
-            const vscodeDir = path.join(workspacePath, '.vscode');
-            if (!fs.existsSync(vscodeDir)) {
-                fs.mkdirSync(vscodeDir, { recursive: true });
-            }
-
-            // settings.json文件路径
-            const settingsPath = path.join(vscodeDir, 'settings.json');
-
-            // 读取现有配置（如果存在）
-            let existingSettings = {};
-            if (fs.existsSync(settingsPath)) {
+            // 检查是否为多根工作区
+            if (vscode.workspace.workspaceFile) {
+                // 多根工作区：在工作区文件中添加配置
+                this.outputChannel.appendLine(`检测到多根工作区: ${vscode.workspace.workspaceFile.fsPath}`);
+                
+                // 修复：确保正确解析工作区文件路径
+                // 检查工作区文件的scheme是否为'file'，以确认工作区已保存
+                if (vscode.workspace.workspaceFile.scheme !== 'file') {
+                    this.outputChannel.appendLine('工作区未保存，无法直接更新工作区配置文件');
+                    const errorMessage = '多根工作区需要先保存后才可以初始化项目。请先保存工作区文件（Ctrl+Shift+P 或 Cmd+Shift+P），搜索 save workplace 保存工作空间 然后重新执行初始化操作。';
+                    vscode.window.showErrorMessage(errorMessage);
+                    throw new Error(errorMessage);
+                }
+                
+                // 确保工作区文件路径存在
+                const workspaceFilePath = vscode.workspace.workspaceFile.fsPath;
+                if (!fs.existsSync(workspaceFilePath)) {
+                    this.outputChannel.appendLine(`工作区配置文件不存在: ${workspaceFilePath}`);
+                    const errorMessage = '多根工作区需要先保存后才可以初始化项目。请先保存工作区文件（Ctrl+Shift+P 或 Cmd+Shift+P），搜索 save workplace 保存工作空间，然后重新执行初始化操作。';
+                    vscode.window.showErrorMessage(errorMessage);
+                    throw new Error(errorMessage);
+                }
+                
+                // 读取现有的工作区配置
+                let workspaceConfig: any = {};
                 try {
-                    const content = fs.readFileSync(settingsPath, 'utf-8');
-                    existingSettings = JSON.parse(content);
+                    const content = fs.readFileSync(workspaceFilePath, 'utf-8');
+                    workspaceConfig = JSON.parse(content);
                 } catch (error) {
-                    this.outputChannel.appendLine(`读取现有settings.json失败: ${error}`);
+                    this.outputChannel.appendLine(`读取现有工作区配置失败: ${error}`);
                 }
+
+                // 获取JDK运行时配置
+                const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
+
+                // 要添加的配置内容
+                const newSettings = {
+                    "java.saveActions.organizeImports": true,
+                    "java.compile.nullAnalysis.mode": "automatic",
+                    "java.configuration.runtimes": javaRuntimeConfig,
+                    "[java]": {
+                        "files.encoding": "gbk"
+                    },
+                    "[javascript]": {
+                        "files.encoding": "utf8"
+                    },
+                    "[typescript]": {
+                        "files.encoding": "utf8"
+                    }
+                };
+
+                // 如果工作区配置中还没有settings部分，则创建
+                if (!workspaceConfig.hasOwnProperty('settings')) {
+                    workspaceConfig['settings'] = {};
+                }
+
+                // 合并现有配置和新配置
+                workspaceConfig['settings'] = { ...workspaceConfig['settings'], ...newSettings };
+
+                // 写入工作区配置文件
+                fs.writeFileSync(workspaceFilePath, JSON.stringify(workspaceConfig, null, 2), 'utf-8');
+                
+                this.outputChannel.appendLine(`多根工作区配置已更新: ${workspaceFilePath}`);
+                vscode.window.showInformationMessage('多根工作区配置已更新，文件编码已设置为GBK，JDK运行时已配置');
+            } else {
+                // 单根工作区、未保存的多根工作区或无工作区：在用户设置中添加配置
+                this.outputChannel.appendLine('检测到单根工作区或未保存的多根工作区，使用用户设置');
+                
+                // 获取编辑器配置目录（跨平台兼容）
+                const editorConfigPath = this.getVSCodeUserSettingsPath();
+                
+                // 确保.vscode目录存在
+                if (!fs.existsSync(editorConfigPath)) {
+                    fs.mkdirSync(editorConfigPath, { recursive: true });
+                }
+
+                // settings.json文件路径
+                const settingsPath = path.join(editorConfigPath, 'settings.json');
+
+                // 读取现有配置（如果存在）
+                let existingSettings = {};
+                if (fs.existsSync(settingsPath)) {
+                    try {
+                        const content = fs.readFileSync(settingsPath, 'utf-8');
+                        existingSettings = JSON.parse(content);
+                    } catch (error) {
+                        this.outputChannel.appendLine(`读取现有settings.json失败: ${error}`);
+                    }
+                }
+
+                // 获取JDK运行时配置
+                const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
+
+                // 要添加的配置内容
+                const newSettings = {
+                    "java.saveActions.organizeImports": true,
+                    "java.compile.nullAnalysis.mode": "automatic",
+                    "java.configuration.runtimes": javaRuntimeConfig,
+                    "[java]": {
+                        "files.encoding": "gbk"
+                    },
+                    "[javascript]": {
+                        "files.encoding": "utf8"
+                    },
+                    "[typescript]": {
+                        "files.encoding": "utf8"
+                    }
+                };
+
+                // 合并现有配置和新配置
+                const mergedSettings = { ...existingSettings, ...newSettings };
+
+                // 写入文件
+                fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
+                
+                this.outputChannel.appendLine(`编辑器settings.json文件已更新: ${settingsPath}`);
+                vscode.window.showInformationMessage('编辑器settings.json文件已更新，文件编码已设置为GBK，JDK运行时已配置');
             }
-
-            // 获取JDK运行时配置
-            const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
-
-            // 要写入的配置内容
-            const settingsContent = {
-                ...existingSettings,
-                "java.saveActions.organizeImports": true,
-                "java.compile.nullAnalysis.mode": "automatic",
-                "java.configuration.runtimes": javaRuntimeConfig,
-                //"java.jdt.ls.java.home": javaRuntimeConfig.length > 0 ? javaRuntimeConfig[0].path : undefined, //工具链 JDK
-                "[java]": {
-                    "files.encoding": "gbk"
-                },
-                "[javascript]": {
-                    "files.encoding": "utf8"
-                },
-                "[typescript]": {
-                    "files.encoding": "utf8"
-                }
-            };
-
-            // 写入文件
-            fs.writeFileSync(settingsPath, JSON.stringify(settingsContent, null, 2), 'utf-8');
-            
-            this.outputChannel.appendLine(`工作区settings.json文件已生成: ${settingsPath}`);
-            vscode.window.showInformationMessage('工作区settings.json文件已生成，文件编码已设置为GBK，JDK运行时已配置');
         } catch (error: any) {
-            this.outputChannel.appendLine(`生成工作区settings.json文件失败: ${error.message}`);
-            vscode.window.showErrorMessage(`生成工作区settings.json文件失败: ${error.message}`);
+            this.outputChannel.appendLine(`更新编辑器配置失败: ${error.message}`);
+            vscode.window.showErrorMessage(`更新编辑器配置失败: ${error.message}`);
             throw error;
         }
+    }
+
+    /**
+     * 回退到用户设置的处理方法
+     */
+    private async fallbackToUserSettings(homePath: string): Promise<void> {
+        this.outputChannel.appendLine('回退到用户级settings.json进行配置写入');
+        
+        // 获取编辑器配置目录（跨平台兼容）
+        const editorConfigPath = this.getVSCodeUserSettingsPath();
+        
+        // 确保.vscode目录存在
+        if (!fs.existsSync(editorConfigPath)) {
+            fs.mkdirSync(editorConfigPath, { recursive: true });
+        }
+
+        // settings.json文件路径
+        const settingsPath = path.join(editorConfigPath, 'settings.json');
+
+        // 读取现有配置（如果存在）
+        let existingSettings = {};
+        if (fs.existsSync(settingsPath)) {
+            try {
+                const content = fs.readFileSync(settingsPath, 'utf-8');
+                existingSettings = JSON.parse(content);
+            } catch (error) {
+                this.outputChannel.appendLine(`读取现有settings.json失败: ${error}`);
+            }
+        }
+
+        // 获取JDK运行时配置
+        const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
+
+        // 要添加的配置内容
+        const newSettings = {
+            "java.saveActions.organizeImports": true,
+            "java.compile.nullAnalysis.mode": "automatic",
+            "java.configuration.runtimes": javaRuntimeConfig,
+            "[java]": {
+                "files.encoding": "gbk"
+            },
+            "[javascript]": {
+                "files.encoding": "utf8"
+            },
+            "[typescript]": {
+                "files.encoding": "utf8"
+            }
+        };
+
+        // 合并现有配置和新配置
+        const mergedSettings = { ...existingSettings, ...newSettings };
+
+        // 写入文件
+        fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
+        
+        this.outputChannel.appendLine(`编辑器settings.json文件已更新: ${settingsPath}`);
+        vscode.window.showInformationMessage('编辑器settings.json文件已更新，文件编码已设置为GBK，JDK运行时已配置');
     }
 
     /**
