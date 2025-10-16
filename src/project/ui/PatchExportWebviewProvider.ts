@@ -519,7 +519,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
         .form-container {
             max-width: 100%;
-            padding: 24px;
+            padding: 24px 24px 120px 24px; /* 增加底部padding为120px，为固定按钮留出空间 */
             background-color: var(--vscode-editor-background);
             border-radius: 12px;
             margin: 16px;
@@ -778,14 +778,21 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             background: linear-gradient(90deg, var(--vscode-button-background), transparent);
         }
 
-        /* 按钮组优化 */
+        /* 按钮组优化 - 固定在底部 */
         .button-group {
             display: flex;
             gap: 16px;
-            margin-top: 32px;
             justify-content: flex-end;
-            padding-top: 24px;
+            padding: 24px;
             border-top: 1px solid var(--vscode-widget-border);
+            background-color: var(--vscode-editor-background);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px);
         }
 
         .button {

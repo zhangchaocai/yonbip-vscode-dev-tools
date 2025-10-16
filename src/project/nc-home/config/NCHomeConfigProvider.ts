@@ -838,9 +838,34 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             font-size: var(--vscode-font-size);
             color: var(--vscode-foreground);
             background: linear-gradient(135deg, var(--vscode-editor-background) 0%, rgba(0, 122, 204, 0.02) 100%);
-            padding: 16px;
+            padding: 0;
             margin: 0;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        /* 固定页签区域 */
+        .tabs-container {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--vscode-editor-background);
+            border-bottom: 1px solid var(--vscode-widget-border);
+            padding: 16px 16px 0 16px;
+        }
+        
+        /* 可滚动内容区域 */
+        .content-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px 16px 16px;
         }
         
         /* 滚动条样式优化 */
@@ -934,7 +959,85 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             height: 2px;
             background: var(--primary-gradient);
             border-radius: 1px;
+            z-index: 1;
         }
+        
+        /* 数据源管理头部样式 */
+         .section-header {
+             display: flex;
+             align-items: center;
+             justify-content: space-between;
+             margin-bottom: 20px;
+             padding-bottom: 12px;
+             border-bottom: 2px solid transparent;
+             position: relative;
+         }
+         
+         .section-header::after {
+             content: '';
+             position: absolute;
+             bottom: 0;
+             left: 0;
+             width: 60px;
+             height: 2px;
+             background: var(--primary-gradient);
+             border-radius: 1px;
+         }
+         
+         .section-title-text {
+             font-weight: 700;
+             color: var(--vscode-textLink-foreground);
+             font-size: 18px;
+             background: var(--primary-gradient);
+             background-clip: text;
+             -webkit-background-clip: text;
+             -webkit-text-fill-color: transparent;
+             display: flex;
+             align-items: center;
+             position: relative;
+         }
+         
+         .section-title-text::before {
+             content: '';
+             display: inline-block;
+             width: 6px;
+             height: 20px;
+             background: var(--primary-gradient);
+             margin-right: 12px;
+             border-radius: 3px;
+             box-shadow: 0 2px 4px rgba(0, 122, 204, 0.3);
+         }
+         
+         /* 添加数据源按钮特殊样式 */
+         .add-datasource-btn {
+             margin: 0;
+             height: 36px;
+             padding: 8px 16px;
+             font-size: 14px;
+             min-height: auto;
+             position: relative;
+             z-index: 100;
+             background: var(--primary-gradient) !important;
+             color: white !important;
+             border: none !important;
+             border-radius: var(--border-radius-small) !important;
+             cursor: pointer !important;
+             transition: var(--transition);
+             box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+             display: inline-flex !important;
+             align-items: center !important;
+             justify-content: center !important;
+             font-weight: 600;
+         }
+         
+         .add-datasource-btn:hover {
+             transform: translateY(-1px) !important;
+             box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4) !important;
+         }
+         
+         .add-datasource-btn:active {
+             transform: translateY(0) !important;
+         }
         
         .form-group {
             margin-bottom: 20px;
@@ -1106,7 +1209,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         .tabs {
             display: flex;
             border-bottom: none;
-            margin-bottom: 24px;
+            margin-bottom: 0;
             overflow-x: auto;
             scrollbar-width: thin;
             padding: 4px;
@@ -1444,10 +1547,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
          /* 添加数据源按钮特殊样式 */
          .add-datasource-btn {
              margin: 0;
-             height: 32px;
-             padding: 6px 14px;
-             font-size: 13px;
+             height: 36px;
+             padding: 8px 16px;
+             font-size: 14px;
              min-height: auto;
+             position: relative;
+             z-index: 100;
          }
          
          /* 数据源卡片增强样式 */
@@ -1529,24 +1634,28 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div id="app">
-        <!-- 选项卡 -->
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('home')">
-                <span class="tab-icon">🏠</span>
-                <span class="tab-text">Home配置</span>
-            </button>
-            <button class="tab" onclick="switchTab('datasources')">
-                <span class="tab-icon">🗄️</span>
-                <span class="tab-text">数据源</span>
-            </button>
-            <button class="tab" onclick="switchTab('advanced')">
-                <span class="tab-icon">⚙️</span>
-                <span class="tab-text">高级设置</span>
-            </button>
+        <!-- 固定页签区域 -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('home')">
+                    <span class="tab-icon">🏠</span>
+                    <span class="tab-text">Home配置</span>
+                </button>
+                <button class="tab" onclick="switchTab('datasources')">
+                    <span class="tab-icon">🗄️</span>
+                    <span class="tab-text">数据源</span>
+                </button>
+                <button class="tab" onclick="switchTab('advanced')">
+                    <span class="tab-icon">⚙️</span>
+                    <span class="tab-text">高级设置</span>
+                </button>
+            </div>
         </div>
 
-        <!-- Home配置选项卡 -->
-        <div id="home-tab" class="tab-content active">
+        <!-- 可滚动内容区域 -->
+        <div class="content-container">
+            <!-- Home配置选项卡 -->
+            <div id="home-tab" class="tab-content active">
             <div class="section">
                 <div class="section-title">
                     <span>NC Home 路径设置</span>
@@ -1590,8 +1699,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         <!-- 数据源选项卡 -->
         <div id="datasources-tab" class="tab-content">
             <div class="section">
-                <div class="section-title" style="display: flex; align-items: center; justify-content: space-between;">
-                    <span style="flex: 1;">数据源管理</span>
+                <div class="section-header">
+                    <div class="section-title-text">
+                        <span>数据源管理</span>
+                    </div>
                     <button onclick="showAddDataSourceForm()" class="add-datasource-btn">
                         <span style="margin-right: 6px;">➕</span> 添加数据源
                     </button>
@@ -1680,6 +1791,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     </button>
                 </div>
             </div>
+            </div>
+        </div>
         </div>
     </div>
 

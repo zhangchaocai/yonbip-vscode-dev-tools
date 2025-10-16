@@ -220,12 +220,17 @@
         "command": "yonbip.project.autoAccessHotwebs",
         "title": "🌐 自动访问HOTWEBS资源",
         "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.copyResourcesToHome",
+        "title": "📁 → 🏠 复制配置文件到HOME",
+        "category": "YonBIP/项目管理"
       }
     ],
     "submenus": [
       {
         "id": "yonbip.project.submenu",
-        "label": "YonBIP项目管理"
+        "label": "YonBIP项目管理（高级版）"
       }
     ],
     "menus": {
@@ -237,6 +242,11 @@
         },
         {
           "command": "yonbip.project.exportPatch",
+          "when": "!explorerResourceIsFolder",
+          "group": "navigation"
+        },
+        {
+          "command": "yonbip.project.copyResourcesToHome",
           "when": "!explorerResourceIsFolder",
           "group": "navigation"
         }
@@ -303,6 +313,11 @@
           "command": "yonbip.project.autoAccessHotwebs",
           "when": "explorerResourceIsFolder",
           "group": "1@10"
+        },
+        {
+          "command": "yonbip.project.copyResourcesToHome",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "1@11"
         }
       ]
     },

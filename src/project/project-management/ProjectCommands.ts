@@ -7,6 +7,7 @@ import { ProjectService } from './ProjectService';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { LibraryService } from '../library/LibraryService';
 import { getHomeVersion } from '../../utils/HomeVersionUtils';
+import { CopyResourcesToHomeCommand } from './CopyResourcesToHomeCommand';
 
 /**
  * 项目相关命令类
@@ -91,6 +92,9 @@ export class ProjectCommands {
         const downloadScaffoldCommand = vscode.commands.registerCommand('yonbip.scaffold.download', (uri: vscode.Uri) => {
             projectCommands.downloadScaffold(uri?.fsPath);
         });
+
+        // 注册复制资源到HOME命令
+        CopyResourcesToHomeCommand.registerCommand(context, configService);
 
         context.subscriptions.push(
             createCommand,

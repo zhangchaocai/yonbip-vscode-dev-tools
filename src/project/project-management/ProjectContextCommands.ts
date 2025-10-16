@@ -6,6 +6,7 @@ import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { HomeService } from '../nc-home/HomeService';
 import { ClasspathService } from '../library/ClasspathService';
 import { AutoHotwebsAccessService } from './AutoHotwebsAccessService';
+import { CopyResourcesToHomeCommand } from './CopyResourcesToHomeCommand';
 
 // 添加一个静态属性来存储context
 let extensionContext: vscode.ExtensionContext | undefined;
