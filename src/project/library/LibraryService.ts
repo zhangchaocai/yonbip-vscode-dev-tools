@@ -890,7 +890,7 @@ export class LibraryService {
      */
     private getModuleClassesPaths(homePath: string): string[] {
         this.outputChannel.appendLine(`开始扫描模块classes路径: ${homePath}`);
-        const classesPaths = ClasspathUtils.getAllModuleClassesPaths(homePath);
+        const classesPaths = ClasspathUtils.getAllModuleClassesPaths(homePath, this.context);
         
         // 记录找到的路径
         for (const classesPath of classesPaths) {

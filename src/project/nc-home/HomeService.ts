@@ -655,40 +655,43 @@ export class HomeService {
             path.join(config.homePath, 'ierp', 'bin'),
             path.join(config.homePath, 'license'), // 添加许可证目录
             path.join(config.homePath, 'modules'), // 添加modules目录
-            path.join(config.homePath, 'webapps'), // 添加webapps目录
-            path.join(config.homePath, 'webapps', 'nccloud', 'WEB-INF', 'lib'), // 添加nccloud webapp lib目录
-            path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'lib'), // 添加uapws webapp lib目录
-            path.join(config.homePath, 'webapps', 'console', 'WEB-INF', 'lib'), // 添加console webapp lib目录
-            path.join(config.homePath, 'webapps', 'fs', 'WEB-INF', 'lib'), // 添加fs webapp lib目录
-            path.join(config.homePath, 'webapps', 'ncchr', 'WEB-INF', 'lib'), // 添加ncchr webapp lib目录
-            path.join(config.homePath, 'webapps', 'portal', 'WEB-INF', 'lib'), // 添加portal webapp lib目录
-            path.join(config.homePath, 'webapps', 'mobile', 'WEB-INF', 'lib'), // 添加mobile webapp lib目录
-            path.join(config.homePath, 'webapps', 'hrhi', 'WEB-INF', 'lib'), // 添加hrhi webapp lib目录
-            path.join(config.homePath, 'webapps', 'einvoice', 'WEB-INF', 'lib'), // 添加einvoice webapp lib目录
-            path.join(config.homePath, 'webapps', 'cm', 'WEB-INF', 'lib'), // 添加cm webapp lib目录
-            path.join(config.homePath, 'webapps', 'fin', 'WEB-INF', 'lib'), // 添加fin webapp lib目录
-            path.join(config.homePath, 'webapps', 'fip', 'WEB-INF', 'lib'), // 添加fip webapp lib目录
-            path.join(config.homePath, 'webapps', 'pm', 'WEB-INF', 'lib'), // 添加pm webapp lib目录
-            path.join(config.homePath, 'webapps', 'sm', 'WEB-INF', 'lib'), // 添加sm webapp lib目录
-            path.join(config.homePath, 'webapps', 'edm', 'WEB-INF', 'lib'), // 添加edm webapp lib目录
-            path.join(config.homePath, 'webapps', 'bcm', 'WEB-INF', 'lib'), // 添加bcm webapp lib目录
-            path.join(config.homePath, 'webapps', 'pub', 'WEB-INF', 'lib'), // 添加pub webapp lib目录
-            path.join(config.homePath, 'adapter'), // 添加 adapter 目录
-            path.join(config.homePath, 'platform'), // 添加platform目录
+            //path.join(config.homePath, 'webapps'), // 添加webapps目录
+            // path.join(config.homePath, 'webapps', 'nccloud', 'WEB-INF', 'lib'), // 添加nccloud webapp lib目录
+            // path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'lib'), // 添加uapws webapp lib目录
+            // path.join(config.homePath, 'webapps', 'console', 'WEB-INF', 'lib'), // 添加console webapp lib目录
+            // path.join(config.homePath, 'webapps', 'fs', 'WEB-INF', 'lib'), // 添加fs webapp lib目录
+            // path.join(config.homePath, 'webapps', 'ncchr', 'WEB-INF', 'lib'), // 添加ncchr webapp lib目录
+            // path.join(config.homePath, 'webapps', 'portal', 'WEB-INF', 'lib'), // 添加portal webapp lib目录
+            // path.join(config.homePath, 'webapps', 'mobile', 'WEB-INF', 'lib'), // 添加mobile webapp lib目录
+            // path.join(config.homePath, 'webapps', 'hrhi', 'WEB-INF', 'lib'), // 添加hrhi webapp lib目录
+            // path.join(config.homePath, 'webapps', 'einvoice', 'WEB-INF', 'lib'), // 添加einvoice webapp lib目录
+            // path.join(config.homePath, 'webapps', 'cm', 'WEB-INF', 'lib'), // 添加cm webapp lib目录
+            // path.join(config.homePath, 'webapps', 'fin', 'WEB-INF', 'lib'), // 添加fin webapp lib目录
+            // path.join(config.homePath, 'webapps', 'fip', 'WEB-INF', 'lib'), // 添加fip webapp lib目录
+            // path.join(config.homePath, 'webapps', 'pm', 'WEB-INF', 'lib'), // 添加pm webapp lib目录
+            // path.join(config.homePath, 'webapps', 'sm', 'WEB-INF', 'lib'), // 添加sm webapp lib目录
+            // path.join(config.homePath, 'webapps', 'edm', 'WEB-INF', 'lib'), // 添加edm webapp lib目录
+            // path.join(config.homePath, 'webapps', 'bcm', 'WEB-INF', 'lib'), // 添加bcm webapp lib目录
+            // path.join(config.homePath, 'webapps', 'pub', 'WEB-INF', 'lib'), // 添加pub webapp lib目录
+            //path.join(config.homePath, 'adapter'), // 添加 adapter 目录
+            //path.join(config.homePath, 'platform'), // 添加platform目录
             path.join(config.homePath, 'langlib'), // 添加langlib目录
             path.join(config.homePath, 'middleware', 'lib'), // 添加middleware/lib目录
             path.join(config.homePath, 'framework'), // 添加framework目录
             // 特别添加可能包含ws相关类的目录
-            path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'classes'),
-            path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'lib'),
-            path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'classes')
+            // path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'classes'),
+            // path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'lib'),
+            // path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'classes')
         ];
 
         this.outputChannel.appendLine('开始构建类路径...');
 
-        // 使用工具类获取所有模块的classes路径
-        const moduleClassesPaths = ClasspathUtils.getAllModuleClassesPaths(config.homePath);
+        // 使用工具类获取所有启用模块的classes路径和lib路径
+        const moduleClassesPaths = ClasspathUtils.getAllModuleClassesPaths(config.homePath, this.context);
         classpathEntries.push(...moduleClassesPaths);
+        
+        const moduleLibPaths = ClasspathUtils.getAllModuleLibPaths(config.homePath, this.context);
+        classpathEntries.push(...moduleLibPaths);
                 
         // 遍历所有目录，使用通配符形式添加jar包到类路径
         for (const dir of libDirs) {
@@ -715,6 +718,9 @@ export class HomeService {
         }
 
         // 特别处理modules目录，扫描每个子目录下的lib目录和classes目录
+        // 注意：这部分逻辑已经通过ClasspathUtils.getAllModuleLibPaths()和getAllModuleClassesPaths()处理
+        // 并且已经应用了模块过滤，所以这里可以移除重复的处理逻辑
+        /*
         const modulesDir = path.join(config.homePath, 'modules');
         if (fs.existsSync(modulesDir)) {
             try {
@@ -741,6 +747,7 @@ export class HomeService {
                 this.outputChannel.appendLine(`⚠️ 读取modules目录失败: ${err}`);
             }
         }
+        */
 
         // 特别检查并添加与web服务相关的jar包
         // 注意：这里仍然添加特定的jar包，因为需要确保ws相关类能被正确加载

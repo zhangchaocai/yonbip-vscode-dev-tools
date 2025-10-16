@@ -6,6 +6,8 @@ import { DataSourceMeta, NCHomeConfig } from './NCHomeConfigTypes';
 import { MacHomeConversionService } from '../../mac/MacHomeConversionService';
 import { getHomeVersion, findClosestHomeVersion, HOME_VERSIONS } from '../../../utils/HomeVersionUtils';
 import { ConfigurationUtils } from '../../../utils/ConfigurationUtils';
+import { ModuleConfigService } from '../../../utils/ModuleConfigService';
+import { ModuleInfo } from '../../../utils/ModuleUtils';
 /**
  * NC Home配置WebView提供者
  */
@@ -16,6 +18,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     private configService: NCHomeConfigService;
     private macHomeConversionService: MacHomeConversionService;
     private readonly context: vscode.ExtensionContext;
+    private moduleConfigService: ModuleConfigService;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -26,6 +29,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         this.configService = new NCHomeConfigService(context);
         // 如果传入了MacHomeConversionService实例，则使用它，否则创建新的实例
         this.macHomeConversionService = macHomeConversionService || new MacHomeConversionService(this.configService);
+        this.moduleConfigService = new ModuleConfigService(context);
     }
 
     /**
@@ -141,6 +145,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'confirmResetDefaults':
                     await this.handleConfirmResetDefaults();
                     break;
+                case 'saveModuleConfig':
+                    await this.handleSaveModuleConfig(data.modules);
+                    break;
             }
         });
 
@@ -204,10 +211,17 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
         console.log('Sending config to frontend:', config);
 
+        // 加载模块配置
+        let modules: ModuleInfo[] = [];
+        if (config.homePath) {
+            modules = this.moduleConfigService.getModuleInfos(config.homePath);
+        }
+
         this._view?.webview.postMessage({
             type: 'configLoaded',
             config,
-            homeVersions: HOME_VERSIONS
+            homeVersions: HOME_VERSIONS,
+            modules: modules
         });
     }
 
@@ -1630,6 +1644,121 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
              min-height: 28px;
              margin: 0;
          }
+
+         /* 模块列表样式 */
+         .module-list {
+             max-height: 400px;
+             overflow-y: auto;
+             border: 1px solid var(--vscode-widget-border);
+             border-radius: var(--border-radius);
+             background: var(--vscode-input-background);
+         }
+
+         .module-item {
+             display: flex;
+             align-items: center;
+             padding: 12px 16px;
+             border-bottom: 1px solid var(--vscode-widget-border);
+             transition: var(--transition);
+             position: relative;
+             gap: 12px;
+         }
+
+         .module-item:last-child {
+             border-bottom: none;
+         }
+
+         .module-item:hover {
+             background: rgba(0, 122, 204, 0.05);
+         }
+
+         .module-item.required {
+             background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(32, 201, 151, 0.03) 100%);
+         }
+
+         .module-item.required::before {
+             content: '';
+             position: absolute;
+             left: 0;
+             top: 0;
+             bottom: 0;
+             width: 3px;
+             background: var(--success-gradient);
+         }
+
+         .module-info {
+             flex: 1;
+             display: flex;
+             flex-direction: column;
+             min-width: 0;
+             margin-right: 12px;
+         }
+
+         .module-code {
+             font-weight: 600;
+             color: var(--vscode-foreground);
+             font-size: 14px;
+             margin-bottom: 2px;
+             word-break: break-all;
+         }
+
+         .module-name {
+             color: var(--vscode-descriptionForeground);
+             font-size: 12px;
+             line-height: 1.3;
+             word-break: break-all;
+         }
+
+         .module-badge {
+             padding: 2px 8px;
+             border-radius: 12px;
+             font-size: 10px;
+             font-weight: 600;
+             text-transform: uppercase;
+             letter-spacing: 0.5px;
+             white-space: nowrap;
+             flex-shrink: 0;
+             margin-right: 8px;
+         }
+
+         .module-badge.required {
+             background: var(--success-gradient);
+             color: white;
+         }
+
+         .module-badge.optional {
+             background: var(--vscode-button-secondaryBackground);
+             color: var(--vscode-button-secondaryForeground);
+         }
+
+         .module-checkbox {
+             transform: scale(1.2);
+             flex-shrink: 0;
+             width: 16px;
+             height: 16px;
+         }
+
+         .module-checkbox:disabled {
+             opacity: 0.6;
+         }
+
+         .module-actions {
+             display: flex;
+             gap: 8px;
+             align-items: center;
+         }
+
+         .module-actions button {
+             font-size: 12px;
+             padding: 4px 8px;
+             min-height: 24px;
+         }
+
+         .empty-description {
+             font-size: 12px;
+             color: var(--vscode-descriptionForeground);
+             margin-top: 4px;
+         }
     </style>
 </head>
 <body>
@@ -1765,6 +1894,32 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         <span class="input-icon">🔧</span>
                     </div>
                     <div class="help-text">配置hotwebs模块，多个模块用逗号分隔</div>
+                </div>
+
+                <div class="form-group">
+                    <div class="section-header">
+                        <div class="section-title-text">启动模块选择</div>
+                        <div class="module-actions">
+                            <button class="secondary" onclick="selectAllModules()">
+                                <span style="margin-right: 4px;">✅</span> 全选
+                            </button>
+                            <button class="secondary" onclick="deselectAllModules()">
+                                <span style="margin-right: 4px;">❌</span> 全不选
+                            </button>
+                            <button class="secondary" onclick="resetModuleSelection()">
+                                <span style="margin-right: 4px;">🔄</span> 重置
+                            </button>
+                        </div>
+                    </div>
+                    <div class="help-text">选择启动时要加载的模块，必选模块无法取消</div>
+                    
+                    <div id="moduleList" class="module-list">
+                        <div class="empty-state">
+                            <div class="empty-icon">📦</div>
+                            <div class="empty-text">请先配置NC Home路径</div>
+                            <div class="empty-description">配置Home路径后将自动加载可用模块</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2402,6 +2557,100 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 type: 'confirmResetDefaults'
             });
         }
+
+        // 模块管理相关函数
+        let currentModules = [];
+
+        // 全选模块
+        function selectAllModules() {
+            currentModules.forEach(module => {
+                if (!module.must) { // 只处理非必选模块
+                    module.enabled = true;
+                }
+            });
+            renderModuleList();
+            saveModuleConfig();
+        }
+
+        // 全不选模块
+        function deselectAllModules() {
+            currentModules.forEach(module => {
+                if (!module.must) { // 必选模块不能取消
+                    module.enabled = false;
+                }
+            });
+            renderModuleList();
+            saveModuleConfig();
+        }
+
+        // 重置模块选择
+        function resetModuleSelection() {
+            currentModules.forEach(module => {
+                module.enabled = true; // 默认全部勾选
+            });
+            renderModuleList();
+            saveModuleConfig();
+        }
+
+        // 渲染模块列表
+         function renderModuleList() {
+             const moduleList = document.getElementById('moduleList');
+             if (!moduleList) return;
+
+             if (!currentModules || currentModules.length === 0) {
+                 moduleList.innerHTML = \`
+                     <div class="empty-state">
+                         <div class="empty-icon">📦</div>
+                         <div class="empty-text">请先配置NC Home路径</div>
+                         <div class="empty-description">配置Home路径后将自动加载可用模块</div>
+                     </div>
+                 \`;
+                 return;
+             }
+
+             const moduleItems = currentModules.map(module => \`
+                 <div class="module-item \${module.must ? 'required' : ''}">
+                     <div class="module-info">
+                         <div class="module-code">\${module.code}</div>
+                         <div class="module-name">\${module.name || '未知模块'}</div>
+                     </div>
+                     <div class="module-badge \${module.must ? 'required' : 'optional'}">
+                         \${module.must ? '必选' : '可选'}
+                     </div>
+                     <input type="checkbox" 
+                            class="module-checkbox" 
+                            id="module-\${module.code}"
+                            \${module.enabled ? 'checked' : ''}
+                            \${module.must ? 'disabled' : ''}
+                            onchange="toggleModule('\${module.code}')">
+                 </div>
+             \`).join('');
+
+             moduleList.innerHTML = moduleItems;
+         }
+
+        // 切换模块状态
+        function toggleModule(moduleCode) {
+            const module = currentModules.find(m => m.code === moduleCode);
+            if (module && !module.must) {
+                module.enabled = !module.enabled;
+                saveModuleConfig();
+            }
+        }
+
+        // 保存模块配置
+        function saveModuleConfig() {
+            vscode.postMessage({
+                type: 'saveModuleConfig',
+                modules: currentModules
+            });
+        }
+
+        // 加载模块配置
+        function loadModuleConfig(modules) {
+            currentModules = modules || [];
+            renderModuleList();
+        }
         
         // 监听消息
         window.addEventListener('message', event => {
@@ -2414,6 +2663,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         initializeHomeVersionSelect(message.homeVersions);
                     }
                     updateConfigDisplay(message.config);
+                    // 加载模块配置
+                    if (message.modules) {
+                        loadModuleConfig(message.modules);
+                    }
                     // 检查是否为Mac系统，如果是则显示转换按钮
                     if (message.config.homePath && navigator.userAgent.includes('Mac')) {
                         document.getElementById('convertToMacHomeBtn').style.display = 'inline-block';
@@ -2696,6 +2949,25 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             await this.handleDeleteDataSource(dataSourceName);
         }
         // 如果用户点击取消或关闭对话框，则不执行任何操作
+    }
+
+    /**
+     * 处理保存模块配置
+     */
+    private async handleSaveModuleConfig(modules: ModuleInfo[]) {
+        try {
+            await this.moduleConfigService.saveModuleConfig(modules);
+            this._view?.webview.postMessage({
+                type: 'moduleConfigSaved',
+                success: true
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'moduleConfigSaved',
+                success: false,
+                error: error.message
+            });
+        }
     }
 
     /**
