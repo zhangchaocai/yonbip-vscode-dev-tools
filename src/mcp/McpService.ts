@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import { NCHomeConfigService } from '../project/nc-home/config/NCHomeConfigService';
+import { DataSourceMeta } from '../project/nc-home/config/NCHomeConfigTypes';
 
 /**
  * MCP服务配置
@@ -133,25 +135,47 @@ export class McpService {
         try {
             this.setStatus(McpStatus.STARTING);
             this.outputChannel.clear();
-            this.outputChannel.appendLine('正在启动MCP服务...');
+            this.outputChannel.appendLine('🚀 正在启动MCP服务...');
+            this.outputChannel.appendLine(`📅 启动时间: ${new Date().toLocaleString()}`);
+
+            // 显示启动进度和数据源信息
+            this.outputChannel.appendLine('🔍 正在获取design数据源信息...');
+            const dataSourceInfo = this.getDesignDataSourceInfo();
+            if (dataSourceInfo) {
+                this.outputChannel.appendLine(`🔗 连接数据源信息:`);
+                this.outputChannel.appendLine(`   URL: ${dataSourceInfo.url}`);
+                this.outputChannel.appendLine(`   用户名: ${dataSourceInfo.username}`);
+                this.outputChannel.appendLine(`   驱动: ${dataSourceInfo.driver}`);
+                this.outputChannel.appendLine(`✅ 数据源信息获取成功`);
+            } else {
+                this.outputChannel.appendLine('⚠️ 未找到design数据源配置');
+                this.outputChannel.appendLine('💡 提示: 请确保在NC HOME配置中设置了名为"design"的数据源');
+            }
 
             // 预检查
+            this.outputChannel.appendLine('📋 执行启动前预检查...');
             const preCheckPassed = await this.preStartCheck();
             if (!preCheckPassed) {
+                this.outputChannel.appendLine('❌ 启动前预检查失败');
                 this.setStatus(McpStatus.ERROR);
                 return;
             }
+            this.outputChannel.appendLine('✅ 启动前预检查通过');
 
             // 验证配置
+            this.outputChannel.appendLine('🔍 验证MCP服务配置...');
             await this.validateConfig();
+            this.outputChannel.appendLine('✅ MCP服务配置验证通过');
 
             // 构建命令行参数
+            this.outputChannel.appendLine('🔨 构建命令行参数...');
             const args = this.buildCommandArgs();
+            this.outputChannel.appendLine('✅ 命令行参数构建完成');
 
-            this.outputChannel.appendLine(`执行命令: ${this.config.javaPath} ${args.join(' ')}`);
+            this.outputChannel.appendLine(`🚀 执行命令: ${this.config.javaPath} ${args.join(' ')}`);
 
             // 启动Java进程
-            this.outputChannel.appendLine('正在创建Java进程...');
+            this.outputChannel.appendLine('🏃 正在创建Java进程...');
 
             // 添加环境变量确保Java进程独立运行
             const env = {
@@ -173,11 +197,11 @@ export class McpService {
                 throw new Error('Java进程创建失败，无法获取进程ID');
             }
 
-            this.outputChannel.appendLine(`Java进程已创建，PID: ${this.process.pid}`);
+            this.outputChannel.appendLine(`✅ Java进程已创建，PID: ${this.process.pid}`);
 
             // 监听进程创建失败
             this.process.on('spawn', () => {
-                this.outputChannel.appendLine('Java进程spawn事件触发');
+                this.outputChannel.appendLine('🔄 Java进程spawn事件触发');
             });
 
             // 处理进程输出
@@ -190,9 +214,19 @@ export class McpService {
                     output.includes('Server started') ||
                     output.includes('访问: http://') ||
                     output.includes('Tomcat started on port')) {
-                    this.outputChannel.appendLine('✓ 检测到MCP服务启动成功标识');
+                    this.outputChannel.appendLine('🎉 检测到MCP服务启动成功标识');
                     this.setStatus(McpStatus.RUNNING);
-                    vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
+                    
+                    // 获取数据源信息用于显示
+                    const dataSourceInfo = this.getDesignDataSourceInfo();
+                    if (dataSourceInfo) {
+                        vscode.window.showInformationMessage(
+                            `MCP服务已启动，端口: ${this.config.port}\n` +
+                            `数据源: ${dataSourceInfo.username}@${this.extractHostFromUrl(dataSourceInfo.url)}`
+                        );
+                    } else {
+                        vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
+                    }
 
                     // 启动成功后自动切换到MCP服务面板
                     vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
@@ -218,21 +252,21 @@ export class McpService {
             });
 
             this.process.on('close', (code, signal) => {
-                this.outputChannel.appendLine(`MCP服务进程结束，退出码: ${code}, 信号: ${signal}`);
+                this.outputChannel.appendLine(`🏁 MCP服务进程结束，退出码: ${code}, 信号: ${signal}`);
 
                 // 详细的退出码分析 - 正常停止不显示错误
                 if (code === 143 || (code === null && signal === 'SIGTERM')) {
                     // 退出码143是正常的SIGTERM终止，不显示异常提示
-                    this.outputChannel.appendLine('进程被SIGTERM信号正常终止');
+                    this.outputChannel.appendLine('⏹️ 进程被SIGTERM信号正常终止');
                 } else if (code === 1) {
-                    this.outputChannel.appendLine('退出码1表示一般性错误，请检查Java环境和JAR文件');
-                    this.outputChannel.appendLine('可能原因: JAR文件损坏、Java版本不兼容、缺少依赖');
+                    this.outputChannel.appendLine('❌ 退出码1表示一般性错误，请检查Java环境和JAR文件');
+                    this.outputChannel.appendLine('💡 可能原因: JAR文件损坏、Java版本不兼容、缺少依赖');
                 } else if (code === 127) {
-                    this.outputChannel.appendLine('退出码127表示命令未找到，请检查Java路径配置');
+                    this.outputChannel.appendLine('❌ 退出码127表示命令未找到，请检查Java路径配置');
                 } else if (code === 130) {
-                    this.outputChannel.appendLine('退出码130表示进程被SIGINT信号中断（Ctrl+C）');
+                    this.outputChannel.appendLine('⏹️ 退出码130表示进程被SIGINT信号中断（Ctrl+C）');
                 } else if (code === null && signal === 'SIGKILL') {
-                    this.outputChannel.appendLine('进程被SIGKILL信号强制终止');
+                    this.outputChannel.appendLine('⏹️ 进程被SIGKILL信号强制终止');
                 }
 
                 this.setStatus(McpStatus.STOPPED);
@@ -248,7 +282,7 @@ export class McpService {
             });
 
             this.process.on('error', (error) => {
-                this.outputChannel.appendLine(`进程启动失败: ${error.message}`);
+                this.outputChannel.appendLine(`💥 进程启动失败: ${error.message}`);
                 this.setStatus(McpStatus.ERROR);
                 vscode.window.showErrorMessage(`MCP服务启动失败: ${error.message}`);
             });
@@ -258,11 +292,11 @@ export class McpService {
                 if (this.status === McpStatus.STARTING) {
                     // 检查进程是否仍在运行
                     if (this.process && !this.process.killed) {
-                        this.outputChannel.appendLine('MCP服务启动超时，但进程仍在运行，检查是否启动成功');
+                        this.outputChannel.appendLine('⏰ MCP服务启动超时，但进程仍在运行，检查是否启动成功');
                         // 进程仍在运行，可能是启动成功但未输出启动成功标识
                         this.checkProcessAliveAndSetStatus();
                     } else {
-                        this.outputChannel.appendLine('MCP服务启动超时');
+                        this.outputChannel.appendLine('⏰ MCP服务启动超时');
                         this.stop();
                         vscode.window.showErrorMessage('MCP服务启动超时，请检查配置和日志');
                     }
@@ -272,9 +306,67 @@ export class McpService {
         } catch (error: any) {
             this.setStatus(McpStatus.ERROR);
             const message = `启动MCP服务失败: ${error.message}`;
-            this.outputChannel.appendLine(message);
+            this.outputChannel.appendLine(`💥 ${message}`);
+            this.outputChannel.appendLine(`堆栈信息: ${error.stack}`);
             vscode.window.showErrorMessage(message);
         }
+    }
+
+    /**
+     * 从JDBC URL中提取主机名
+     */
+    private extractHostFromUrl(url: string): string {
+        try {
+            // 处理不同类型的JDBC URL格式
+            if (url.startsWith('jdbc:oracle:')) {
+                // jdbc:oracle:thin:@host:port/service
+                const match = url.match(/@([^:]+):(\d+)/);
+                if (match) {
+                    return match[1];
+                }
+            } else if (url.startsWith('jdbc:mysql:')) {
+                // jdbc:mysql://host:port/database
+                const match = url.match(/\/\/([^:]+):(\d+)/);
+                if (match) {
+                    return match[1];
+                }
+            } else if (url.startsWith('jdbc:sqlserver:')) {
+                // jdbc:sqlserver://host:port;database=database
+                const match = url.match(/\/\/([^:]+):(\d+)/);
+                if (match) {
+                    return match[1];
+                }
+            } else if (url.startsWith('jdbc:postgresql:')) {
+                // jdbc:postgresql://host:port/database
+                const match = url.match(/\/\/([^:]+):(\d+)/);
+                if (match) {
+                    return match[1];
+                }
+            } else if (url.startsWith('jdbc:dm:')) {
+                // jdbc:dm://host:port/database
+                const match = url.match(/\/\/([^:]+):(\d+)/);
+                if (match) {
+                    return match[1];
+                }
+            } else if (url.startsWith('jdbc:kingbase8:')) {
+                // jdbc:kingbase8://host:port/database
+                const match = url.match(/\/\/([^:]+):(\d+)/);
+                if (match) {
+                    return match[1];
+                }
+            } else {
+                // 尝试通用匹配
+                const match = url.match(/\/\/([^:]+):(\d+)/) || url.match(/@([^:]+):(\d+)/);
+                if (match) {
+                    return match[1];
+                }
+            }
+        } catch (error: any) {
+            this.outputChannel.appendLine(`提取主机名失败: ${error.message}`);
+        }
+        
+        // 如果无法解析，返回URL的一部分
+        return url.substring(0, 30) + (url.length > 30 ? '...' : '');
     }
 
     /**
@@ -287,7 +379,17 @@ export class McpService {
             if (isAvailable) {
                 this.outputChannel.appendLine('✓ 检测到MCP服务HTTP接口可用，设置为运行状态');
                 this.setStatus(McpStatus.RUNNING);
-                vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
+                
+                // 获取数据源信息用于显示
+                const dataSourceInfo = this.getDesignDataSourceInfo();
+                if (dataSourceInfo) {
+                    vscode.window.showInformationMessage(
+                        `MCP服务已启动，端口: ${this.config.port}\n` +
+                        `数据源: ${dataSourceInfo.username}@${this.extractHostFromUrl(dataSourceInfo.url)}`
+                    );
+                } else {
+                    vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
+                }
 
                 // 启动成功后自动切换到MCP服务面板
                 vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
@@ -532,7 +634,7 @@ export class McpService {
             // 尝试找到并杀死占用端口的进程
             try {
                 const { exec } = require('child_process');
-                const result = await new Promise<string>((resolve, reject) => {
+                const result = await new Promise<string>((resolve) => {
                     exec(`lsof -ti:${this.config.port}`, (error: any, stdout: string) => {
                         if (error) {
                             resolve('');
@@ -614,7 +716,123 @@ export class McpService {
             args.push('--homepath=' + homePath);
         }
 
+        // 注入数据源信息
+        const dataSourceInfo = this.getDesignDataSourceInfo();
+        if (dataSourceInfo) {
+            args.push('--datasource.url=' + dataSourceInfo.url);
+            args.push('--datasource.username=' + dataSourceInfo.username);
+            args.push('--datasource.password=' + dataSourceInfo.password);
+            args.push('--datasource.driver=' + dataSourceInfo.driver);
+        }
+
         return args;
+    }
+
+    /**
+     * 获取design数据源信息
+     */
+    private getDesignDataSourceInfo(): { url: string, username: string, password: string, driver: string } | null {
+        try {
+            // 获取NCHome配置服务
+            const configService = new NCHomeConfigService(this.context);
+            
+            // 从配置中获取数据源
+            const config = configService.getConfig();
+            
+            this.outputChannel.appendLine(`🔍 检查数据源配置...`);
+            
+            // 检查是否有数据源配置
+            if (config.dataSources && config.dataSources.length > 0) {
+                this.outputChannel.appendLine(`📊 找到 ${config.dataSources.length} 个数据源配置`);
+                
+                // 列出所有数据源名称用于调试
+                config.dataSources.forEach((ds, index) => {
+                    this.outputChannel.appendLine(`   数据源 ${index + 1}: ${ds.name} (${ds.databaseType})`);
+                });
+                
+                // 查找design数据源（不区分大小写）
+                const designDataSource = config.dataSources.find(ds => 
+                    ds.name.toLowerCase() === 'design'
+                );
+                
+                if (designDataSource) {
+                    this.outputChannel.appendLine(`✅ 找到design数据源: ${designDataSource.name}`);
+                    
+                    // 根据数据库类型生成URL
+                    let url = '';
+                    let driver = '';
+                    
+                    switch (designDataSource.databaseType.toLowerCase()) {
+                        case 'mysql':
+                        case 'mysql5':
+                        case 'mysql8':
+                            url = `jdbc:mysql://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}?useSSL=false&serverTimezone=UTC`;
+                            driver = 'com.mysql.cj.jdbc.Driver';
+                            break;
+                        case 'oracle':
+                        case 'oracle11g':
+                        case 'oracle12c':
+                        case 'oracle19c':
+                            url = `jdbc:oracle:thin:@${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                            driver = 'oracle.jdbc.OracleDriver';
+                            break;
+                        case 'sqlserver':
+                        case 'mssql':
+                            url = `jdbc:sqlserver://${designDataSource.host}:${designDataSource.port};database=${designDataSource.databaseName}`;
+                            driver = 'com.microsoft.sqlserver.jdbc.SQLServerDriver';
+                            break;
+                        case 'postgresql':
+                        case 'pg':
+                            url = `jdbc:postgresql://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                            driver = 'org.postgresql.Driver';
+                            break;
+                        case 'dm':
+                            url = `jdbc:dm://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                            driver = 'dm.jdbc.driver.DmDriver';
+                            break;
+                        case 'kingbase':
+                            url = `jdbc:kingbase8://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                            driver = 'com.kingbase8.Driver';
+                            break;
+                        default:
+                            url = `jdbc:${designDataSource.databaseType.toLowerCase()}://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                            driver = designDataSource.driverClassName || 'com.mysql.cj.jdbc.Driver';
+                    }
+                    
+                    this.outputChannel.appendLine(`🔧 数据库类型: ${designDataSource.databaseType}`);
+                    this.outputChannel.appendLine(`🔗 生成的URL: ${url}`);
+                    this.outputChannel.appendLine(`🚗 驱动类: ${driver}`);
+                    
+                    return {
+                        url: url,
+                        username: designDataSource.username,
+                        password: designDataSource.password,
+                        driver: driver
+                    };
+                } else {
+                    this.outputChannel.appendLine(`❌ 未找到名为 'design' 的数据源`);
+                    // 检查是否有其他可能的数据源
+                    const possibleDesignSources = config.dataSources.filter(ds => 
+                        ds.name.toLowerCase().includes('design') || 
+                        ds.name.toLowerCase().includes('开发')
+                    );
+                    
+                    if (possibleDesignSources.length > 0) {
+                        this.outputChannel.appendLine(`💡 找到可能的design数据源候选:`);
+                        possibleDesignSources.forEach(ds => {
+                            this.outputChannel.appendLine(`   - ${ds.name}`);
+                        });
+                    }
+                }
+            } else {
+                this.outputChannel.appendLine(`⚠️ 未配置任何数据源`);
+            }
+        } catch (error: any) {
+            this.outputChannel.appendLine(`获取design数据源信息失败: ${error.message}`);
+            this.outputChannel.appendLine(`堆栈信息: ${error.stack}`);
+        }
+        
+        return null;
     }
 
     /**
