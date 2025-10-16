@@ -15,44 +15,261 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
     private _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
     public readonly onDidChangeFileDecorations = this._onDidChangeFileDecorations.event;
 
+    // 缓存机制：存储已检查过的目录状态
+    private decorationCache = new Map<string, vscode.FileDecoration | undefined>();
+    private lastCacheUpdate = new Map<string, number>();
+    private readonly CACHE_TTL = 5000; // 缓存5秒
+
     // 允许主动标记的目录（确保即刻刷新）
     private initializedFolders = new Set<string>();
+    
+    // 文件系统监听器，用于监听.project文件的变化
+    private fileWatcher: vscode.FileSystemWatcher | undefined;
+    
+    // 持久化存储键
+    private readonly STORAGE_KEY = 'yonbip.initializedProjects';
+    private context: vscode.ExtensionContext | undefined;
+
+    // 强制刷新装饰器的方法
+    public forceRefresh(): void {
+        // 清除所有缓存
+        this.decorationCache.clear();
+        this.lastCacheUpdate.clear();
+        
+        // 触发全局刷新
+        this._onDidChangeFileDecorations.fire(undefined);
+        
+        console.log('强制刷新装饰器');
+    }
+
+    // 定期刷新装饰器以确保稳定显示
+    private startPeriodicRefresh(): void {
+        setInterval(() => {
+            // 每30秒强制刷新一次，确保装饰器不会消失
+            this.forceRefresh();
+        }, 30000);
+    }
+
+    constructor(context?: vscode.ExtensionContext) {
+        this.context = context;
+        this.loadPersistedState();
+        this.setupFileWatcher();
+        this.startPeriodicRefresh(); // 启动定期刷新
+    }
+
+    // 从持久化存储加载状态
+    private loadPersistedState(): void {
+        if (this.context) {
+            try {
+                const stored = this.context.globalState.get<string[]>(this.STORAGE_KEY, []);
+                stored.forEach(folderPath => {
+                    // 验证目录是否仍然存在且已初始化
+                    if (fs.existsSync(folderPath) && this.isProjectInitialized(folderPath)) {
+                        this.initializedFolders.add(folderPath);
+                    }
+                });
+                console.log(`从持久化存储加载了 ${this.initializedFolders.size} 个已初始化项目`);
+            } catch (error) {
+                console.error('加载持久化状态失败:', error);
+            }
+        }
+    }
+
+    // 保存状态到持久化存储
+    private savePersistedState(): void {
+        if (this.context) {
+            try {
+                const folders = Array.from(this.initializedFolders);
+                this.context.globalState.update(this.STORAGE_KEY, folders);
+            } catch (error) {
+                console.error('保存持久化状态失败:', error);
+            }
+        }
+    }
+
+    // 设置文件监听器
+    private setupFileWatcher(): void {
+        try {
+            // 监听.project文件的创建和删除
+            this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/.project');
+            
+            this.fileWatcher.onDidCreate((uri) => {
+                const dirPath = path.dirname(uri.fsPath);
+                this.invalidateCache(dirPath);
+                this._onDidChangeFileDecorations.fire(vscode.Uri.file(dirPath));
+            });
+
+            this.fileWatcher.onDidDelete((uri) => {
+                const dirPath = path.dirname(uri.fsPath);
+                this.invalidateCache(dirPath);
+                this.initializedFolders.delete(path.resolve(dirPath));
+                this.savePersistedState();
+                this._onDidChangeFileDecorations.fire(vscode.Uri.file(dirPath));
+            });
+        } catch (error) {
+            console.error('设置文件监听器失败:', error);
+        }
+    }
+
+    // 检查项目是否已初始化
+    private isProjectInitialized(folderPath: string): boolean {
+        try {
+            const markerPath = path.join(folderPath, '.project');
+            const buildClassesPath = path.join(folderPath, 'build', 'classes');
+            const metaInfPath = path.join(folderPath, 'META-INF');
+            
+            // 检查关键文件/目录是否存在
+            return fs.existsSync(markerPath) || 
+                   (fs.existsSync(buildClassesPath) && fs.existsSync(metaInfPath));
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // 使缓存失效
+    private invalidateCache(folderPath: string): void {
+        const absPath = path.resolve(folderPath);
+        this.decorationCache.delete(absPath);
+        this.lastCacheUpdate.delete(absPath);
+    }
 
     // 主动标记目录为已初始化，并触发刷新
     public markAsInitialized(folderPath: string): void {
         const absPath = path.resolve(folderPath);
         this.initializedFolders.add(absPath);
-        // 同时触发针对该目录和全局的刷新，避免在复制大量文件后装饰未刷新
+        this.invalidateCache(absPath);
+        this.savePersistedState();
+        
+        // 创建.project标记文件以确保持久性
+        try {
+            const projectFile = path.join(absPath, '.project');
+            if (!fs.existsSync(projectFile)) {
+                const projectName = path.basename(absPath);
+                const projectContent = `<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+    <name>${projectName}</name>
+    <comment>YonBIP Project</comment>
+    <projects>
+    </projects>
+    <buildSpec>
+    </buildSpec>
+    <natures>
+    </natures>
+</projectDescription>`;
+                fs.writeFileSync(projectFile, projectContent, 'utf-8');
+            }
+        } catch (error) {
+            console.error('创建.project文件失败:', error);
+        }
+        
+        // 触发装饰更新
         this._onDidChangeFileDecorations.fire(vscode.Uri.file(absPath));
-        this._onDidChangeFileDecorations.fire(undefined);
+        // 延迟触发全局刷新，确保装饰显示
+        setTimeout(() => {
+            this._onDidChangeFileDecorations.fire(undefined);
+        }, 100);
+        
+        // 额外的强制刷新，确保在有强调项的目录中也能显示
+        setTimeout(() => {
+            this.forceRefresh();
+        }, 500);
+        
+        console.log(`项目目录已标记为初始化: ${absPath}`);
+    }
+
+    // 移除初始化标记
+    public removeInitialization(folderPath: string): void {
+        const absPath = path.resolve(folderPath);
+        this.initializedFolders.delete(absPath);
+        this.invalidateCache(absPath);
+        this.savePersistedState();
+        this._onDidChangeFileDecorations.fire(vscode.Uri.file(absPath));
+    }
+
+    // 获取所有已初始化的项目
+    public getInitializedProjects(): string[] {
+        return Array.from(this.initializedFolders);
     }
 
     provideFileDecoration(uri: vscode.Uri): vscode.ProviderResult<vscode.FileDecoration> {
         try {
             const fsPath = uri.fsPath;
-            if (!fs.existsSync(fsPath)) {
+            const absPath = path.resolve(fsPath);
+            
+            // 检查缓存
+            const now = Date.now();
+            const lastUpdate = this.lastCacheUpdate.get(absPath) || 0;
+            
+            if (now - lastUpdate < this.CACHE_TTL && this.decorationCache.has(absPath)) {
+                return this.decorationCache.get(absPath);
+            }
+
+            // 只处理目录
+            let isDirectory = false;
+            try {
+                if (!fs.existsSync(fsPath)) {
+                    this.decorationCache.set(absPath, undefined);
+                    this.lastCacheUpdate.set(absPath, now);
+                    return undefined;
+                }
+                const stat = fs.statSync(fsPath);
+                isDirectory = stat.isDirectory();
+            } catch (error) {
+                this.decorationCache.set(absPath, undefined);
+                this.lastCacheUpdate.set(absPath, now);
                 return undefined;
             }
-            const stat = fs.statSync(fsPath);
-            // 只为目录添加标记：如果目录内存在 .project 文件，或被主动标记
-            if (stat.isDirectory()) {
-                const markerPath = path.join(fsPath, '.project');
-                if (fs.existsSync(markerPath) || this.initializedFolders.has(path.resolve(fsPath))) {
-                    return {
-                        // VS Code 仅支持单字符徽章，这里改为单字符以确保稳定显示
-                        badge: '✅',
-                        tooltip: 'YonBIP 项目已初始化',
-                        color: new vscode.ThemeColor('gitDecoration.addedResourceForeground'),
-                        // 允许向下传播，让子项也能显示标记（在某些视图中更明显）
-                        propagate: true
-                    };
-                }
+
+            if (!isDirectory) {
+                this.decorationCache.set(absPath, undefined);
+                this.lastCacheUpdate.set(absPath, now);
+                return undefined;
             }
-        } catch (e) {
-            // 忽略错误，返回不装饰
+
+            // 检查是否为已初始化项目
+            const isInitialized = this.initializedFolders.has(absPath) || this.isProjectInitialized(fsPath);
+            
+            let decoration: vscode.FileDecoration | undefined = undefined;
+            
+            if (isInitialized) {
+                // 如果通过文件系统检查发现已初始化，但不在内存集合中，则添加到集合
+                if (!this.initializedFolders.has(absPath)) {
+                    this.initializedFolders.add(absPath);
+                    this.savePersistedState();
+                }
+                
+                decoration = {
+                    badge: '✓',
+                    tooltip: 'YonBIP 项目已初始化 - 点击查看详情',
+                    color: new vscode.ThemeColor('charts.green'),
+                    propagate: false // 不传播，避免子目录也显示
+                };
+                
+                // 设置更高的优先级以避免与VS Code内置装饰器冲突
+                // 使用weight属性来提高优先级
+                (decoration as any).priority = 1000;
+                (decoration as any).weight = 1000;
+            }
+
+            // 更新缓存
+            this.decorationCache.set(absPath, decoration);
+            this.lastCacheUpdate.set(absPath, now);
+            
+            return decoration;
+            
+        } catch (error) {
+            console.error('提供文件装饰失败:', error);
             return undefined;
         }
-        return undefined;
+    }
+
+    // 清理资源
+    public dispose(): void {
+        if (this.fileWatcher) {
+            this.fileWatcher.dispose();
+        }
+        this.decorationCache.clear();
+        this.lastCacheUpdate.clear();
     }
 }
 
@@ -85,8 +302,10 @@ export class ProjectContextCommands {
 
         // 新增：注册文件装饰器提供者
         if (!this.decorationProvider) {
-            const provider = new ProjectInitDecorationProvider();
-            context.subscriptions.push(vscode.window.registerFileDecorationProvider(provider));
+            const provider = new ProjectInitDecorationProvider(context);
+            const disposable = vscode.window.registerFileDecorationProvider(provider);
+            context.subscriptions.push(disposable);
+            context.subscriptions.push(provider); // 确保provider也被正确清理
             this.decorationProvider = provider;
         }
 

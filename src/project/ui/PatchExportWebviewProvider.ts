@@ -502,203 +502,371 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>补丁导出配置</title>
     <style>
+        /* 全局样式优化 */
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: var(--vscode-font-family);
             font-size: var(--vscode-font-size);
             color: var(--vscode-foreground);
-            background-color: var(--vscode-editor-background);
-            padding: 16px;
+            background: linear-gradient(135deg, var(--vscode-editor-background) 0%, var(--vscode-sideBar-background) 100%);
+            padding: 0;
             margin: 0;
+            line-height: 1.5;
         }
 
         .form-container {
             max-width: 100%;
+            padding: 24px;
+            background-color: var(--vscode-editor-background);
+            border-radius: 12px;
+            margin: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--vscode-widget-border);
         }
 
+        /* 表单组样式优化 */
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 24px;
+            position: relative;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 4px;
-            font-weight: 500;
+            margin-bottom: 8px;
+            font-weight: 600;
             color: var(--vscode-input-foreground);
+            font-size: 13px;
+            letter-spacing: 0.3px;
         }
 
         .form-group input,
         .form-group select,
         .form-group textarea {
             width: 100%;
-            padding: 6px 8px;
-            border: 1px solid var(--vscode-input-border);
+            padding: 12px 16px;
+            border: 2px solid var(--vscode-input-border);
             background-color: var(--vscode-input-background);
             color: var(--vscode-input-foreground);
-            border-radius: 2px;
-            box-sizing: border-box;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .form-group input:hover,
+        .form-group select:hover,
+        .form-group textarea:hover {
+            border-color: var(--vscode-inputOption-hoverBackground);
         }
 
         .form-group textarea {
-            min-height: 60px;
+            min-height: 80px;
             resize: vertical;
+            font-family: var(--vscode-font-family);
         }
 
+        /* 表单行样式 */
         .form-row {
             display: flex;
-            gap: 8px;
-            align-items: center;
+            gap: 12px;
+            align-items: stretch;
         }
 
         .form-row input {
             flex: 1;
         }
 
+        /* 浏览按钮优化 */
         .browse-button {
-            padding: 6px 12px;
-            background-color: var(--vscode-button-background);
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--vscode-button-background) 0%, var(--vscode-button-hoverBackground) 100%);
             color: var(--vscode-button-foreground);
             border: none;
-            border-radius: 2px;
+            border-radius: 8px;
             cursor: pointer;
             white-space: nowrap;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .browse-button:hover {
-            background-color: var(--vscode-button-hoverBackground);
+            background: linear-gradient(135deg, var(--vscode-button-hoverBackground) 0%, var(--vscode-button-background) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
 
+        .browse-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 复选框组优化 */
         .checkbox-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
+            padding: 16px;
+            background-color: var(--vscode-input-background);
+            border-radius: 8px;
+            border: 1px solid var(--vscode-input-border);
         }
 
         .checkbox-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
+            padding: 8px;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+
+        .checkbox-item:hover {
+            background-color: var(--vscode-list-hoverBackground);
         }
 
         .checkbox-item input[type="checkbox"] {
-            width: auto;
+            width: 18px;
+            height: 18px;
             margin: 0;
+            cursor: pointer;
+            accent-color: var(--vscode-button-background);
         }
 
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* 文件列表容器优化 */
         .file-list-container {
-            max-height: 300px;
+            max-height: 350px;
             overflow-y: auto;
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 4px;
-            margin-bottom: 16px;
+            border: 2px solid var(--vscode-input-border);
+            border-radius: 12px;
+            margin-bottom: 24px;
+            background-color: var(--vscode-input-background);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .file-list {
-            padding: 8px;
+            padding: 16px;
         }
 
         .file-category {
-            margin-bottom: 12px;
+            margin-bottom: 20px;
+            background-color: var(--vscode-editor-background);
+            border-radius: 8px;
+            padding: 12px;
+            border-left: 4px solid var(--vscode-textLink-foreground);
         }
 
         .file-category-title {
-            font-weight: bold;
+            font-weight: 700;
             color: var(--vscode-textLink-foreground);
-            margin-bottom: 4px;
+            margin-bottom: 8px;
             font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-category-title::before {
+            content: "📁";
+            font-size: 16px;
         }
 
         .file-item {
-            padding: 2px 0;
+            padding: 6px 12px;
             font-size: 13px;
             color: var(--vscode-foreground);
             font-family: var(--vscode-editor-font-family);
+            background-color: var(--vscode-list-inactiveSelectionBackground);
+            margin: 2px 0;
+            border-radius: 4px;
+            transition: all 0.2s ease;
         }
 
+        .file-item:hover {
+            background-color: var(--vscode-list-hoverBackground);
+            transform: translateX(4px);
+        }
+
+        /* 刷新按钮优化 */
         .refresh-button {
-            background: var(--vscode-button-background);
+            background: linear-gradient(135deg, var(--vscode-button-background) 0%, var(--vscode-button-hoverBackground) 100%);
             color: var(--vscode-button-foreground);
             border: none;
-            padding: 4px 8px;
-            border-radius: 3px;
+            padding: 8px 16px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 12px;
-            margin-left: 8px;
+            font-weight: 500;
+            margin-left: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         }
 
         .refresh-button:hover {
-            background: var(--vscode-button-hoverBackground);
+            background: linear-gradient(135deg, var(--vscode-button-hoverBackground) 0%, var(--vscode-button-background) 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
+        .refresh-button::before {
+            content: "🔄";
+            margin-right: 6px;
+        }
+
+        /* 加载状态优化 */
         .loading {
             text-align: center;
             color: var(--vscode-descriptionForeground);
             font-style: italic;
-            padding: 20px;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
         }
 
+        .loading::before {
+            content: "⏳";
+            font-size: 32px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 章节标题优化 */
         .section-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin: 20px 0 12px 0;
+            font-size: 16px;
+            font-weight: 700;
+            margin: 32px 0 16px 0;
             color: var(--vscode-foreground);
-            border-bottom: 1px solid var(--vscode-widget-border);
-            padding-bottom: 4px;
+            border-bottom: 2px solid var(--vscode-textLink-foreground);
+            padding-bottom: 8px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
+        .section-title::before {
+            content: "";
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--vscode-button-background), transparent);
+        }
+
+        /* 按钮组优化 */
         .button-group {
             display: flex;
-            gap: 8px;
-            margin-top: 24px;
+            gap: 16px;
+            margin-top: 32px;
             justify-content: flex-end;
+            padding-top: 24px;
+            border-top: 1px solid var(--vscode-widget-border);
         }
 
         .button {
-            padding: 8px 16px;
+            padding: 14px 28px;
             border: none;
-            border-radius: 2px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            min-width: 120px;
+        }
+
+        .button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .button:hover::before {
+            left: 100%;
         }
 
         .button-primary {
-            background-color: var(--vscode-button-background);
+            background: linear-gradient(135deg, var(--vscode-button-background) 0%, var(--vscode-button-hoverBackground) 100%);
             color: var(--vscode-button-foreground);
+            box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
         }
 
         .button-primary:hover {
-            background-color: var(--vscode-button-hoverBackground);
+            background: linear-gradient(135deg, var(--vscode-button-hoverBackground) 0%, var(--vscode-button-background) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 122, 255, 0.4);
         }
 
         .button-secondary {
-            background-color: var(--vscode-button-secondaryBackground);
+            background: linear-gradient(135deg, var(--vscode-button-secondaryBackground) 0%, var(--vscode-input-background) 100%);
             color: var(--vscode-button-secondaryForeground);
+            border: 2px solid var(--vscode-input-border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .button-secondary:hover {
-            background-color: var(--vscode-button-secondaryHoverBackground);
+            background: linear-gradient(135deg, var(--vscode-input-background) 0%, var(--vscode-button-secondaryBackground) 100%);
+            border-color: var(--vscode-focusBorder);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
 
+        /* 错误和成功状态样式优化 */
         .error-message {
             color: var(--vscode-errorForeground);
-            font-size: 12px;
-            margin-top: 4px;
-            padding: 6px 8px;
-            border-radius: 3px;
-            border-left: 3px solid var(--vscode-inputValidation-errorBorder);
+            background: linear-gradient(135deg, var(--vscode-inputValidation-errorBackground) 0%, rgba(255, 0, 0, 0.05) 100%);
+            font-size: 13px;
+            margin-top: 8px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 4px solid var(--vscode-inputValidation-errorBorder);
             display: none;
-            animation: fadeInDown 0.2s ease-out;
+            animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
+            box-shadow: 0 2px 8px rgba(255, 0, 0, 0.1);
         }
         
         .error-message::before {
             content: '⚠️';
-            margin-right: 6px;
+            margin-right: 8px;
+            font-size: 16px;
         }
         
-        @keyframes fadeInDown {
+        @keyframes slideInUp {
             from {
                 opacity: 0;
-                transform: translateY(-10px);
+                transform: translateY(10px);
             }
             to {
                 opacity: 1;
@@ -716,75 +884,82 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             border-color: var(--vscode-inputValidation-errorBorder);
             background-color: var(--vscode-inputValidation-errorBackground);
             animation: shake 0.5s ease-in-out;
+            box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
         }
         
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
         }
         
-        /* 成功状态样式 */
+        /* 成功状态样式优化 */
         .form-group.success input,
         .form-group.success select,
         .form-group.success textarea {
             border-color: #4caf50;
-            background-color: rgba(76, 175, 80, 0.1);
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, var(--vscode-input-background) 100%);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
         }
         
         .success-message {
             color: #4caf50;
-            background-color: rgba(76, 175, 80, 0.1);
-            font-size: 12px;
-            margin-top: 4px;
-            padding: 6px 8px;
-            border-radius: 3px;
-            border-left: 3px solid #4caf50;
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
+            font-size: 13px;
+            margin-top: 8px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
             display: none;
-            animation: fadeInDown 0.2s ease-out;
+            animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
         }
         
         .success-message::before {
             content: '✅';
-            margin-right: 6px;
+            margin-right: 8px;
+            font-size: 16px;
         }
         
         .success-message.show {
             display: block;
         }
         
-        /* 加载状态样式 */
+        /* 加载状态样式优化 */
         .loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.4) 100%);
+            backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 2000;
-            animation: fadeIn 0.2s ease-out;
+            animation: fadeIn 0.3s ease-out;
         }
         
         .loading-content {
-            background-color: var(--vscode-editor-background);
-            padding: 24px;
-            border-radius: 8px;
+            background: linear-gradient(135deg, var(--vscode-editor-background) 0%, var(--vscode-sideBar-background) 100%);
+            padding: 32px;
+            border-radius: 16px;
             text-align: center;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-            min-width: 200px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+            min-width: 240px;
+            border: 1px solid var(--vscode-widget-border);
         }
         
         .loading-spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid var(--vscode-progressBar-background);
-            border-top: 3px solid var(--vscode-progressBar-foreground);
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--vscode-progressBar-background);
+            border-top: 4px solid var(--vscode-progressBar-foreground);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 16px;
+            margin: 0 auto 20px;
+        }
         }
         
         @keyframes spin {
@@ -799,15 +974,17 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         
         /* 按钮状态优化 */
         .button:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
         }
         
         .button-primary:disabled {
-            background-color: var(--vscode-button-background);
+            background: var(--vscode-button-background) !important;
         }
         
-        /* 工具提示样式 */
+        /* 工具提示样式优化 */
         .tooltip {
             position: relative;
             display: inline-block;
@@ -815,22 +992,23 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         
         .tooltip .tooltiptext {
             visibility: hidden;
-            width: 200px;
-            background-color: var(--vscode-editorHoverWidget-background);
+            width: 220px;
+            background: linear-gradient(135deg, var(--vscode-editorHoverWidget-background) 0%, var(--vscode-sideBar-background) 100%);
             color: var(--vscode-editorHoverWidget-foreground);
             text-align: center;
-            border-radius: 4px;
-            padding: 8px;
+            border-radius: 8px;
+            padding: 12px 16px;
             position: absolute;
             z-index: 1001;
             bottom: 125%;
             left: 50%;
-            margin-left: -100px;
+            margin-left: -110px;
             opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 13px;
             border: 1px solid var(--vscode-editorHoverWidget-border);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(4px);
         }
         
         .tooltip .tooltiptext::after {
@@ -838,8 +1016,8 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             position: absolute;
             top: 100%;
             left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
+            margin-left: -6px;
+            border-width: 6px;
             border-style: solid;
             border-color: var(--vscode-editorHoverWidget-background) transparent transparent transparent;
         }
@@ -847,90 +1025,106 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         .tooltip:hover .tooltiptext {
             visibility: visible;
             opacity: 1;
+            transform: translateY(-4px);
         }
 
+        /* 无数据状态优化 */
         .no-data {
             text-align: center;
-            padding: 40px 20px;
+            padding: 60px 20px;
             color: var(--vscode-descriptionForeground);
+            background: linear-gradient(135deg, var(--vscode-input-background) 0%, var(--vscode-editor-background) 100%);
+            border-radius: 12px;
+            margin: 20px 0;
         }
         
         .no-data-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
         }
         
         .no-data-text {
-            font-size: 14px;
-            margin-bottom: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--vscode-foreground);
         }
         
         .no-data-subtext {
-            font-size: 12px;
+            font-size: 14px;
             color: var(--vscode-descriptionForeground);
+            line-height: 1.5;
         }
         
-        /* 优化消息显示样式 */
+        /* 消息显示样式优化 */
         .message-container {
             position: fixed;
-            top: 16px;
-            left: 16px;
-            right: 16px;
+            top: 20px;
+            left: 20px;
+            right: 20px;
             z-index: 1000;
             pointer-events: none;
         }
         
         .message-content {
-            padding: 16px 20px;
-            border-radius: 8px;
-            font-size: 13px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            border-left: 4px solid;
+            padding: 20px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border-left: 5px solid;
             display: flex;
             align-items: flex-start;
-            gap: 12px;
-            animation: slideInDown 0.3s ease-out;
+            gap: 16px;
+            animation: slideInDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
             pointer-events: auto;
             max-height: 70vh;
             overflow-y: auto;
+            backdrop-filter: blur(8px);
         }
         
         @keyframes slideInDown {
             from {
-                transform: translateY(-100%);
+                transform: translateY(-100%) scale(0.95);
                 opacity: 0;
             }
             to {
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
                 opacity: 1;
             }
         }
         
         @keyframes slideOutUp {
             from {
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
                 opacity: 1;
             }
             to {
-                transform: translateY(-100%);
+                transform: translateY(-100%) scale(0.95);
                 opacity: 0;
             }
         }
         
         .message-content.error {
-            background-color: var(--vscode-inputValidation-errorBackground);
+            background: linear-gradient(135deg, var(--vscode-inputValidation-errorBackground) 0%, rgba(255, 0, 0, 0.1) 100%);
             color: var(--vscode-inputValidation-errorForeground);
             border-left-color: var(--vscode-inputValidation-errorBorder);
             white-space: pre-line;
             line-height: 1.6;
             font-family: var(--vscode-editor-font-family);
-            font-size: 12px;
+            font-size: 13px;
         }
         
         .message-icon {
-            font-size: 18px;
+            font-size: 20px;
             flex-shrink: 0;
             margin-top: 2px;
         }
@@ -948,34 +1142,38 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             border: none;
             color: currentColor;
             cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
+            padding: 6px;
+            border-radius: 6px;
             opacity: 0.7;
-            font-size: 16px;
+            font-size: 18px;
             flex-shrink: 0;
             margin-top: -2px;
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.2s ease;
         }
         
         .message-close:hover {
             opacity: 1;
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.15);
+            transform: scale(1.1);
         }
         
         .message-content.info {
-            background-color: var(--vscode-input-background);
+            background: linear-gradient(135deg, var(--vscode-input-background) 0%, var(--vscode-editor-background) 100%);
             color: var(--vscode-foreground);
             border: 1px solid var(--vscode-input-border);
+            border-left-color: var(--vscode-button-background);
         }
         
         .message-content.success {
-            background-color: var(--vscode-diffEditor-insertedTextBackground);
+            background: linear-gradient(135deg, var(--vscode-diffEditor-insertedTextBackground) 0%, rgba(76, 175, 80, 0.1) 100%);
             color: var(--vscode-diffEditor-insertedTextForeground);
             border: 1px solid var(--vscode-diffEditor-insertedTextBackground);
+            border-left-color: #4caf50;
         }
     </style>
 </head>

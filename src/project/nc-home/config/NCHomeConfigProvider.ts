@@ -821,100 +821,153 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NC Home配置</title>
     <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
+            --success-gradient: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            --warning-gradient: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+            --danger-gradient: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+            --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
+            --border-radius: 12px;
+            --border-radius-small: 8px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         body {
             font-family: var(--vscode-font-family);
             font-size: var(--vscode-font-size);
             color: var(--vscode-foreground);
-            background-color: var(--vscode-editor-background);
-            padding: 10px;
+            background: linear-gradient(135deg, var(--vscode-editor-background) 0%, rgba(0, 122, 204, 0.02) 100%);
+            padding: 16px;
             margin: 0;
+            min-height: 100vh;
         }
         
         /* 滚动条样式优化 */
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
         }
         
         ::-webkit-scrollbar-track {
             background: var(--vscode-scrollbarSlider-background);
-            border-radius: 4px;
+            border-radius: 6px;
         }
         
         ::-webkit-scrollbar-thumb {
-            background: var(--vscode-scrollbarSlider-hoverBackground);
-            border-radius: 4px;
+            background: linear-gradient(135deg, var(--vscode-scrollbarSlider-hoverBackground), var(--vscode-scrollbarSlider-activeBackground));
+            border-radius: 6px;
+            border: 2px solid var(--vscode-scrollbarSlider-background);
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--vscode-scrollbarSlider-activeBackground);
+            background: linear-gradient(135deg, var(--vscode-scrollbarSlider-activeBackground), var(--vscode-textLink-foreground));
         }
         
         .section {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             border: 1px solid var(--vscode-widget-border);
-            border-radius: 8px;
-            padding: 16px;
-            background-color: var(--vscode-input-background);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: all 0.2s ease;
+            border-radius: var(--border-radius);
+            padding: 24px;
+            background: linear-gradient(135deg, var(--vscode-input-background) 0%, rgba(255, 255, 255, 0.02) 100%);
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            opacity: 0;
+            transition: var(--transition);
         }
         
         .section:hover {
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--card-shadow-hover);
+            transform: translateY(-2px);
+            border-color: var(--vscode-focusBorder);
+        }
+        
+        .section:hover::before {
+            opacity: 1;
         }
         
         .section-title {
-            font-weight: 600;
-            margin-bottom: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
             color: var(--vscode-textLink-foreground);
-            font-size: 16px;
-            border-bottom: 1px solid var(--vscode-widget-border);
-            padding-bottom: 8px;
+            font-size: 18px;
+            border-bottom: 2px solid transparent;
+            background: var(--primary-gradient);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            padding-bottom: 12px;
             display: flex;
             align-items: center;
+            position: relative;
         }
         
         .section-title::before {
             content: '';
             display: inline-block;
-            width: 4px;
-            height: 16px;
-            background-color: var(--vscode-textLink-foreground);
-            margin-right: 8px;
-            border-radius: 2px;
+            width: 6px;
+            height: 20px;
+            background: var(--primary-gradient);
+            margin-right: 12px;
+            border-radius: 3px;
+            box-shadow: 0 2px 4px rgba(0, 122, 204, 0.3);
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: var(--primary-gradient);
+            border-radius: 1px;
         }
         
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
         
         .form-row {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 12px;
-            gap: 8px;
+            margin-bottom: 16px;
+            gap: 12px;
         }
         
         label {
             display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-            min-width: 100px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            min-width: 120px;
             color: var(--vscode-editor-foreground);
+            font-size: 14px;
+            letter-spacing: 0.3px;
         }
         
         .form-row label {
             margin-bottom: 0;
-            margin-right: 10px;
+            margin-right: 12px;
         }
         
         .form-row .input-container {
             display: flex;
             flex: 1;
-            min-width: 0; /* 允许输入框在空间不足时收缩 */
-            gap: 8px;
+            min-width: 0;
+            gap: 12px;
         }
         
         .form-row .input-container input {
@@ -941,37 +994,41 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         
         input, select, textarea {
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid var(--vscode-input-border);
-            background-color: var(--vscode-input-background);
+            padding: 12px 16px;
+            border: 2px solid var(--vscode-input-border);
+            background: linear-gradient(135deg, var(--vscode-input-background) 0%, rgba(255, 255, 255, 0.05) 100%);
             color: var(--vscode-input-foreground);
-            border-radius: 6px;
+            border-radius: var(--border-radius-small);
             box-sizing: border-box;
-            transition: border-color 0.2s ease;
-        }
-        
-        /* 密码输入框特殊样式 */
-        input[type="password"] {
-            font-family: monospace; /* 使用等宽字体 */
-            letter-spacing: 5px; /* 增加字符间距以更好地隐藏密码 */
+            transition: var(--transition);
+            font-size: 14px;
+            position: relative;
         }
         
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--vscode-focusBorder);
-            box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        /* 密码输入框特殊样式 */
+        input[type="password"] {
+            font-family: monospace;
+            letter-spacing: 3px;
         }
         
         /* JVM参数文本域占满区域 */
         #vmParameters {
             display: block;
             width: 100%;
-            height: 20vh; /* 使其在视口中占据更大高度 */
+            height: 20vh;
             min-height: 200px;
             max-height: 50vh;
-            font-family: monospace;
-            line-height: 1.5;
-            resize: vertical; /* 允许垂直方向调整大小 */
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            line-height: 1.6;
+            resize: vertical;
+            background: linear-gradient(135deg, var(--vscode-input-background) 0%, rgba(0, 0, 0, 0.02) 100%);
         }
         
         .form-row input {
@@ -979,32 +1036,51 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         button {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
+            background: var(--primary-gradient);
+            color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 12px 20px;
+            border-radius: var(--border-radius-small);
             cursor: pointer;
-            margin-right: 8px;
-            margin-bottom: 8px;
+            margin-right: 10px;
+            margin-bottom: 10px;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
-            min-height: 32px;
+            transition: var(--transition);
+            min-height: 40px;
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        button:hover::before {
+            left: 100%;
         }
         
         .browse-button {
-            height: 28px;
-            padding: 4px 12px;
+            height: 36px;
+            padding: 8px 16px;
             margin-bottom: 0;
+            min-height: auto;
         }
         
         button:hover {
-            background-color: var(--vscode-button-hoverBackground);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 122, 204, 0.4);
         }
         
         button:active {
@@ -1012,66 +1088,81 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         button.secondary {
-            background-color: var(--vscode-button-secondaryBackground);
+            background: linear-gradient(135deg, var(--vscode-button-secondaryBackground) 0%, rgba(108, 117, 125, 0.8) 100%);
             color: var(--vscode-button-secondaryForeground);
+            box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
         }
         
         button.secondary:hover {
-            background-color: var(--vscode-button-secondaryHoverBackground);
+            box-shadow: 0 4px 16px rgba(108, 117, 125, 0.4);
         }
         
         .button-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 12px;
         }
         
         .tabs {
             display: flex;
-            border-bottom: 2px solid var(--vscode-widget-border);
-            margin-bottom: 20px;
+            border-bottom: none;
+            margin-bottom: 24px;
             overflow-x: auto;
             scrollbar-width: thin;
-            padding-bottom: 1px;
+            padding: 4px;
+            background: linear-gradient(135deg, rgba(0, 122, 204, 0.05) 0%, rgba(0, 122, 204, 0.02) 100%);
+            border-radius: var(--border-radius);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
         .tab {
-            padding: 10px 16px;
+            padding: 14px 20px;
             cursor: pointer;
             border: none;
-            background: none;
+            background: transparent;
             color: var(--vscode-foreground);
-            margin-right: 4px;
-            border-radius: 6px 6px 0 0;
-            font-weight: 500;
+            margin-right: 6px;
+            border-radius: var(--border-radius-small);
+            font-weight: 600;
             position: relative;
             white-space: nowrap;
-            transition: all 0.2s ease;
+            transition: var(--transition);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .tab:hover {
-            background-color: var(--vscode-list-hoverBackground);
+            background: linear-gradient(135deg, rgba(0, 122, 204, 0.1) 0%, rgba(0, 122, 204, 0.05) 100%);
+            transform: translateY(-1px);
         }
         
         .tab.active {
-            background-color: var(--vscode-tab-activeBackground);
-            color: var(--vscode-textLink-foreground);
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.3);
+            transform: translateY(-2px);
         }
         
         .tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background-color: var(--vscode-textLink-foreground);
-            border-radius: 3px 3px 0 0;
+            display: none;
         }
         
         .tab-content {
             display: none;
-            animation: fadeIn 0.3s ease;
+            animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes slideInUp {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0);
+            }
         }
         
         @keyframes fadeIn {
@@ -1084,111 +1175,393 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         .status-message {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
+            padding: 16px 20px;
+            border-radius: var(--border-radius-small);
+            margin-bottom: 20px;
             text-align: center;
-            animation: fadeIn 0.3s ease;
+            animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .status-message::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
         }
         
         .status-success {
-            background-color: rgba(35, 134, 54, 0.2);
-            color: var(--vscode-terminal-ansiGreen);
-            border: 1px solid var(--vscode-terminal-ansiGreen);
+            background: var(--success-gradient);
+            color: white;
+            border: 2px solid rgba(40, 167, 69, 0.3);
+            box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3);
         }
         
         .status-error {
-            background-color: rgba(203, 36, 49, 0.2);
-            color: var(--vscode-errorForeground);
-            border: 1px solid var(--vscode-errorForeground);
+            background: var(--danger-gradient);
+            color: white;
+            border: 2px solid rgba(220, 53, 69, 0.3);
+            box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3);
         }
         
         .checkbox-group {
             display: flex;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 16px;
             cursor: pointer;
-            padding: 6px;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
+            padding: 12px 16px;
+            border-radius: var(--border-radius-small);
+            transition: var(--transition);
+            border: 2px solid transparent;
+            background: linear-gradient(135deg, rgba(0, 122, 204, 0.02) 0%, rgba(0, 122, 204, 0.01) 100%);
         }
         
         .checkbox-group:hover {
-            background-color: var(--vscode-list-hoverBackground);
+            background: linear-gradient(135deg, rgba(0, 122, 204, 0.08) 0%, rgba(0, 122, 204, 0.04) 100%);
+            border-color: rgba(0, 122, 204, 0.2);
+            transform: translateY(-1px);
         }
         
         .checkbox-group input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            margin-right: 10px;
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
             cursor: pointer;
+            accent-color: var(--vscode-textLink-foreground);
         }
         
         .help-text {
-            font-size: 12px;
+            font-size: 13px;
             color: var(--vscode-descriptionForeground);
-            margin-top: 5px;
-            line-height: 1.4;
-            padding-left: 2px;
+            margin-top: 8px;
+            line-height: 1.5;
+            padding-left: 4px;
+            font-style: italic;
+            opacity: 0.8;
         }
         
         /* 卡片样式 */
         .card {
-            border: 1px solid var(--vscode-widget-border);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
-            background-color: var(--vscode-editor-background);
-            transition: all 0.2s ease;
+            border: 2px solid var(--vscode-widget-border);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--vscode-editor-background) 0%, rgba(255, 255, 255, 0.02) 100%);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary-gradient);
+            opacity: 0;
+            transition: var(--transition);
         }
         
         .card:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--card-shadow-hover);
             border-color: var(--vscode-focusBorder);
+            transform: translateY(-3px);
+        }
+        
+        .card:hover::before {
+            opacity: 1;
         }
         
         /* 徽章样式 */
         .badge {
             display: inline-block;
-            padding: 3px 8px;
-            border-radius: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
             font-size: 12px;
-            font-weight: 500;
-            margin-right: 6px;
+            font-weight: 700;
+            margin-right: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
         
         .badge-primary {
-            background-color: var(--vscode-textLink-foreground);
+            background: var(--primary-gradient);
             color: white;
         }
         
         .badge-secondary {
-            background-color: var(--vscode-button-secondaryBackground);
+            background: linear-gradient(135deg, var(--vscode-button-secondaryBackground) 0%, rgba(108, 117, 125, 0.8) 100%);
             color: var(--vscode-button-secondaryForeground);
         }
+        
+        /* 数据源列表特殊样式 */
+        #datasourceList .card {
+            background: linear-gradient(135deg, var(--vscode-input-background) 0%, rgba(0, 122, 204, 0.02) 100%);
+            border-left: 4px solid var(--primary-gradient);
+        }
+        
+        #datasourceList .card:hover {
+            border-left-width: 6px;
+        }
+        
+        /* 响应式设计优化 */
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+            
+            .section {
+                padding: 16px;
+                margin-bottom: 16px;
+            }
+            
+            .section-title {
+                font-size: 16px;
+            }
+            
+            .tabs {
+                padding: 2px;
+            }
+            
+            .tab {
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+            
+            .button-group {
+                gap: 8px;
+            }
+            
+            button {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+        }
+        
+        /* 加载动画 */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* 自定义选择框样式 */
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 40px;
+        }
+        
+        /* 输入框组合样式 */
+         .input-group {
+             position: relative;
+             display: flex;
+             align-items: center;
+         }
+         
+         .input-group input {
+             padding-right: 50px;
+         }
+         
+         .input-group .input-icon {
+             position: absolute;
+             right: 12px;
+             color: var(--vscode-descriptionForeground);
+             font-size: 16px;
+             pointer-events: none;
+         }
+         
+         /* 页签图标和文本样式 */
+         .tab-icon {
+             font-size: 16px;
+             margin-right: 6px;
+         }
+         
+         .tab-text {
+             font-size: 14px;
+         }
+         
+         @media (max-width: 600px) {
+             .tab-text {
+                 display: none;
+             }
+             
+             .tab-icon {
+                 margin-right: 0;
+                 font-size: 18px;
+             }
+         }
+         
+         /* 空状态样式 */
+         .empty-state {
+             text-align: center;
+             padding: 40px 20px;
+             color: var(--vscode-descriptionForeground);
+             background: linear-gradient(135deg, rgba(0, 122, 204, 0.02) 0%, rgba(0, 122, 204, 0.01) 100%);
+             border-radius: var(--border-radius);
+             border: 2px dashed var(--vscode-widget-border);
+         }
+         
+         .empty-icon {
+             font-size: 48px;
+             margin-bottom: 16px;
+             opacity: 0.6;
+         }
+         
+         .empty-text {
+             font-size: 18px;
+             font-weight: 600;
+             margin-bottom: 8px;
+             color: var(--vscode-foreground);
+         }
+         
+         .empty-subtext {
+             font-size: 14px;
+             opacity: 0.8;
+             line-height: 1.4;
+         }
+         
+         /* 添加数据源按钮特殊样式 */
+         .add-datasource-btn {
+             margin: 0;
+             height: 32px;
+             padding: 6px 14px;
+             font-size: 13px;
+             min-height: auto;
+         }
+         
+         /* 数据源卡片增强样式 */
+         .datasource-card {
+             background: linear-gradient(135deg, var(--vscode-input-background) 0%, rgba(0, 122, 204, 0.03) 100%);
+             border-left: 4px solid var(--primary-gradient);
+             padding: 20px;
+             margin-bottom: 16px;
+             border-radius: var(--border-radius);
+             transition: var(--transition);
+             position: relative;
+             overflow: hidden;
+         }
+         
+         .datasource-card::before {
+             content: '';
+             position: absolute;
+             top: 0;
+             left: 0;
+             right: 0;
+             height: 2px;
+             background: var(--primary-gradient);
+             opacity: 0;
+             transition: var(--transition);
+         }
+         
+         .datasource-card:hover {
+             transform: translateY(-2px);
+             box-shadow: var(--card-shadow-hover);
+             border-left-width: 6px;
+         }
+         
+         .datasource-card:hover::before {
+             opacity: 1;
+         }
+         
+         .datasource-header {
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+             margin-bottom: 12px;
+         }
+         
+         .datasource-name {
+             font-weight: 700;
+             font-size: 16px;
+             color: var(--vscode-textLink-foreground);
+         }
+         
+         .datasource-badges {
+             display: flex;
+             gap: 8px;
+         }
+         
+         .datasource-info {
+             font-size: 13px;
+             color: var(--vscode-descriptionForeground);
+             margin-bottom: 16px;
+             line-height: 1.5;
+         }
+         
+         .datasource-info div {
+             margin-bottom: 4px;
+         }
+         
+         .datasource-actions {
+             display: flex;
+             gap: 8px;
+             flex-wrap: wrap;
+         }
+         
+         .datasource-actions button {
+             font-size: 12px;
+             padding: 6px 12px;
+             min-height: 28px;
+             margin: 0;
+         }
     </style>
 </head>
 <body>
     <div id="app">
         <!-- 选项卡 -->
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('home')">🏠 Home配置</button>
-            <button class="tab" onclick="switchTab('datasources')">🗄️ 数据源</button>
-            <button class="tab" onclick="switchTab('advanced')">⚙️ 高级设置</button>
+            <button class="tab active" onclick="switchTab('home')">
+                <span class="tab-icon">🏠</span>
+                <span class="tab-text">Home配置</span>
+            </button>
+            <button class="tab" onclick="switchTab('datasources')">
+                <span class="tab-icon">🗄️</span>
+                <span class="tab-text">数据源</span>
+            </button>
+            <button class="tab" onclick="switchTab('advanced')">
+                <span class="tab-icon">⚙️</span>
+                <span class="tab-text">高级设置</span>
+            </button>
         </div>
 
         <!-- Home配置选项卡 -->
         <div id="home-tab" class="tab-content active">
             <div class="section">
-                <div class="section-title">NC Home 路径设置</div>
+                <div class="section-title">
+                    <span>NC Home 路径设置</span>
+                </div>
                 
                 <div class="form-group">
                     <div class="form-row">
                         <label for="homePath">Home目录:</label>
                         <div class="input-container">
-                            <input type="text" id="homePath" readonly placeholder="请选择NC Home安装目录">
-                            <button class="browse-button" onclick="selectHomeDirectory()" style="max-width: 100px; min-width: 80px;">
-                                <span style="margin-right: 4px;">📁</span> 浏览...
+                            <div class="input-group">
+                                <input type="text" id="homePath" readonly placeholder="请选择NC Home安装目录">
+                                <span class="input-icon">📁</span>
+                            </div>
+                            <button class="browse-button" onclick="selectHomeDirectory()">
+                                <span style="margin-right: 4px;">📂</span> 浏览...
                             </button>
                         </div>
                     </div>
@@ -1217,17 +1590,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         <!-- 数据源选项卡 -->
         <div id="datasources-tab" class="tab-content">
             <div class="section">
-                <div class="section-title" style="display: flex; align-items: center;">
+                <div class="section-title" style="display: flex; align-items: center; justify-content: space-between;">
                     <span style="flex: 1;">数据源管理</span>
-                    <button onclick="showAddDataSourceForm()" style="margin: 0; height: 28px; padding: 4px 12px;">
-                        <span style="margin-right: 4px;">➕</span> 添加数据源
+                    <button onclick="showAddDataSourceForm()" class="add-datasource-btn">
+                        <span style="margin-right: 6px;">➕</span> 添加数据源
                     </button>
                 </div>
                 
                 <div id="datasourceList">
-                    <div class="status-message" style="color: var(--vscode-descriptionForeground); display: flex; align-items: center; justify-content: center; padding: 20px;">
-                        <span style="font-size: 24px; margin-right: 10px;">🗂️</span>
-                        <span>暂无数据源配置，点击"添加数据源"开始配置</span>
+                    <div class="empty-state">
+                        <div class="empty-icon">🗂️</div>
+                        <div class="empty-text">暂无数据源配置</div>
+                        <div class="empty-subtext">点击"添加数据源"开始配置您的第一个数据源</div>
                     </div>
                 </div>
             </div>
@@ -1250,7 +1624,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     <label for="debugPort">调试端口:</label>
                     <div class="form-row">
                         <div class="input-container">
-                            <input type="number" id="debugPort" placeholder="8888" min="1024" max="65535">
+                            <div class="input-group">
+                                <input type="number" id="debugPort" placeholder="8888" min="1024" max="65535">
+                                <span class="input-icon">🔌</span>
+                            </div>
                         </div>
                     </div>
                     <div class="help-text">设置调试模式使用的端口号 (1024-65535)</div>
@@ -1272,7 +1649,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 
                 <div class="form-group">
                     <label for="hotwebs">Hotwebs配置:</label>
-                    <input type="text" id="hotwebs" placeholder="请输入hotwebs配置，多个用逗号分隔">
+                    <div class="input-group">
+                        <input type="text" id="hotwebs" placeholder="请输入hotwebs配置，多个用逗号分隔">
+                        <span class="input-icon">🔧</span>
+                    </div>
                     <div class="help-text">配置hotwebs模块，多个模块用逗号分隔</div>
                 </div>
             </div>
