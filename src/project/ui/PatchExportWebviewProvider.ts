@@ -62,9 +62,13 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                         this._handleSelectOutputDir();
                         break;
                     case 'showMessage':
-                        if (message.messageType === 'error') {
+                        console.log('收到Webview消息:', message);
+                        // 同时显示系统通知
+                        if (message.level === 'error') {
                             vscode.window.showErrorMessage(message.message);
-                        } else if (message.messageType === 'info') {
+                        } else if (message.level === 'success') {
+                            vscode.window.showInformationMessage(message.message);
+                        } else {
                             vscode.window.showInformationMessage(message.message);
                         }
                         break;
@@ -140,11 +144,13 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             console.error('导出补丁失败:', error);
             const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log('准备发送错误消息到Webview:', errorMessage);
             this._view?.webview.postMessage({
                 type: 'showMessage',
                 level: 'error',
                 message: `导出补丁失败: ${errorMessage}`
             });
+            console.log('错误消息已发送到Webview');
         }
     }
 
@@ -223,11 +229,13 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             console.log('补丁包创建成功:', zipPath);
 
             // 显示成功消息
+            console.log('准备发送成功消息到Webview');
             this._view?.webview.postMessage({
                 type: 'showMessage',
                 level: 'success',
                 message: `补丁导出成功: ${path.basename(zipPath)}`
             });
+            console.log('成功消息已发送到Webview');
 
             // 显示系统通知
             vscode.window.showInformationMessage(
@@ -241,7 +249,16 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
         } catch (error) {
             console.error('补丁导出过程中出错:', error);
-            throw error;
+            // 直接向用户显示错误消息，而不是重新抛出错误
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log('准备发送错误消息到Webview:', errorMessage);
+            this._view?.webview.postMessage({
+                type: 'showMessage',
+                level: 'error',
+                message: `导出补丁失败: ${errorMessage}`
+            });
+            console.log('错误消息已发送到Webview');
+            // 不再重新抛出错误，而是在这里处理
         }
     }
 
@@ -665,7 +682,28 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             color: var(--vscode-errorForeground);
             font-size: 12px;
             margin-top: 4px;
+            padding: 6px 8px;
+            border-radius: 3px;
+            border-left: 3px solid var(--vscode-inputValidation-errorBorder);
             display: none;
+            animation: fadeInDown 0.2s ease-out;
+            position: relative;
+        }
+        
+        .error-message::before {
+            content: '⚠️';
+            margin-right: 6px;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .error-message.show {
@@ -675,9 +713,142 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         .form-group.error input,
         .form-group.error select,
         .form-group.error textarea {
-            border-color: var(--vscode-errorForeground);
+            border-color: var(--vscode-inputValidation-errorBorder);
+            background-color: var(--vscode-inputValidation-errorBackground);
+            animation: shake 0.5s ease-in-out;
         }
         
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        /* 成功状态样式 */
+        .form-group.success input,
+        .form-group.success select,
+        .form-group.success textarea {
+            border-color: #4caf50;
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        
+        .success-message {
+            color: #4caf50;
+            background-color: rgba(76, 175, 80, 0.1);
+            font-size: 12px;
+            margin-top: 4px;
+            padding: 6px 8px;
+            border-radius: 3px;
+            border-left: 3px solid #4caf50;
+            display: none;
+            animation: fadeInDown 0.2s ease-out;
+        }
+        
+        .success-message::before {
+            content: '✅';
+            margin-right: 6px;
+        }
+        
+        .success-message.show {
+            display: block;
+        }
+        
+        /* 加载状态样式 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .loading-content {
+            background-color: var(--vscode-editor-background);
+            padding: 24px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+        }
+        
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--vscode-progressBar-background);
+            border-top: 3px solid var(--vscode-progressBar-foreground);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* 按钮状态优化 */
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .button-primary:disabled {
+            background-color: var(--vscode-button-background);
+        }
+        
+        /* 工具提示样式 */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--vscode-editorHoverWidget-background);
+            color: var(--vscode-editorHoverWidget-foreground);
+            text-align: center;
+            border-radius: 4px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1001;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            border: 1px solid var(--vscode-editorHoverWidget-border);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--vscode-editorHoverWidget-background) transparent transparent transparent;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
         .no-data {
             text-align: center;
             padding: 40px 20px;
@@ -698,26 +869,146 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             font-size: 12px;
             color: var(--vscode-descriptionForeground);
         }
+        
+        /* 优化消息显示样式 */
+        .message-container {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .message-content {
+            padding: 16px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-left: 4px solid;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: slideInDown 0.3s ease-out;
+            position: relative;
+            overflow: hidden;
+            pointer-events: auto;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        @keyframes slideInDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutUp {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+        }
+        
+        .message-content.error {
+            background-color: var(--vscode-inputValidation-errorBackground);
+            color: var(--vscode-inputValidation-errorForeground);
+            border-left-color: var(--vscode-inputValidation-errorBorder);
+            white-space: pre-line;
+            line-height: 1.6;
+            font-family: var(--vscode-editor-font-family);
+            font-size: 12px;
+        }
+        
+        .message-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        
+        .message-text {
+            flex: 1;
+            line-height: 1.6;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-line;
+        }
+        
+        .message-close {
+            background: none;
+            border: none;
+            color: currentColor;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            opacity: 0.7;
+            font-size: 16px;
+            flex-shrink: 0;
+            margin-top: -2px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .message-close:hover {
+            opacity: 1;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .message-content.info {
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-foreground);
+            border: 1px solid var(--vscode-input-border);
+        }
+        
+        .message-content.success {
+            background-color: var(--vscode-diffEditor-insertedTextBackground);
+            color: var(--vscode-diffEditor-insertedTextForeground);
+            border: 1px solid var(--vscode-diffEditor-insertedTextBackground);
+        }
     </style>
 </head>
 <body>
     <div class="form-container">
+        <!-- 优化的消息显示区域 -->
+        <div id="messageContainer" class="message-container" style="display: none;">
+            <div id="messageContent" class="message-content">
+                <span id="messageIcon" class="message-icon"></span>
+                <div id="messageText" class="message-text"></div>
+                <button id="messageClose" class="message-close" onclick="hideMessage()" title="关闭">&times;</button>
+            </div>
+        </div>
+        
         <div class="form-group">
             <label for="patchName">补丁名称 *</label>
             <input type="text" id="patchName" placeholder="输入补丁名称">
             <div id="patchNameError" class="error-message"></div>
+            <div id="patchNameSuccess" class="success-message"></div>
         </div>
 
         <div class="form-group">
             <label for="patchVersion">版本号 *</label>
             <input type="text" id="patchVersion" placeholder="例如: 1" value="1">
             <div id="patchVersionError" class="error-message"></div>
+            <div id="patchVersionSuccess" class="success-message"></div>
         </div>
 
         <div class="form-group">
             <label for="patchAuthor">作者 *</label>
             <input type="text" id="patchAuthor" placeholder="补丁作者">
             <div id="patchAuthorError" class="error-message"></div>
+            <div id="patchAuthorSuccess" class="success-message"></div>
         </div>
 
         <div class="form-group">
@@ -810,11 +1101,17 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             return { valid: true };
         }
         
-        // 显示错误信息
+        // 显示错误信息 - 优化版本
         function showError(fieldName, message) {
             const field = document.getElementById(fieldName);
             const errorElement = document.getElementById(fieldName + 'Error');
+            const successElement = document.getElementById(fieldName + 'Success');
             const formGroup = field.closest('.form-group');
+            
+            // 隐藏成功消息
+            if (successElement) {
+                successElement.classList.remove('show');
+            }
             
             if (errorElement) {
                 errorElement.textContent = message;
@@ -822,26 +1119,115 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             }
             
             if (formGroup) {
+                formGroup.classList.remove('success');
                 formGroup.classList.add('error');
             }
         }
         
-        // 清除错误信息
+        // 显示成功信息
+        function showSuccess(fieldName, message = '输入正确') {
+            const field = document.getElementById(fieldName);
+            const errorElement = document.getElementById(fieldName + 'Error');
+            const successElement = document.getElementById(fieldName + 'Success');
+            const formGroup = field.closest('.form-group');
+            
+            // 隐藏错误消息
+            if (errorElement) {
+                errorElement.classList.remove('show');
+            }
+            
+            if (successElement) {
+                successElement.textContent = message;
+                successElement.classList.add('show');
+            }
+            
+            if (formGroup) {
+                formGroup.classList.remove('error');
+                formGroup.classList.add('success');
+            }
+        }
+        
+        // 清除错误信息 - 优化版本
         function clearError(fieldName) {
             const field = document.getElementById(fieldName);
             const errorElement = document.getElementById(fieldName + 'Error');
+            const successElement = document.getElementById(fieldName + 'Success');
             const formGroup = field.closest('.form-group');
             
             if (errorElement) {
                 errorElement.classList.remove('show');
             }
             
+            if (successElement) {
+                successElement.classList.remove('show');
+            }
+            
             if (formGroup) {
-                formGroup.classList.remove('error');
+                formGroup.classList.remove('error', 'success');
             }
         }
         
-        // 验证整个表单
+        // 显示消息函数 - 优化版本
+        function showMessage(message, level, autoHide = true) {
+            const messageContainer = document.getElementById('messageContainer');
+            const messageContent = document.getElementById('messageContent');
+            const messageIcon = document.getElementById('messageIcon');
+            const messageText = document.getElementById('messageText');
+            
+            if (messageContainer && messageContent && messageIcon && messageText) {
+                // 设置图标
+                const icons = {
+                    error: '❌',
+                    warning: '⚠️',
+                    info: 'ℹ️',
+                    success: '✅'
+                };
+                
+                messageIcon.textContent = icons[level] || icons.info;
+                messageText.textContent = message;
+                messageContent.className = 'message-content ' + (level || 'info');
+                
+                // 显示消息容器
+                messageContainer.style.display = 'block';
+                
+                // 清除之前的定时器
+                if (window.messageTimer) {
+                    clearTimeout(window.messageTimer);
+                }
+                
+                // 自动隐藏
+                if (autoHide) {
+                    const hideDelay = level === 'error' ? 8000 : 3000; // 错误消息显示更久
+                    window.messageTimer = setTimeout(() => {
+                        hideMessage();
+                    }, hideDelay);
+                }
+            }
+        }
+        
+        // 隐藏消息函数
+        function hideMessage() {
+            const messageContainer = document.getElementById('messageContainer');
+            const messageContent = document.getElementById('messageContent');
+            
+            if (messageContainer && messageContent) {
+                // 添加退出动画
+                messageContent.style.animation = 'slideOutUp 0.3s ease-out';
+                
+                setTimeout(() => {
+                    messageContainer.style.display = 'none';
+                    messageContent.style.animation = '';
+                }, 300);
+            }
+            
+            // 清除定时器
+            if (window.messageTimer) {
+                clearTimeout(window.messageTimer);
+                window.messageTimer = null;
+            }
+        }
+        
+        // 验证整个表单 - 优化版本
         function validateForm() {
             let isValid = true;
             
@@ -853,14 +1239,47 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                         showError(fieldName, validation.message);
                         isValid = false;
                     } else {
-                        clearError(fieldName);
+                        // 显示成功状态
+                        showSuccess(fieldName);
                     }
                 }
             });
             
             return isValid;
         }
-
+        
+        // 添加加载状态管理
+        function showLoading(message = '正在处理...') {
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.id = 'loadingOverlay';
+            loadingOverlay.className = 'loading-overlay';
+            loadingOverlay.innerHTML = 
+                '<div class="loading-content">' +
+                    '<div class="loading-spinner"></div>' +
+                    '<div>' + message + '</div>' +
+                '</div>';
+            document.body.appendChild(loadingOverlay);
+            
+            // 禁用表单按钮
+            const buttons = document.querySelectorAll('.button');
+            buttons.forEach(button => {
+                button.disabled = true;
+            });
+        }
+        
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.remove();
+            }
+            
+            // 启用表单按钮
+            const buttons = document.querySelectorAll('.button');
+            buttons.forEach(button => {
+                button.disabled = false;
+            });
+        }
+        
         // 添加实时验证
         document.addEventListener('DOMContentLoaded', function() {
             Object.keys(validationRules).forEach(fieldName => {
@@ -870,13 +1289,20 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                         const validation = validateField(fieldName, this.value);
                         if (!validation.valid) {
                             showError(fieldName, validation.message);
+                        } else if (this.value.trim()) {
+                            // 只有当有值时才显示成功状态
+                            showSuccess(fieldName);
                         } else {
                             clearError(fieldName);
                         }
                     });
                     
                     field.addEventListener('input', function() {
-                        clearError(fieldName);
+                        // 输入时清除错误状态，但不立即显示成功状态
+                        const formGroup = this.closest('.form-group');
+                        if (formGroup && formGroup.classList.contains('error')) {
+                            clearError(fieldName);
+                        }
                     });
                 }
             });
@@ -896,13 +1322,11 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                     displayFiles(message.files);
                     break;
                 case 'showMessage':
-                    if (message.level === 'error') {
-                        vscode.window.showErrorMessage(message.message);
-                    } else if (message.level === 'success') {
-                        vscode.window.showInformationMessage(message.message);
-                    } else {
-                        vscode.window.showInformationMessage(message.message);
-                    }
+                    console.log('收到Webview消息:', message);
+                    // 隐藏加载状态
+                    hideLoading();
+                    // 显示消息在页面上
+                    showMessage(message.message, message.level);
                     break;
                 case 'outputDirSelected':
                     document.getElementById('outputDir').value = message.outputDir;
@@ -928,6 +1352,9 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         function exportPatch() {
             console.log('导出补丁按钮被点击');
             
+            // 显示加载状态
+            showLoading('正在导出补丁...');
+            
             // 获取表单数据
             const name = document.getElementById('patchName').value.trim();
             const version = document.getElementById('patchVersion').value.trim();
@@ -936,18 +1363,24 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             
             // 基本验证 - 只检查必填字段
             if (!name) {
+                hideLoading();
                 showError('patchName', '请输入补丁名称');
+                showMessage('请输入补丁名称', 'error');
                 return;
             }
             
             if (!version) {
+                hideLoading();
                 showError('patchVersion', '请输入版本号');
+                showMessage('请输入版本号', 'error');
                 return;
             }
             
             const author = document.getElementById('patchAuthor').value.trim();
             if (!author) {
+                hideLoading();
                 showError('patchAuthor', '请输入作者名称');
+                showMessage('请输入作者名称', 'error');
                 return;
             }
             
@@ -1135,8 +1568,48 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                             archive.file(file.path, { name: targetPath.replace('.class', '.java') });
                         }
                     } else {
-                        // 如果编译后的文件不存在，回退到使用源文件
-                        archive.file(filePath, { name: targetPath });
+                        // 如果编译后的文件不存在，生成详细的错误信息
+                        const outputPath = await this._getClasspathOutputPath(projectPath);
+                        const projectRelativePath = path.relative(projectPath, file.path);
+                        
+                        const errorMessage = `❌ 编译文件未找到\n\n` +
+                            `源文件: ${projectRelativePath}\n` +
+                            `期望的编译文件路径: ${path.join(outputPath, compiledClassPath)}\n` +
+                            `完整路径: ${fullClassPath}\n\n` +
+                            `可能的问题和解决方案:\n\n` +
+                            `1. 📁 编译输出目录配置问题\n` +
+                            `   • 当前配置的输出目录: ${outputPath}\n` +
+                            `   • 检查项目根目录下的 .classpath 文件\n` +
+                            `   • 确认 <classpathentry kind="output" path="..."/> 配置正确\n\n` +
+                            `2. 🔨 代码尚未编译\n` +
+                            `   • 请在IDE中编译项目 (Build Project)\n` +
+                            `   • 或使用命令行: javac 编译Java文件\n` +
+                            `   • 确保编译成功且无错误\n\n` +
+                            `3. 📂 源码路径配置问题\n` +
+                            `   • 检查源文件是否在正确的源码目录下\n` +
+                            `   • 支持的源码目录: src/public/, src/private/, src/client/, src/\n` +
+                            `   • 当前源文件路径: ${file.path}\n\n` +
+                            `4. 🏗️ 项目结构问题\n` +
+                            `   • 确认项目是标准的Java项目结构\n` +
+                            `   • 检查包名与目录结构是否匹配\n` +
+                            `   • 验证Java文件的package声明\n\n` +
+                            `请按照上述步骤检查并解决问题后重新导出补丁。`;
+                        
+                        console.warn(`编译后的class文件不存在: ${fullClassPath}`);
+                        console.warn(`输出目录: ${outputPath}`);
+                        console.warn(`编译后的class路径: ${compiledClassPath}`);
+                        
+                        // 向用户显示详细的错误消息
+                        console.log('准备发送详细错误消息到Webview');
+                        this._view?.webview.postMessage({
+                            type: 'showMessage',
+                            level: 'error',
+                            message: errorMessage
+                        });
+                        console.log('详细错误消息已发送到Webview');
+                        
+                        // 抛出错误以阻断整个导出流程
+                        throw new Error(`编译文件未找到: ${fullClassPath}`);
                     }
                 }
             } else if (this._isResourceFile(filePath)) {
@@ -1165,6 +1638,8 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 continue;
             }
         }
+        
+        console.log('替换内容构建完成');
     }
 
     private async _createStandardPatchZip(files: { path: string, type: string, relativePath: string }[], patchInfo: PatchInfo, basePath: string): Promise<string> {
@@ -1200,10 +1675,12 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             const archive = archiver('zip', { zlib: { level: 9 } });
 
             output.on('close', () => {
+                console.log('ZIP文件创建完成:', zipPath);
                 resolve(zipPath);
             });
 
             archive.on('error', (err: any) => {
+                console.log('ZIP归档过程中出错:', err);
                 reject(err);
             });
 
@@ -1231,8 +1708,10 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             // 使用basePath作为homePath
             this._buildReplacementContent(filteredFiles, patchInfo, archive, basePath).then(() => {
                 // 只有在_buildReplacementContent完成后才调用finalize
+                console.log('文件内容构建完成，开始finalize');
                 archive.finalize();
             }).catch((error) => {
+                console.log('捕获到_buildReplacementContent中的错误:', error);
                 reject(error);
             });
         });
@@ -1739,15 +2218,12 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         ======================================================================
 
 
-
         补丁安装后置工作
         ======================================================================
 
 
-
         补丁安装成功的验证工作
         ======================================================================
-
 
 
         其它信息
