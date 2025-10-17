@@ -1535,12 +1535,66 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
              flex: 1;
          }
          
+         /* 当输入框为空时显示提示 */
+         .input-group input:placeholder-shown {
+             color: var(--vscode-descriptionForeground);
+             font-style: italic;
+         }
+         
+         .input-group input::-webkit-input-placeholder {
+             color: var(--vscode-descriptionForeground);
+             font-style: italic;
+         }
+         
+         .input-group input::-moz-placeholder {
+             color: var(--vscode-descriptionForeground);
+             font-style: italic;
+         }
+         
          .input-group .input-icon {
              position: absolute;
              right: 12px;
              color: var(--vscode-descriptionForeground);
              font-size: 16px;
              pointer-events: none;
+         }
+         
+         /* 悬浮提示样式 */
+         .tooltip {
+             visibility: hidden;
+             position: absolute;
+             z-index: 10000;
+             top: calc(100% + 8px);
+             left: 0;
+             opacity: 0;
+             transition: opacity 0.2s ease-in-out;
+             background-color: var(--vscode-editor-background);
+             color: var(--vscode-foreground);
+             border: 1px solid var(--vscode-widget-border);
+             border-radius: 6px;
+             padding: 8px 12px;
+             font-size: 12px;
+             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+             white-space: normal;
+             word-break: break-all;
+             max-width: calc(100vw - 48px);
+             text-align: left;
+             pointer-events: none;
+         }
+         
+         .tooltip::after {
+             content: "";
+             position: absolute;
+             top: -6px;
+             left: 16px;
+             border-width: 6px;
+             border-style: solid;
+             border-color: transparent transparent var(--vscode-editor-background) transparent;
+         }
+         
+         .input-group:hover .tooltip {
+             visibility: visible;
+             opacity: 1;
          }
          
          /* 页签图标和文本样式 */
@@ -1827,11 +1881,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 
                 <div class="form-group">
                     <div class="form-row">
-                        <label for="homePath">Home目录:</label>
                         <div class="input-container">
-                            <div class="input-group" onclick="selectHomeDirectory()" style="cursor: pointer; position: relative;">
-                                <input type="text" id="homePath" readonly placeholder="请选择NC Home安装目录">
+                            <div class="input-group" onclick="selectHomeDirectory()" style="cursor: pointer; position: relative;" id="homePathGroup">
+                                <input type="text" id="homePath" aria-label="Home目录" readonly>
                                 <span class="input-icon" style="cursor: pointer;">📁</span>
+                                <div class="tooltip" id="homePathTooltip">未选择Home目录</div>
                             </div>
                         </div>
                     </div>
@@ -2343,8 +2397,17 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             currentConfig = config;
             
             // 更新Home路径
-            if (config.homePath) {
-                document.getElementById('homePath').value = config.homePath;
+            const homePathInput = document.getElementById('homePath');
+            if (homePathInput) {
+                // 始终显示homePath，如果没有则显示空字符串
+                homePathInput.value = config.homePath || '';
+                // 移除placeholder，因为我们总是显示实际值
+                homePathInput.placeholder = '';
+            }
+            // 同步tooltip和容器title为当前homePath
+            const homePathTooltip = document.getElementById('homePathTooltip');
+            if (homePathTooltip) {
+                homePathTooltip.textContent = config.homePath || '未选择Home目录';
             }
             
             // 更新高级设置
@@ -2708,8 +2771,18 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'homeDirectorySelected':
                     if (message.success && message.homePath) {
                         document.getElementById('homePath').value = message.homePath;
+                        // 仅更新自定义tooltip
+                        const homePathTooltip = document.getElementById('homePathTooltip');
+                        if (homePathTooltip) {
+                            homePathTooltip.textContent = message.homePath;
+                        }
                         showMessage('Home目录选择成功', 'success');
                     } else {
+                        // 重置为默认提示（只更新自定义tooltip）
+                        const homePathTooltip = document.getElementById('homePathTooltip');
+                        if (homePathTooltip) {
+                            homePathTooltip.textContent = '未选择Home目录';
+                        }
                         showMessage('Home目录选择失败', 'error');
                     }
                     break;
