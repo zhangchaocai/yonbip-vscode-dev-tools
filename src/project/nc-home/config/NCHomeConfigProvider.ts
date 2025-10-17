@@ -915,10 +915,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         .section {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             border: 1px solid var(--vscode-widget-border);
             border-radius: var(--border-radius);
-            padding: 24px;
+            padding: 20px;
             background: linear-gradient(135deg, var(--vscode-input-background) 0%, rgba(255, 255, 255, 0.02) 100%);
             box-shadow: var(--card-shadow);
             transition: var(--transition);
@@ -949,7 +949,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         
         .section-title {
             font-weight: 700;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             color: var(--vscode-textLink-foreground);
             font-size: 18px;
             border-bottom: 2px solid transparent;
@@ -957,7 +957,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            padding-bottom: 12px;
+            padding-bottom: 10px;
             display: flex;
             align-items: center;
             position: relative;
@@ -1064,22 +1064,22 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
          }
         
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         
         .form-row {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 16px;
-            gap: 12px;
+            margin-bottom: 12px;
+            gap: 8px;
         }
         
         label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            min-width: 120px;
+            min-width: 40px;
             color: var(--vscode-editor-foreground);
             font-size: 14px;
             letter-spacing: 0.3px;
@@ -1095,6 +1095,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             flex: 1;
             min-width: 0;
             gap: 12px;
+            align-items: flex-start;
+            width: 100%;
         }
         
         .form-row .input-container input {
@@ -1130,6 +1132,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             transition: var(--transition);
             font-size: 14px;
             position: relative;
+            min-height: 40px;
         }
         
         input:focus, select:focus, textarea:focus {
@@ -1166,11 +1169,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             background: var(--primary-gradient);
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 12px 16px;
             border-radius: var(--border-radius-small);
             cursor: pointer;
-            margin-right: 10px;
-            margin-bottom: 10px;
+            margin-right: 8px;
+            margin-bottom: 8px;
             font-size: 14px;
             font-weight: 600;
             display: inline-flex;
@@ -1181,6 +1184,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
             position: relative;
             overflow: hidden;
+            min-width: auto;
+            width: auto;
         }
         
         button::before {
@@ -1199,10 +1204,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         .browse-button {
-            height: 36px;
-            padding: 8px 16px;
+            height: 40px;
+            padding: 12px 12px;
             margin-bottom: 0;
             min-height: auto;
+            min-width: auto;
+            width: auto;
+            align-self: flex-start;
         }
         
         button:hover {
@@ -1218,6 +1226,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             background: linear-gradient(135deg, var(--vscode-button-secondaryBackground) 0%, rgba(108, 117, 125, 0.8) 100%);
             color: var(--vscode-button-secondaryForeground);
             box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+            padding: 12px 16px;
         }
         
         button.secondary:hover {
@@ -1227,7 +1236,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         .button-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 8px;
         }
         
         .tabs {
@@ -1371,8 +1380,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         .help-text {
             font-size: 13px;
             color: var(--vscode-descriptionForeground);
-            margin-top: 8px;
-            line-height: 1.5;
+            margin-top: 6px;
+            line-height: 1.4;
             padding-left: 4px;
             font-style: italic;
             opacity: 0.8;
@@ -1504,10 +1513,26 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
              position: relative;
              display: flex;
              align-items: center;
+             border: 2px solid var(--vscode-input-border);
+             border-radius: var(--border-radius-small);
+             background: linear-gradient(135deg, var(--vscode-input-background) 0%, rgba(255, 255, 255, 0.05) 100%);
+             transition: var(--transition);
+             min-height: 40px;
+             flex: 1;
+             width: 100%;
+         }
+         
+         .input-group:hover {
+             border-color: var(--vscode-focusBorder);
+             box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
          }
          
          .input-group input {
              padding-right: 50px;
+             border: none;
+             background: transparent;
+             outline: none;
+             flex: 1;
          }
          
          .input-group .input-icon {
@@ -1804,13 +1829,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     <div class="form-row">
                         <label for="homePath">Home目录:</label>
                         <div class="input-container">
-                            <div class="input-group">
+                            <div class="input-group" onclick="selectHomeDirectory()" style="cursor: pointer; position: relative;">
                                 <input type="text" id="homePath" readonly placeholder="请选择NC Home安装目录">
-                                <span class="input-icon">📁</span>
+                                <span class="input-icon" style="cursor: pointer;">📁</span>
                             </div>
-                            <button class="browse-button" onclick="selectHomeDirectory()">
-                                <span style="margin-right: 4px;">📂</span> 浏览...
-                            </button>
                         </div>
                     </div>
                     <div class="help-text">选择YonBIP NC的安装目录，通常包含bin、lib、modules等文件夹</div>
