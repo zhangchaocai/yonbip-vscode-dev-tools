@@ -698,6 +698,23 @@ export class McpProvider implements vscode.WebviewViewProvider {
             line-height: 1.4;
         }
         
+        /* 配置页底部操作条（滚动时固定） */
+        .sticky-actions {
+            position: sticky;
+            bottom: 0;
+            background-color: var(--vscode-input-background);
+            padding: 12px 0;
+            border-top: 1px solid var(--vscode-widget-border);
+            z-index: 95;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 避免贴底遮挡内容，给页面底部留出空间 */
+        #app {
+            padding-bottom: 12px;
+        }
+
         /* 响应式布局 - 窄屏优化 */
         @media (max-width: 600px) {
             .tabs {
@@ -872,8 +889,10 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 </div>
                 
                 <div class="form-group">
-                    <button onclick="saveConfig()">💾 保存配置</button>
-                    <button onclick="resetToDefaults()" class="secondary">🔄 重置为默认</button>
+                    <div id="configActions" class="sticky-actions">
+                        <button onclick="saveConfig()">💾 保存配置</button>
+                        <button onclick="resetToDefaults()" class="secondary">🔄 重置为默认</button>
+                    </div>
                 </div>
             </div>
         </div>
