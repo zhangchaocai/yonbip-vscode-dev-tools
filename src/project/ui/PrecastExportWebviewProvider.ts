@@ -153,6 +153,8 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
                 fs.mkdirSync(outputDir, { recursive: true });
             }
 
+            this._view?.webview.postMessage({ type: 'exportStarted', text: '准备导出...' });
+            this._view?.webview.postMessage({ type: 'progress', percent: 5, text: '校验配置与输出目录' });
             this._view?.webview.postMessage({ type: 'showMessage', level: 'info', message: '正在读取 InitDataCfgs 并生成SQL...' });
 
             // 解析 InitDataCfgs XML 路径
@@ -160,10 +162,18 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
             if (xmlPaths.length === 0) {
                 throw new Error('未找到 item.xml，请在资源管理器中右键选择该文件后再导出');
             }
+            this._view?.webview.postMessage({ type: 'progress', percent: 10, text: `定位 InitDataCfgs 文件 (${xmlPaths.length} 个)` });
 
             // 解析所有XML，汇总条目
             const allItems: InitDataCfgItem[] = [];
-            for (const xmlPath of xmlPaths) {
+            for (let i = 0; i < xmlPaths.length; i++) {
+                const xmlPath = xmlPaths[i];
+                this._view?.webview.postMessage({ 
+                    type: 'progress', 
+                    percent: 10 + Math.floor((i / xmlPaths.length) * 5), 
+                    text: `解析文件 ${path.basename(xmlPath)}...` 
+                });
+                
                 const items = await this._parseInitDataCfgs(xmlPath);
                 if (items.length === 0) {
                     this._view?.webview.postMessage({ type: 'showMessage', level: 'warning', message: `文件 ${path.basename(xmlPath)} 未解析到条目` });
@@ -173,21 +183,43 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
             if (allItems.length === 0) {
                 throw new Error('InitDataCfgs 中没有可处理的条目');
             }
+            this._view?.webview.postMessage({ type: 'progress', percent: 20, text: `解析完成，共 ${allItems.length} 个条目` });
 
             // 选择数据源（优先 selectedDataSource，然后 baseDatabase，然后第一个）并解密密码
             const ds = this._pickAndSecureDataSource();
             if (!ds) {
                 throw new Error('未找到有效的数据源，请先在"NC HOME配置"视图中配置数据源');
             }
+            this._view?.webview.postMessage({ type: 'progress', percent: 25, text: `已选择数据源：${ds.name}` });
 
             // 逐条生成SQL
             let sqlOutput = `-- 预置脚本导出
--- 数据源: ${ds.name} (${ds.databaseType}) ${ds.host}:${ds.port}/${ds.databaseName}\n\n`;
+-- 数据源: ${ds.name} (${ds.databaseType}) ${ds.host}:${ds.port}/${ds.databaseName}
+-- 导出时间: ${new Date().toLocaleString('zh-CN')}\n\n`;
 
+            let processed = 0;
+            const total = allItems.length;
+            
+            this._view?.webview.postMessage({ 
+                type: 'progress', 
+                percent: 25, 
+                text: `开始处理 ${total} 个表...` 
+            });
+            
             for (const item of allItems) {
                 const table = item.tableName?.trim();
                 const where = (item.whereCondition || '').trim();
-                if (!table) continue;
+                if (!table) { 
+                    processed++;
+                    continue; 
+                }
+
+                // 更新进度 - 表开始处理
+                this._view?.webview.postMessage({ 
+                    type: 'progress', 
+                    percent: 25 + Math.floor(processed / total * 60), 
+                    text: `处理表: ${table}...` 
+                });
 
                 // DELETE 语句（如果有 where 条件）
                 if (where) {
@@ -196,23 +228,54 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
 
                 // 查询并生成 INSERT
                 const selectSql = `SELECT * FROM ${table}${where ? ' WHERE ' + where : ''}`;
+                
+                // 更新进度 - 正在查询数据
+                this._view?.webview.postMessage({ 
+                    type: 'progress', 
+                    percent: 25 + Math.floor(processed / total * 60), 
+                    text: `查询表 ${table} 数据...` 
+                });
+                
                 const rows = await this._queryRows(ds, selectSql);
                 if (!rows || rows.length === 0) {
                     sqlOutput += `-- ${table} 无匹配数据\n\n`;
+                    processed++;
+                    const percent = 25 + Math.floor(processed / total * 60);
+                    this._view?.webview.postMessage({ type: 'progress', percent, text: `处理 ${table}（无数据）` });
                     continue;
                 }
 
+                // 更新进度 - 正在生成INSERT语句
+                this._view?.webview.postMessage({ 
+                    type: 'progress', 
+                    percent: 25 + Math.floor(processed / total * 60), 
+                    text: `生成 ${table} 的 ${rows.length} 行 INSERT 语句...` 
+                });
+                
                 const inserts = this._generateInsertSql(ds.databaseType, table, rows);
                 sqlOutput += `-- 插入 ${table} (${rows.length} 行)
-\` + inserts.join('\\n') + '\\n\\n`;
+${inserts.join("\n")}
 
+`;
+
+                processed++;
+                const percent = 25 + Math.floor(processed / total * 60);
+                this._view?.webview.postMessage({ type: 'progress', percent, text: `完成处理 ${table} (${rows.length} 行)` });
             }
 
             // 写入文件
+            this._view?.webview.postMessage({ 
+                type: 'progress', 
+                percent: 90, 
+                text: '正在写入文件...' 
+            });
+            
             const ts = this._formatTimestamp(new Date());
             const filePath = path.join(outputDir, `allsql_${ts}.sql`);
             fs.writeFileSync(filePath, sqlOutput, 'utf-8');
 
+            this._view?.webview.postMessage({ type: 'progress', percent: 100, text: '导出完成' });
+            this._view?.webview.postMessage({ type: 'exportFinished' });
             this._view?.webview.postMessage({ type: 'showMessage', level: 'success', message: `预置脚本导出完成：${filePath}` });
             vscode.window.showInformationMessage(`预置脚本已导出到 ${filePath}`);
         } catch (error: any) {
@@ -221,6 +284,7 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
                 level: 'error',
                 message: `导出失败: ${error.message || String(error)}`
             });
+            this._view?.webview.postMessage({ type: 'exportFinished' });
         }
     }
 
@@ -309,12 +373,37 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
         <div class="row">
             <button class="btn" id="exportBtn">导出预置脚本</button>
         </div>
+        <div class="row" id="progressRow" style="display:none">
+            <progress id="progressBar" value="0" max="100" style="width:100%"></progress>
+        </div>
+        <div class="row" id="progressTextRow" style="display:none">
+            <span id="progressText" class="muted"></span>
+        </div>
     </div>
 </div>
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 const dsBody = document.getElementById('dsBody');
 const outputDirInput = document.getElementById('outputDir');
+const pickOutputBtn = document.getElementById('pickOutput');
+const refreshDsBtn = document.getElementById('refreshDs');
+const exportBtn = document.getElementById('exportBtn');
+const progressRow = document.getElementById('progressRow');
+const progressTextRow = document.getElementById('progressTextRow');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+
+function setExporting(is) {
+    exportBtn.disabled = is;
+    pickOutputBtn.disabled = is;
+    refreshDsBtn.disabled = is;
+    progressRow.style.display = is ? 'block' : 'none';
+    progressTextRow.style.display = is ? 'block' : 'none';
+    if (!is) {
+        progressBar.value = 0;
+        progressText.textContent = '';
+    }
+}
 
 function renderDataSources(list) {
     var rows = '';
@@ -340,6 +429,21 @@ window.addEventListener('message', (event) => {
         case 'setOutputDir':
             outputDirInput.value = msg.path || '';
             break;
+        case 'exportStarted':
+            setExporting(true);
+            progressBar.value = 0;
+            progressText.textContent = msg.text || '开始导出...';
+            break;
+        case 'progress':
+            if (typeof msg.percent === 'number') {
+                var p = Math.max(0, Math.min(100, Math.floor(msg.percent)));
+                progressBar.value = p;
+            }
+            progressText.textContent = msg.text || '';
+            break;
+        case 'exportFinished':
+            setExporting(false);
+            break;
         case 'showMessage':
             // 宿主弹消息
             break;
@@ -347,13 +451,13 @@ window.addEventListener('message', (event) => {
 });
 
 // 事件绑定
-(document.getElementById('pickOutput')).addEventListener('click', () => {
+pickOutputBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'selectOutputDir' });
 });
-(document.getElementById('refreshDs')).addEventListener('click', () => {
+refreshDsBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'refreshDataSources' });
 });
-(document.getElementById('exportBtn')).addEventListener('click', () => {
+exportBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'exportPrecast', data: { outputDir: outputDirInput.value } });
 });
 
