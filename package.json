@@ -70,6 +70,12 @@
           "name": "补丁导出配置",
           "icon": "resources/icons/views/openapi-icon.svg",
           "type": "webview"
+        },
+        {
+          "id": "yonbip.precastExportConfig",
+          "name": "预置脚本导出",
+          "icon": "resources/icons/views/openapi-icon.svg",
+          "type": "webview"
         }
       ]
     },
@@ -195,6 +201,11 @@
         "category": "YonBIP/项目管理"
       },
       {
+        "command": "yonbip.project.exportPrecastScript",
+        "title": "📤 导出预置脚本",
+        "category": "YonBIP/项目管理"
+      },
+      {
         "command": "yonbip.project.addAllSourcePaths",
         "title": "📜 全部加入源码路径",
         "category": "YonBIP/项目管理"
@@ -304,6 +315,11 @@
           "group": "2_patch@1"
         },
         {
+          "command": "yonbip.project.exportPrecastScript",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "2_patch@4"
+        },
+        {
           "command": "yonbip.patch.applyToHome",
           "when": "explorerResourceIsFolder || explorerResourceIsFile",
           "group": "2_patch@2"
@@ -343,6 +359,10 @@
         {
           "command": "yonbip.project.exportPatch",
           "group": "1_patch@1"
+        },
+        {
+          "command": "yonbip.project.exportPrecastScript",
+          "group": "1_patch@4"
         },
         {
           "command": "yonbip.patch.applyToHome",

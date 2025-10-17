@@ -8,6 +8,7 @@ import { McpProvider } from './mcp/McpProvider';
 import { ProjectProvider } from './project/project-management/ProjectProvider';
 import { NCHomeConfigProvider } from './project/nc-home/config/NCHomeConfigProvider';
 import { PatchExportWebviewProvider } from './project/ui/PatchExportWebviewProvider';
+import { PrecastExportWebviewProvider } from './project/ui/PrecastExportWebviewProvider';
 import { OpenApiProvider } from './openapi/OpenApiProvider';
 import { NCHomeConfigService } from './project/nc-home/config/NCHomeConfigService';
 import { HomeCommands } from './project/nc-home/HomeCommands';
@@ -136,6 +137,20 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.registerWebviewViewProvider(
 			PatchExportWebviewProvider.viewType,
 			patchExportProvider,
+			{
+				webviewOptions: {
+					retainContextWhenHidden: true,
+				},
+			}
+		)
+	);
+
+	// 注册预置脚本导出配置界面
+	const precastExportProvider = new PrecastExportWebviewProvider(context.extensionUri, context);
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(
+			PrecastExportWebviewProvider.viewType,
+			precastExportProvider,
 			{
 				webviewOptions: {
 					retainContextWhenHidden: true,

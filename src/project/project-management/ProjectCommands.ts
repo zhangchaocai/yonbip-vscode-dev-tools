@@ -70,22 +70,65 @@ export class ProjectCommands {
                 });
             }
             
-            console.log('选中的路径:', selectedPaths);
+            // 去重处理，确保没有重复路径
+            const uniqueSelectedPaths = [...new Set(selectedPaths)];
+            console.log('选中的路径:', uniqueSelectedPaths);
             
             // 如果有选中的路径，将其存储到工作区状态中
-            if (selectedPaths.length > 0) {
+            if (uniqueSelectedPaths.length > 0) {
                 // 如果只有一个路径，保持原有行为以确保向后兼容
-                if (selectedPaths.length === 1) {
-                    projectCommands.exportPatch(selectedPaths[0]);
+                if (uniqueSelectedPaths.length === 1) {
+                    projectCommands.exportPatch(uniqueSelectedPaths[0]);
                 } else {
                     // 如果有多个路径，将数组存储到工作区状态中
-                    projectCommands.context.workspaceState.update('selectedExportPaths', selectedPaths);
+                    projectCommands.context.workspaceState.update('selectedExportPaths', uniqueSelectedPaths);
                     projectCommands.context.workspaceState.update('selectedExportPath', undefined);
                     projectCommands.exportPatch(undefined);
                 }
             } else {
                 // 没有选中路径，保持原有行为
                 projectCommands.exportPatch(undefined);
+            }
+        });
+
+        // 注册预置脚本导出命令
+        const exportPrecastScriptCommand = vscode.commands.registerCommand('yonbip.project.exportPrecastScript', async (...args: any[]) => {
+            const selectedPaths: string[] = [];
+            
+            if (args && args.length > 0) {
+                args.forEach(arg => {
+                    if (arg instanceof vscode.Uri) {
+                        selectedPaths.push(arg.fsPath);
+                    } else if (Array.isArray(arg)) {
+                        arg.forEach(uri => {
+                            if (uri instanceof vscode.Uri) {
+                                selectedPaths.push(uri.fsPath);
+                            }
+                        });
+                    } else if (arg && typeof arg === 'object' && arg.fsPath) {
+                        selectedPaths.push(arg.fsPath);
+                    }
+                });
+            }
+            
+            // 去重处理，确保没有重复路径
+            const uniqueSelectedPaths = [...new Set(selectedPaths)];
+            
+            if (uniqueSelectedPaths.length === 1) {
+                const p = uniqueSelectedPaths[0];
+                try {
+                    const stat = fs.existsSync(p) ? fs.statSync(p) : undefined;
+                    const name = path.basename(p).toLowerCase();
+                    if (!stat || !stat.isFile() || (name !== 'item.xml' && name !== 'items.xml')) {
+                        vscode.window.showWarningMessage('请右键选择 item.xml 文件后再导出');
+                        return;
+                    }
+                    projectCommands.exportPrecastScript(p);
+                } catch {
+                    vscode.window.showWarningMessage('请选择一个有效的 item.xml 文件');
+                }
+            } else {
+                vscode.window.showWarningMessage('请只选择一个 item.xml 文件');
             }
         });
 
@@ -105,7 +148,8 @@ export class ProjectCommands {
             createMultiModuleCommand,
             createComponentCommand,
             exportPatchCommand,
-            downloadScaffoldCommand
+            downloadScaffoldCommand,
+            exportPrecastScriptCommand
         );
     }
 
@@ -1248,5 +1292,46 @@ public class Application{
      */
     public getProjectService(): ProjectService {
         return this.projectService;
+    }
+
+    /**
+     * 导出预置脚本
+     */
+    public async exportPrecastScript(selectedPath?: string): Promise<void> {
+        // 检查NC Home配置
+        this.configService.reloadConfig();
+        const config = this.configService.getConfig();
+        if (!config.homePath) {
+            vscode.window.showWarningMessage('请先配置NC HOME路径');
+            return;
+        }
+
+        // 必须为单选且为 item.xml/items.xml
+        if (!selectedPath) {
+            vscode.window.showWarningMessage('请右键选择 item.xml 文件后再导出');
+            return;
+        }
+        try {
+            const stat = fs.existsSync(selectedPath) ? fs.statSync(selectedPath) : undefined;
+            const name = path.basename(selectedPath).toLowerCase();
+            if (!stat || !stat.isFile() || (name !== 'item.xml' && name !== 'items.xml')) {
+                vscode.window.showWarningMessage('请选择一个有效的 item.xml 文件');
+                return;
+            }
+        } catch {
+            vscode.window.showWarningMessage('请选择一个有效的 item.xml 文件');
+            return;
+        }
+
+        // 将选择的路径存储到工作区状态中（只存单个）
+        this.context.workspaceState.update('selectedPrecastPath', selectedPath);
+
+        // 显示预置脚本导出界面
+        await vscode.commands.executeCommand('yonbip.precastExportConfig.focus');
+
+        // 触发数据源和文件刷新
+        setTimeout(() => {
+            vscode.commands.executeCommand('yonbip.precastExportConfig.refresh');
+        }, 500);
     }
 }

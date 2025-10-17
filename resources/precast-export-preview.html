@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>预置脚本导出（预览）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif; color: #333; background: #fff; }
+    .container { padding: 12px; max-width: 920px; margin: 0 auto; }
+    h2 { margin: 0 0 8px; font-size: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+    .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .btn { cursor: pointer; padding: 6px 10px; border: 1px solid #1976d2; border-radius: 4px; background: #1976d2; color: #fff; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #eee; padding: 6px; font-size: 12px; }
+    th { text-align: left; color: #222; }
+    .muted { color: #888; }
+    input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h2>输出目录</h2>
+      <div class="row">
+        <input id="outputDir" type="text" style="flex:1" placeholder="选择导出目录" />
+        <button class="btn" id="pickOutput" disabled>选择目录</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>数据源信息（来自 prop.xml）</h2>
+      <div class="row">
+        <button class="btn" id="refreshDs" disabled>刷新</button>
+        <span class="muted">静态预览：示例数据</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>类型</th>
+            <th>主机</th>
+            <th>端口</th>
+            <th>库名</th>
+            <th>用户</th>
+          </tr>
+        </thead>
+        <tbody id="dsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>导出</h2>
+      <div class="row">
+        <button class="btn" id="exportBtn" disabled>导出预置脚本</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sampleData = [
+      { name: 'default', type: 'oracle', host: '127.0.0.1', port: '1521', database: 'ORCL', user: 'ncc' },
+      { name: 'pgds', type: 'postgresql', host: 'localhost', port: '5432', database: 'ncc', user: 'postgres' }
+    ];
+
+    function renderDataSources(list) {
+      var rows = '';
+      (list || []).forEach(function(ds) {
+        rows += '<tr>' +
+          '<td>' + (ds.name || '') + '</td>' +
+          '<td>' + (ds.type || '') + '</td>' +
+          '<td>' + (ds.host || '') + '</td>' +
+          '<td>' + (ds.port || '') + '</td>' +
+          '<td>' + (ds.database || '') + '</td>' +
+          '<td>' + (ds.user || '') + '</td>' +
+        '</tr>';
+      });
+      document.getElementById('dsBody').innerHTML = rows;
+    }
+
+    renderDataSources(sampleData);
+  </script>
+</body>
+</html>
