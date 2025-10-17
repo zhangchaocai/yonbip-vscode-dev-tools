@@ -8,6 +8,7 @@ import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { LibraryService } from '../library/LibraryService';
 import { getHomeVersion } from '../../utils/HomeVersionUtils';
 import { CopyResourcesToHomeCommand } from './CopyResourcesToHomeCommand';
+import { PatchToHomeCommand } from './PatchToHomeCommand';
 
 /**
  * 项目相关命令类
@@ -95,6 +96,9 @@ export class ProjectCommands {
 
         // 注册复制资源到HOME命令
         CopyResourcesToHomeCommand.registerCommand(context, configService);
+
+        // 注册补丁到HOME/取消补丁命令
+        PatchToHomeCommand.registerCommands(context, configService);
 
         context.subscriptions.push(
             createCommand,
