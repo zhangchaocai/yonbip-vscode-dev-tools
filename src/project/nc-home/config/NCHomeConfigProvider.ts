@@ -882,6 +882,17 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             padding: 0 16px 16px 16px;
         }
         
+        /* 固定底部操作按钮栏 */
+        .section:last-child {
+            position: sticky;
+            bottom: 0;
+            background: var(--vscode-editor-background);
+            border-top: 1px solid var(--vscode-widget-border);
+            margin-bottom: 0;
+            z-index: 100;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
         /* 滚动条样式优化 */
         ::-webkit-scrollbar {
             width: 10px;
@@ -914,7 +925,6 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             position: relative;
             overflow: hidden;
         }
-        
         .section::before {
             content: '';
             position: absolute;

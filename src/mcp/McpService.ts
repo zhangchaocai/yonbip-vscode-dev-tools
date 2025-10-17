@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { NCHomeConfigService } from '../project/nc-home/config/NCHomeConfigService';
 import { DataSourceMeta } from '../project/nc-home/config/NCHomeConfigTypes';
+import { PasswordEncryptor } from '../utils/PasswordEncryptor';
 
 /**
  * MCP服务配置
@@ -124,6 +125,34 @@ export class McpService {
     }
 
     /**
+     * 判断服务是否存活（优先检查HTTP接口，其次检查进程）
+     */
+    public async isServiceAlive(): Promise<boolean> {
+        try {
+            const httpAlive = await this.checkHttpServiceAvailability();
+            if (httpAlive) return true;
+        } catch (e) {
+            // 忽略HTTP检查异常，降级到进程存活判断
+        }
+        return this.isProcessAlive();
+    }
+
+    /**
+     * 判断子进程是否仍在运行
+     */
+    private isProcessAlive(): boolean {
+        const cp = this.process;
+        if (!cp || !cp.pid) return false;
+        try {
+            // signal 0 用于探测进程是否存在，不会真正发送信号
+            process.kill(cp.pid, 0);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
      * 启动MCP服务
      */
     public async start(): Promise<void> {
@@ -137,6 +166,9 @@ export class McpService {
             this.outputChannel.clear();
             this.outputChannel.appendLine('🚀 正在启动MCP服务...');
             this.outputChannel.appendLine(`📅 启动时间: ${new Date().toLocaleString()}`);
+            
+            // 显示输出窗口
+            this.outputChannel.show();
 
             // 显示启动进度和数据源信息
             this.outputChannel.appendLine('🔍 正在获取design数据源信息...');
@@ -213,31 +245,46 @@ export class McpService {
                 if (output.includes('yonyou-mcp应用启动成功') ||
                     output.includes('Server started') ||
                     output.includes('访问: http://') ||
-                    output.includes('Tomcat started on port')) {
+                    output.includes('Tomcat started on port') ||
+                    output.includes('Started Application') ||
+                    output.includes('MCP服务启动完成') ||
+                    output.includes('Started YonBipMcpApplication')) {
                     this.outputChannel.appendLine('🎉 检测到MCP服务启动成功标识');
-                    this.setStatus(McpStatus.RUNNING);
                     
-                    // 获取数据源信息用于显示
-                    const dataSourceInfo = this.getDesignDataSourceInfo();
-                    if (dataSourceInfo) {
-                        vscode.window.showInformationMessage(
-                            `MCP服务已启动，端口: ${this.config.port}\n` +
-                            `数据源: ${dataSourceInfo.username}@${this.extractHostFromUrl(dataSourceInfo.url)}`
-                        );
-                    } else {
-                        vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
-                    }
+                    // 延迟一段时间再检查服务是否真正可用
+                    setTimeout(async () => {
+                        const isAvailable = await this.checkHttpServiceAvailability();
+                        if (isAvailable) {
+                            this.setStatus(McpStatus.RUNNING);
+                            
+                            // 获取数据源信息用于显示
+                            const dataSourceInfo = this.getDesignDataSourceInfo();
+                            if (dataSourceInfo) {
+                                vscode.window.showInformationMessage(
+                                    `MCP服务已启动，端口: ${this.config.port}\n` +
+                                    `数据源: ${dataSourceInfo.username}@${this.extractHostFromUrl(dataSourceInfo.url)}`
+                                );
+                            } else {
+                                vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
+                            }
 
-                    // 启动成功后自动切换到MCP服务面板
-                    vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
-
+                            // 启动成功后自动切换到MCP服务面板
+                            vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
+                        } else {
+                            this.outputChannel.appendLine('❌ 虽然检测到启动成功标识，但服务健康检查失败');
+                            this.setStatus(McpStatus.ERROR);
+                        }
+                    }, 2000); // 等待2秒确保服务完全启动
                 }
 
                 // 检查常见错误模式
                 if (output.includes('Address already in use') ||
                     output.includes('端口已被占用') ||
-                    output.includes('BindException')) {
-                    this.outputChannel.appendLine('❌ 检测到端口占用错误');
+                    output.includes('BindException') ||
+                    output.includes('Failed to start') ||
+                    output.includes('数据库连接失败') ||
+                    output.includes('DataSource setup failed')) {
+                    this.outputChannel.appendLine('❌ 检测到启动错误');
                     this.setStatus(McpStatus.ERROR);
                 }
             });
@@ -414,21 +461,39 @@ export class McpService {
             const options = {
                 hostname: 'localhost',
                 port: this.config.port,
-                path: '/tool/stats', // 健康检查端点
+                path: '/pool/status', // 健康检查端点（与用户提到的地址一致）
                 timeout: 5000
             };
 
             const req = http.get(options, (res: any) => {
                 // 如果能收到响应，说明服务可用
-                resolve(res.statusCode >= 200 && res.statusCode < 500);
+                const isAvailable = res.statusCode >= 200 && res.statusCode < 500;
+                if (isAvailable) {
+                    // 只在调试模式下输出详细信息
+                    if (process.env.NODE_ENV === 'development') {
+                        this.outputChannel.appendLine(`🔍 健康检查响应状态码: ${res.statusCode}`);
+                        this.outputChannel.appendLine('✅ MCP服务健康检查通过');
+                    }
+                } else {
+                    this.outputChannel.appendLine(`❌ MCP服务健康检查失败，状态码: ${res.statusCode}`);
+                }
+                resolve(isAvailable);
             });
 
-            req.on('error', () => {
+            req.on('error', (err: any) => {
+                // 只输出错误信息，避免重复输出成功信息
+                if (!err.message.includes('ECONNREFUSED') || process.env.NODE_ENV === 'development') {
+                    this.outputChannel.appendLine(`❌ MCP服务健康检查连接失败: ${err.message}`);
+                }
                 // 连接失败，服务不可用
                 resolve(false);
             });
 
             req.on('timeout', () => {
+                // 只在调试模式下输出超时信息
+                if (process.env.NODE_ENV === 'development') {
+                    this.outputChannel.appendLine('⏰ MCP服务健康检查超时');
+                }
                 req.destroy();
                 resolve(false);
             });
@@ -447,6 +512,9 @@ export class McpService {
         this.isManualStop = true; // 标记为手动停止
         this.setStatus(McpStatus.STOPPING);
         this.outputChannel.appendLine('正在停止MCP服务...');
+        
+        // 显示输出窗口
+        this.outputChannel.show();
 
         if (this.process) {
             return new Promise<void>((resolve) => {
@@ -716,13 +784,21 @@ export class McpService {
             args.push('--homepath=' + homePath);
         }
 
-        // 注入数据源信息
+        // 注入数据源信息（使用与IDEA插件兼容的参数格式）
         const dataSourceInfo = this.getDesignDataSourceInfo();
         if (dataSourceInfo) {
-            args.push('--datasource.url=' + dataSourceInfo.url);
-            args.push('--datasource.username=' + dataSourceInfo.username);
-            args.push('--datasource.password=' + dataSourceInfo.password);
-            args.push('--datasource.driver=' + dataSourceInfo.driver);
+            // 使用IDEA插件的参数格式
+            args.push('--db.url=' + dataSourceInfo.url);
+            args.push('--db.username=' + dataSourceInfo.username);
+            args.push('--db.password=' + dataSourceInfo.password);
+            args.push('--db.driver=' + dataSourceInfo.driver);
+            
+            this.outputChannel.appendLine('✅ 数据源参数已添加到命令行:');
+            this.outputChannel.appendLine(`   URL: ${dataSourceInfo.url}`);
+            this.outputChannel.appendLine(`   Username: ${dataSourceInfo.username}`);
+            this.outputChannel.appendLine(`   Driver: ${dataSourceInfo.driver}`);
+        } else {
+            this.outputChannel.appendLine('⚠️ 未找到有效的数据源配置，将不传递数据源参数');
         }
 
         return args;
@@ -762,51 +838,99 @@ export class McpService {
                     let url = '';
                     let driver = '';
                     
-                    switch (designDataSource.databaseType.toLowerCase()) {
-                        case 'mysql':
-                        case 'mysql5':
-                        case 'mysql8':
-                            url = `jdbc:mysql://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}?useSSL=false&serverTimezone=UTC`;
-                            driver = 'com.mysql.cj.jdbc.Driver';
-                            break;
-                        case 'oracle':
-                        case 'oracle11g':
-                        case 'oracle12c':
-                        case 'oracle19c':
-                            url = `jdbc:oracle:thin:@${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
-                            driver = 'oracle.jdbc.OracleDriver';
-                            break;
-                        case 'sqlserver':
-                        case 'mssql':
-                            url = `jdbc:sqlserver://${designDataSource.host}:${designDataSource.port};database=${designDataSource.databaseName}`;
-                            driver = 'com.microsoft.sqlserver.jdbc.SQLServerDriver';
-                            break;
-                        case 'postgresql':
-                        case 'pg':
-                            url = `jdbc:postgresql://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
-                            driver = 'org.postgresql.Driver';
-                            break;
-                        case 'dm':
-                            url = `jdbc:dm://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
-                            driver = 'dm.jdbc.driver.DmDriver';
-                            break;
-                        case 'kingbase':
-                            url = `jdbc:kingbase8://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
-                            driver = 'com.kingbase8.Driver';
-                            break;
-                        default:
-                            url = `jdbc:${designDataSource.databaseType.toLowerCase()}://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
-                            driver = designDataSource.driverClassName || 'com.mysql.cj.jdbc.Driver';
+                    // 优先使用配置中的URL，如果没有则根据参数生成
+                    if (designDataSource.url && designDataSource.url.trim() !== '') {
+                        url = designDataSource.url;
+                    } else {
+                        switch (designDataSource.databaseType.toLowerCase()) {
+                            case 'mysql':
+                            case 'mysql5':
+                            case 'mysql8':
+                                url = `jdbc:mysql://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}?useSSL=false&serverTimezone=UTC`;
+                                driver = 'com.mysql.cj.jdbc.Driver';
+                                break;
+                            case 'oracle':
+                            case 'oracle11g':
+                            case 'oracle12c':
+                            case 'oracle19c':
+                                url = `jdbc:oracle:thin:@${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                                driver = 'oracle.jdbc.OracleDriver';
+                                break;
+                            case 'sqlserver':
+                            case 'mssql':
+                                url = `jdbc:sqlserver://${designDataSource.host}:${designDataSource.port};database=${designDataSource.databaseName}`;
+                                driver = 'com.microsoft.sqlserver.jdbc.SQLServerDriver';
+                                break;
+                            case 'postgresql':
+                            case 'pg':
+                                url = `jdbc:postgresql://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                                driver = 'org.postgresql.Driver';
+                                break;
+                            case 'dm':
+                                url = `jdbc:dm://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                                driver = 'dm.jdbc.driver.DmDriver';
+                                break;
+                            case 'kingbase':
+                                url = `jdbc:kingbase8://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                                driver = 'com.kingbase8.Driver';
+                                break;
+                            default:
+                                url = `jdbc:${designDataSource.databaseType.toLowerCase()}://${designDataSource.host}:${designDataSource.port}/${designDataSource.databaseName}`;
+                                driver = designDataSource.driverClassName || 'com.mysql.cj.jdbc.Driver';
+                        }
+                    }
+                    
+                    // 如果没有指定driver，则根据数据库类型设置默认driver
+                    if (!driver || driver.trim() === '') {
+                        switch (designDataSource.databaseType.toLowerCase()) {
+                            case 'mysql':
+                            case 'mysql5':
+                            case 'mysql8':
+                                driver = 'com.mysql.cj.jdbc.Driver';
+                                break;
+                            case 'oracle':
+                            case 'oracle11g':
+                            case 'oracle12c':
+                            case 'oracle19c':
+                                driver = 'oracle.jdbc.OracleDriver';
+                                break;
+                            case 'sqlserver':
+                            case 'mssql':
+                                driver = 'com.microsoft.sqlserver.jdbc.SQLServerDriver';
+                                break;
+                            case 'postgresql':
+                            case 'pg':
+                                driver = 'org.postgresql.Driver';
+                                break;
+                            case 'dm':
+                                driver = 'dm.jdbc.driver.DmDriver';
+                                break;
+                            case 'kingbase':
+                                driver = 'com.kingbase8.Driver';
+                                break;
+                            default:
+                                driver = designDataSource.driverClassName || 'com.mysql.cj.jdbc.Driver';
+                        }
                     }
                     
                     this.outputChannel.appendLine(`🔧 数据库类型: ${designDataSource.databaseType}`);
                     this.outputChannel.appendLine(`🔗 生成的URL: ${url}`);
                     this.outputChannel.appendLine(`🚗 驱动类: ${driver}`);
                     
+                    // 对密码进行解密处理
+                    let decryptedPassword = designDataSource.password || '';
+                    if (decryptedPassword) {
+                        try {
+                            decryptedPassword = PasswordEncryptor.getSecurePassword(config.homePath, decryptedPassword);
+                        } catch (decryptError: any) {
+                            this.outputChannel.appendLine(`⚠️ 密码解密失败: ${decryptError.message}`);
+                        }
+                    }
+                    
                     return {
                         url: url,
                         username: designDataSource.username,
-                        password: designDataSource.password,
+                        password: decryptedPassword,
                         driver: driver
                     };
                 } else {
@@ -897,7 +1021,9 @@ export class McpService {
      * 启动前预检查
      */
     private async preStartCheck(): Promise<boolean> {
-        this.outputChannel.appendLine('====== MCP服务启动前预检查 ======');
+        this.outputChannel.appendLine('────────────────────────────────────────────────────────');
+        this.outputChannel.appendLine('🧰 MCP 服务启动前预检查');
+        this.outputChannel.appendLine('────────────────────────────────────────────────────────');
 
         let hasError = false;
 

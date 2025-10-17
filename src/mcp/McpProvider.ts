@@ -225,9 +225,11 @@ export class McpProvider implements vscode.WebviewViewProvider {
     private async handleGetStatus() {
         try {
             const mcpStatus = this.mcpService.getStatus();
+            const alive = await this.mcpService.isServiceAlive();
             const status = {
-                isRunning: mcpStatus === McpStatus.RUNNING,
-                message: this.getStatusMessage(mcpStatus)
+                isRunning: alive,
+                hasError: mcpStatus === McpStatus.ERROR,
+                message: this.getStatusMessageWithAlive(mcpStatus, alive)
             };
 
             this._view?.webview.postMessage({
@@ -239,6 +241,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 type: 'statusLoaded',
                 status: {
                     isRunning: false,
+                    hasError: false,
                     message: `获取状态失败: ${error.message}`
                 }
             });
@@ -248,19 +251,25 @@ export class McpProvider implements vscode.WebviewViewProvider {
     /**
      * 获取状态消息
      */
-    private getStatusMessage(status: McpStatus): string {
-        switch (status) {
-            case McpStatus.RUNNING:
-                return '服务正在运行中';
-            case McpStatus.STARTING:
+    private getStatusMessageWithAlive(status: McpStatus, alive: boolean): string {
+        if (alive) {
+            if (status === McpStatus.ERROR) {
+                return '服务运行中（日志出现错误）';
+            }
+            if (status === McpStatus.STARTING) {
                 return '服务正在启动中';
-            case McpStatus.STOPPING:
-                return '服务正在停止中';
-            case McpStatus.ERROR:
-                return '服务发生错误';
-            case McpStatus.STOPPED:
-            default:
-                return '服务已停止';
+            }
+            return '服务正在运行中';
+        } else {
+            switch (status) {
+                case McpStatus.STOPPING:
+                    return '服务正在停止中';
+                case McpStatus.ERROR:
+                    return '服务发生错误（可能已不可用）';
+                case McpStatus.STOPPED:
+                default:
+                    return '服务已停止';
+            }
         }
     }
 
@@ -335,6 +344,102 @@ export class McpProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-editor-background);
             padding: 15px;
             margin: 0;
+            /* 确保body可以滚动 */
+            overflow-y: auto;
+        }
+
+        /* 页面容器与基础布局 */
+        #app {
+            max-width: 980px;
+            margin: 0 auto;
+            /* 确保app容器可以滚动 */
+            overflow-y: auto;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--vscode-widget-border);
+            background: linear-gradient(180deg, var(--vscode-tab-activeBackground), var(--vscode-input-background));
+            margin-bottom: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header-title {
+            font-weight: 600;
+            font-size: 18px;
+            color: var(--vscode-foreground);
+            letter-spacing: 0.2px;
+        }
+        .header-subtitle {
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+            margin-top: 4px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 14px;
+            border: 1px solid var(--vscode-widget-border);
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-descriptionForeground);
+            font-size: 12px;
+        }
+        .header-right {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 14px;
+            border: 1px solid var(--vscode-widget-border);
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-foreground);
+            font-size: 12px;
+        }
+        .chip::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+            background-color: var(--vscode-descriptionForeground);
+        }
+        .chip-running {
+            color: var(--vscode-terminal-ansiGreen);
+            border-color: var(--vscode-terminal-ansiGreen);
+        }
+        .chip-running::before {
+            background-color: var(--vscode-terminal-ansiGreen);
+        }
+        .chip-stopped {
+            color: var(--vscode-errorForeground);
+            border-color: var(--vscode-errorForeground);
+        }
+        .chip-stopped::before {
+            background-color: var(--vscode-errorForeground);
+        }
+        .chip-unknown {
+            color: var(--vscode-descriptionForeground);
+            border-color: var(--vscode-widget-border);
+        }
+        .chip-unknown::before {
+            background-color: var(--vscode-descriptionForeground);
+        }
+        .chip-warning {
+            color: var(--vscode-terminal-ansiYellow);
+            border-color: var(--vscode-terminal-ansiYellow);
+        }
+        .chip-warning::before {
+            background-color: var(--vscode-terminal-ansiYellow);
         }
         
         .section {
@@ -359,24 +464,45 @@ export class McpProvider implements vscode.WebviewViewProvider {
             align-items: center;
             padding: 8px 12px;
             border-radius: 20px;
-            font-weight: bold;
+            font-weight: 600;
             font-size: 14px;
             margin-bottom: 15px;
+            gap: 8px;
+            border: 1px solid var(--vscode-widget-border);
+            background-color: var(--vscode-editor-background);
+        }
+        .status-indicator::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--vscode-descriptionForeground);
         }
         
         .status-running {
+            color: var(--vscode-terminal-ansiGreen);
+        }
+        .status-running::before {
             background-color: var(--vscode-terminal-ansiGreen);
-            color: white;
         }
-        
         .status-stopped {
-            background-color: var(--vscode-errorForeground);
-            color: white;
+            color: var(--vscode-errorForeground);
         }
-        
+        .status-stopped::before {
+            background-color: var(--vscode-errorForeground);
+        }
         .status-unknown {
+            color: var(--vscode-descriptionForeground);
+        }
+        .status-unknown::before {
             background-color: var(--vscode-descriptionForeground);
-            color: white;
+        }
+        .status-warning {
+            color: var(--vscode-terminal-ansiYellow);
+        }
+        .status-warning::before {
+            background-color: var(--vscode-terminal-ansiYellow);
         }
         
         .form-group {
@@ -454,14 +580,23 @@ export class McpProvider implements vscode.WebviewViewProvider {
         }
         
         button.danger {
-            background-color: var(--vscode-errorForeground);
-            color: white;
+            background-color: transparent;
+            color: var(--vscode-errorForeground);
+            border: 1px solid var(--vscode-errorForeground);
+        }
+        button.danger:hover {
+            background-color: color-mix(in srgb, var(--vscode-errorForeground) 10%, transparent);
         }
         
         .tabs {
             display: flex;
             border-bottom: 2px solid var(--vscode-widget-border);
             margin-bottom: 20px;
+            position: sticky;
+            top: 120px; /* 考虑header的高度 */
+            background-color: var(--vscode-editor-background);
+            z-index: 90;
+            padding-top: 10px;
         }
         
         .tab {
@@ -526,8 +661,8 @@ export class McpProvider implements vscode.WebviewViewProvider {
         }
 
         #quickInfo {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
         }
 
@@ -552,8 +687,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
             color: var(--vscode-textLink-foreground);
             margin-bottom: 6px;
             font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.2px;
         }
         
         .config-value {
@@ -612,7 +746,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
             }
             
             #quickInfo {
-                flex-direction: column;
+                grid-template-columns: 1fr;
             }
             
             .config-item {
@@ -641,11 +775,26 @@ export class McpProvider implements vscode.WebviewViewProvider {
             .service-controls button {
                 max-width: calc(33.333% - 10px);
             }
+            #quickInfo {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
     </style>
 </head>
 <body>
     <div id="app">
+        <!-- 页头 -->
+        <div class="header">
+            <div>
+                <div class="header-title">YonBIP MCP 服务</div>
+                <div class="header-subtitle">本地开发服务管理与配置</div>
+            </div>
+            <div class="header-right">
+                <div class="badge">VS Code 插件</div>
+                <div id="headerStatusChip" class="chip chip-unknown">状态: 未知</div>
+                <div id="headerPortChip" class="chip">端口: -</div>
+            </div>
+        </div>
         <!-- 选项卡 -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('status')">📊 服务状态</button>
@@ -819,6 +968,12 @@ export class McpProvider implements vscode.WebviewViewProvider {
             document.getElementById('quickPort').textContent = config.port || 9000;
             document.getElementById('quickJarPath').textContent = config.jarPath || '使用内置JAR';
             document.getElementById('quickJavaPath').textContent = config.javaPath || 'java';
+
+            // 更新页头端口摘要
+            const portChip = document.getElementById('headerPortChip');
+            if (portChip) {
+                portChip.textContent = '端口: ' + (config.port || 9000);
+            }
         }
         
         // 更新状态显示
@@ -830,23 +985,45 @@ export class McpProvider implements vscode.WebviewViewProvider {
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
             
-            if (status.isRunning) {
+            if (status.isRunning && status.hasError) {
+                indicator.className = 'status-indicator status-warning';
+                indicator.textContent = '🟡 服务运行中（出现错误日志）';
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                stopBtn.textContent = '⏹️ 停止服务';
+            } else if (status.isRunning) {
                 indicator.className = 'status-indicator status-running';
                 indicator.textContent = '🟢 服务运行中';
                 
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
-                stopBtn.textContent = '⏹️ 停止服务'; // 确保按钮文本正确
+                stopBtn.textContent = '⏹️ 停止服务';
             } else {
                 indicator.className = 'status-indicator status-stopped';
                 indicator.textContent = '🔴 服务已停止';
                 
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                stopBtn.textContent = '⏹️ 停止服务'; // 确保按钮文本正确
+                stopBtn.textContent = '⏹️ 停止服务';
             }
             
             message.textContent = status.message || '无状态信息';
+
+            // 更新页头状态摘要
+            const headerStatusChip = document.getElementById('headerStatusChip');
+            if (headerStatusChip) {
+                if (status.isRunning && status.hasError) {
+                    headerStatusChip.textContent = '状态: 运行中（异常）';
+                    headerStatusChip.className = 'chip chip-warning';
+                } else if (status.isRunning) {
+                    headerStatusChip.textContent = '状态: 运行中';
+                    headerStatusChip.className = 'chip chip-running';
+                } else {
+                    headerStatusChip.textContent = '状态: 已停止';
+                    headerStatusChip.className = 'chip chip-stopped';
+                }
+            }
         }
         
         // 监听消息
