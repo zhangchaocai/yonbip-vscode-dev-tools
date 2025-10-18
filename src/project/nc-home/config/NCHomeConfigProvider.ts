@@ -309,6 +309,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     // 重新加载配置以获取新home目录中的数据源信息
                     progress.report({ message: "正在加载配置..." });
                     await this.handleLoadConfig();
+                    
+                    // 刷新所有相关Webview的数据源显示
+                    await this.refreshAllDataSources();
                 }
                 
                 this._view?.webview.postMessage({
@@ -3158,6 +3161,61 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     error: error.message
                 });
             }
+        }
+    }
+    
+    /**
+     * 刷新所有相关Webview的数据源显示
+     * 在Home目录切换后调用此方法确保所有界面都能获取到最新的数据源信息
+     */
+    private async refreshAllDataSources(): Promise<void> {
+        try {
+            // 重新加载配置
+            this.configService.reloadConfig();
+            
+            // 从prop.xml获取最新的数据源信息
+            const { dataSources } = this.configService.getPortFromPropXml();
+            
+            // 优先选择design数据源
+            let selectedDataSource = dataSources.find(ds => ds.name === 'design');
+            if (!selectedDataSource && dataSources.length > 0) {
+                // 如果没有design数据源，使用第一个数据源
+                selectedDataSource = dataSources[0];
+            }
+            
+            // 向所有相关的Webview发送数据源更新消息
+            if (this._view) {
+                this._view.webview.postMessage({
+                    type: 'dataSourcesUpdated',
+                    dataSources: dataSources.map(ds => ({
+                        name: ds.name,
+                        type: ds.databaseType,
+                        host: ds.host,
+                        port: ds.port,
+                        database: ds.databaseName,
+                        user: ds.username
+                    }))
+                });
+            }
+            
+            // 如果有选中的数据源，也发送当前数据源消息
+            if (selectedDataSource) {
+                if (this._view) {
+                    this._view.webview.postMessage({
+                        type: 'currentDataSource',
+                        dataSource: {
+                            name: selectedDataSource.name,
+                            type: selectedDataSource.databaseType,
+                            host: selectedDataSource.host,
+                            port: selectedDataSource.port,
+                            database: selectedDataSource.databaseName,
+                            user: selectedDataSource.username
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('刷新数据源失败:', error);
         }
     }
 }

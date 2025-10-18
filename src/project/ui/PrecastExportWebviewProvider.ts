@@ -324,6 +324,29 @@ ${inserts.join("\n")}
         try {
             this.configService.reloadConfig();
             const { dataSources } = this.configService.getPortFromPropXml();
+            
+            // 优先选择design数据源
+            let selectedDataSource = dataSources.find(ds => ds.name === 'design');
+            if (!selectedDataSource && dataSources.length > 0) {
+                // 如果没有design数据源，使用第一个数据源
+                selectedDataSource = dataSources[0];
+            }
+            
+            // 向Webview发送当前使用的数据源信息
+            if (selectedDataSource) {
+                this._view?.webview.postMessage({
+                    type: 'currentDataSource',
+                    dataSource: {
+                        name: selectedDataSource.name,
+                        type: selectedDataSource.databaseType,
+                        host: selectedDataSource.host,
+                        port: selectedDataSource.port,
+                        database: selectedDataSource.databaseName,
+                        user: selectedDataSource.username
+                    }
+                });
+            }
+            
             const dsList = (dataSources || []).map(ds => ({
                 name: ds.name,
                 type: ds.databaseType,
@@ -801,6 +824,20 @@ window.addEventListener('message', (event) => {
                 showStatus(msg.message, 'info');
             }
             break;
+        case 'dataSourcesUpdated':
+            // 处理数据源更新消息，刷新当前数据源显示
+            if (msg.dataSources && msg.dataSources.length > 0) {
+                // 优先选择design数据源
+                let selectedDataSource = msg.dataSources.find(ds => ds.name === 'design');
+                if (!selectedDataSource) {
+                    // 如果没有design数据源，使用第一个数据源
+                    selectedDataSource = msg.dataSources[0];
+                }
+                renderCurrentDataSource(selectedDataSource);
+            } else {
+                renderCurrentDataSource(null);
+            }
+            break;
     }
 });
 
@@ -932,8 +969,13 @@ vscode.postMessage({ type: 'ready' });
     private _pickAndSecureDataSource(): DataSourceMeta | undefined {
         const cfg = this.configService.getConfig();
         const { dataSources } = this.configService.getPortFromPropXml();
-        const namePref = cfg.selectedDataSource || cfg.baseDatabase || 'design';
-        let ds = dataSources.find(d => d.name === namePref);
+        
+        // 优先选择design数据源，如果没有则按原来逻辑选择
+        let ds = dataSources.find(d => d.name === 'design');
+        if (!ds) {
+            const namePref = cfg.selectedDataSource || cfg.baseDatabase || 'design';
+            ds = dataSources.find(d => d.name === namePref);
+        }
         if (!ds && dataSources.length > 0) ds = dataSources[0];
         if (!ds) return undefined;
         ds.password = PasswordEncryptor.getSecurePassword(cfg.homePath, ds.password || '');
