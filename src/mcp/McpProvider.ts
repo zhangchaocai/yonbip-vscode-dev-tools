@@ -355,92 +355,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
             /* 确保app容器可以滚动 */
             overflow-y: auto;
         }
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 20px;
-            border-radius: 8px;
-            border: 1px solid var(--vscode-widget-border);
-            background: linear-gradient(180deg, var(--vscode-tab-activeBackground), var(--vscode-input-background));
-            margin-bottom: 16px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .header-title {
-            font-weight: 600;
-            font-size: 18px;
-            color: var(--vscode-foreground);
-            letter-spacing: 0.2px;
-        }
-        .header-subtitle {
-            font-size: 12px;
-            color: var(--vscode-descriptionForeground);
-            margin-top: 4px;
-        }
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 10px;
-            border-radius: 14px;
-            border: 1px solid var(--vscode-widget-border);
-            background-color: var(--vscode-editor-background);
-            color: var(--vscode-descriptionForeground);
-            font-size: 12px;
-        }
-        .header-right {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .chip {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 10px;
-            border-radius: 14px;
-            border: 1px solid var(--vscode-widget-border);
-            background-color: var(--vscode-editor-background);
-            color: var(--vscode-foreground);
-            font-size: 12px;
-        }
-        .chip::before {
-            content: '';
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 6px;
-            background-color: var(--vscode-descriptionForeground);
-        }
-        .chip-running {
-            color: var(--vscode-terminal-ansiGreen);
-            border-color: var(--vscode-terminal-ansiGreen);
-        }
-        .chip-running::before {
-            background-color: var(--vscode-terminal-ansiGreen);
-        }
-        .chip-stopped {
-            color: var(--vscode-errorForeground);
-            border-color: var(--vscode-errorForeground);
-        }
-        .chip-stopped::before {
-            background-color: var(--vscode-errorForeground);
-        }
-        .chip-unknown {
-            color: var(--vscode-descriptionForeground);
-            border-color: var(--vscode-widget-border);
-        }
-        .chip-unknown::before {
-            background-color: var(--vscode-descriptionForeground);
-        }
-        .chip-warning {
-            color: var(--vscode-terminal-ansiYellow);
-            border-color: var(--vscode-terminal-ansiYellow);
-        }
-        .chip-warning::before {
-            background-color: var(--vscode-terminal-ansiYellow);
-        }
         
         .section {
             margin-bottom: 20px;
@@ -593,7 +507,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
             border-bottom: 2px solid var(--vscode-widget-border);
             margin-bottom: 20px;
             position: sticky;
-            top: 120px; /* 考虑header的高度 */
+            top: 0; /* 修改为0，因为已经移除了页头 */
             background-color: var(--vscode-editor-background);
             z-index: 90;
             padding-top: 10px;
@@ -801,17 +715,15 @@ export class McpProvider implements vscode.WebviewViewProvider {
 <body>
     <div id="app">
         <!-- 页头 -->
+        <!--
         <div class="header">
             <div>
                 <div class="header-title">YonBIP MCP 服务</div>
                 <div class="header-subtitle">本地开发服务管理与配置</div>
             </div>
-            <div class="header-right">
-                <div class="badge">VS Code 插件</div>
-                <div id="headerStatusChip" class="chip chip-unknown">状态: 未知</div>
-                <div id="headerPortChip" class="chip">端口: -</div>
-            </div>
+
         </div>
+        -->
         <!-- 选项卡 -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('status')">📊 服务状态</button>
@@ -1013,14 +925,14 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 stopBtn.textContent = '⏹️ 停止服务';
             } else if (status.isRunning) {
                 indicator.className = 'status-indicator status-running';
-                indicator.textContent = '🟢 服务运行中';
+                indicator.textContent = '服务运行中';
                 
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
                 stopBtn.textContent = '⏹️ 停止服务';
             } else {
                 indicator.className = 'status-indicator status-stopped';
-                indicator.textContent = '🔴 服务已停止';
+                indicator.textContent = '服务已停止';
                 
                 startBtn.disabled = false;
                 stopBtn.disabled = true;

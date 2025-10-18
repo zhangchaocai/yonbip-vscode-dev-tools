@@ -37,6 +37,8 @@ export class McpService {
     private status: McpStatus = McpStatus.STOPPED;
     private config: McpConfig;
     private isManualStop: boolean = false; // 标记是否为手动停止
+    private healthCheckInterval: NodeJS.Timeout | null = null; // 健康检查定时器
+    private isHealthCheckRunning: boolean = false; // 健康检查是否正在运行
     // private statusBarItem: vscode.StatusBarItem;  // 注释掉状态栏，由WebView显示
     private outputChannel: vscode.OutputChannel;
 
@@ -169,6 +171,9 @@ export class McpService {
             
             // 显示输出窗口
             this.outputChannel.show();
+
+            // 启动健康检查
+            this.startHealthCheck();
 
             // 显示启动进度和数据源信息
             this.outputChannel.appendLine('🔍 正在获取design数据源信息...');
@@ -453,9 +458,62 @@ export class McpService {
     }
 
     /**
+     * 启动健康检查
+     */
+    private startHealthCheck(): void {
+        // 先停止现有的健康检查
+        this.stopHealthCheck();
+        
+        // 设置健康检查标志
+        this.isHealthCheckRunning = true;
+        
+        // 启动定时健康检查（每5秒检查一次）
+        this.healthCheckInterval = setInterval(async () => {
+            // 只在运行状态下进行健康检查
+            if (this.status === McpStatus.RUNNING || this.status === McpStatus.STARTING) {
+                try {
+                    const isAvailable = await this.checkHttpServiceAvailability();
+                    if (!isAvailable && this.status === McpStatus.RUNNING) {
+                        // 如果服务标记为运行中但实际不可用，更新状态为错误
+                        this.setStatus(McpStatus.ERROR);
+                        this.outputChannel.appendLine('❌ MCP服务健康检查失败，服务可能已停止');
+                    }
+                } catch (error: any) {
+                    // 只在运行状态下记录健康检查错误
+                    if (this.status === McpStatus.RUNNING) {
+                        // 减少重复错误信息的输出
+                        if (process.env.NODE_ENV === 'development') {
+                            this.outputChannel.appendLine(`❌ MCP服务健康检查连接失败: ${error.message}`);
+                        }
+                    }
+                }
+            }
+        }, 5000); // 每5秒检查一次
+        
+        this.outputChannel.appendLine('✅ 健康检查已启动');
+    }
+
+    /**
+     * 停止健康检查
+     */
+    private stopHealthCheck(): void {
+        if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+            this.healthCheckInterval = null;
+        }
+        this.isHealthCheckRunning = false;
+        this.outputChannel.appendLine('⏹️ 健康检查已停止');
+    }
+
+    /**
      * 检查HTTP服务是否可用
      */
     private async checkHttpServiceAvailability(): Promise<boolean> {
+        // 如果服务已停止，直接返回false，不进行检查
+        if (this.status === McpStatus.STOPPED || this.status === McpStatus.STOPPING) {
+            return false;
+        }
+
         return new Promise((resolve) => {
             const http = require('http');
             const options = {
@@ -475,15 +533,21 @@ export class McpService {
                         this.outputChannel.appendLine('✅ MCP服务健康检查通过');
                     }
                 } else {
-                    this.outputChannel.appendLine(`❌ MCP服务健康检查失败，状态码: ${res.statusCode}`);
+                    // 只在非停止状态下记录失败信息
+                    if (this.status !== McpStatus.STOPPED && this.status !== McpStatus.STOPPING) {
+                        this.outputChannel.appendLine(`❌ MCP服务健康检查失败，状态码: ${res.statusCode}`);
+                    }
                 }
                 resolve(isAvailable);
             });
 
             req.on('error', (err: any) => {
-                // 只输出错误信息，避免重复输出成功信息
-                if (!err.message.includes('ECONNREFUSED') || process.env.NODE_ENV === 'development') {
-                    this.outputChannel.appendLine(`❌ MCP服务健康检查连接失败: ${err.message}`);
+                // 只在非停止状态下记录错误信息，避免重复输出
+                if (this.status !== McpStatus.STOPPED && this.status !== McpStatus.STOPPING) {
+                    // 减少重复错误信息的输出
+                    if (process.env.NODE_ENV === 'development' || !err.message.includes('ECONNREFUSED')) {
+                        this.outputChannel.appendLine(`❌ MCP服务健康检查连接失败: ${err.message}`);
+                    }
                 }
                 // 连接失败，服务不可用
                 resolve(false);
@@ -508,6 +572,9 @@ export class McpService {
             this.outputChannel.appendLine('MCP服务已处于停止状态，跳过停止操作');
             return;
         }
+
+        // 停止健康检查
+        this.stopHealthCheck();
 
         this.isManualStop = true; // 标记为手动停止
         this.setStatus(McpStatus.STOPPING);
@@ -983,11 +1050,23 @@ export class McpService {
      * 设置状态
      */
     private setStatus(status: McpStatus): void {
+        const oldStatus = this.status;
         this.status = status;
+        
+        // 当状态从运行变为停止时，停止健康检查
+        if ((oldStatus === McpStatus.RUNNING || oldStatus === McpStatus.STARTING) && 
+            (status === McpStatus.STOPPED || status === McpStatus.ERROR)) {
+            this.stopHealthCheck();
+        }
+        
+        // 当状态从停止变为运行时，启动健康检查
+        if ((oldStatus === McpStatus.STOPPED || oldStatus === McpStatus.ERROR) && 
+            (status === McpStatus.STARTING || status === McpStatus.RUNNING)) {
+            this.startHealthCheck();
+        }
+        
         // this.updateStatusBar();  // 注释掉状态栏更新，避免重复显示
     }
-
-
 
     /**
      * 检查端口是否可用
@@ -1141,6 +1220,8 @@ export class McpService {
      */
     public dispose(): void {
         this.stop();
+        // 停止健康检查
+        this.stopHealthCheck();
         // this.statusBarItem.dispose();  // 注释掉状态栏资源释放
         if (McpService.outputChannelInstance) {
             McpService.outputChannelInstance.dispose();

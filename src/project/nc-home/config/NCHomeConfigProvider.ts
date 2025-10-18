@@ -1999,6 +1999,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div class="help-text">选择启动时要加载的模块，必选模块无法取消</div>
                     
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <div class="input-group">
+                            <input type="text" id="moduleSearch" placeholder="搜索模块..." oninput="filterModules()">
+                            <span class="input-icon">🔍</span>
+                        </div>
+                    </div>
+                    
                     <div id="moduleList" class="module-list">
                         <div class="empty-state">
                             <div class="empty-icon">📦</div>
@@ -2655,10 +2662,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
         // 模块管理相关函数
         let currentModules = [];
+        let filteredModules = [];
 
         // 全选模块
         function selectAllModules() {
-            currentModules.forEach(module => {
+            const modulesToProcess = filteredModules.length > 0 ? filteredModules : currentModules;
+            modulesToProcess.forEach(module => {
                 if (!module.must) { // 只处理非必选模块
                     module.enabled = true;
                 }
@@ -2669,7 +2678,8 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 
         // 全不选模块
         function deselectAllModules() {
-            currentModules.forEach(module => {
+            const modulesToProcess = filteredModules.length > 0 ? filteredModules : currentModules;
+            modulesToProcess.forEach(module => {
                 if (!module.must) { // 必选模块不能取消
                     module.enabled = false;
                 }
@@ -2687,23 +2697,44 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             saveModuleConfig();
         }
 
+        // 搜索模块
+        function filterModules() {
+            const searchTerm = document.getElementById('moduleSearch').value.toLowerCase();
+            if (searchTerm.trim() === '') {
+                filteredModules = [];
+                renderModuleList();
+                return;
+            }
+            
+            filteredModules = currentModules.filter(module => 
+                module.code.toLowerCase().includes(searchTerm) || 
+                (module.name && module.name.toLowerCase().includes(searchTerm))
+            );
+            
+            renderModuleList();
+        }
+
         // 渲染模块列表
          function renderModuleList() {
              const moduleList = document.getElementById('moduleList');
              if (!moduleList) return;
 
-             if (!currentModules || currentModules.length === 0) {
+             // 使用过滤后的模块列表，如果没有过滤则使用全部模块
+             const modulesToDisplay = filteredModules.length > 0 ? filteredModules : currentModules;
+
+             if (!modulesToDisplay || modulesToDisplay.length === 0) {
+                 const isEmptyDueToFilter = filteredModules.length === 0 && currentModules.length > 0;
                  moduleList.innerHTML = \`
                      <div class="empty-state">
-                         <div class="empty-icon">📦</div>
-                         <div class="empty-text">请先配置NC Home路径</div>
-                         <div class="empty-description">配置Home路径后将自动加载可用模块</div>
+                         <div class="empty-icon">\${isEmptyDueToFilter ? '🔍' : '📦'}</div>
+                         <div class="empty-text">\${isEmptyDueToFilter ? '未找到匹配的模块' : '请先配置NC Home路径'}</div>
+                         <div class="empty-description">\${isEmptyDueToFilter ? '请尝试其他搜索关键词' : '配置Home路径后将自动加载可用模块'}</div>
                      </div>
                  \`;
                  return;
              }
 
-             const moduleItems = currentModules.map(module => \`
+             const moduleItems = modulesToDisplay.map(module => \`
                  <div class="module-item \${module.must ? 'required' : ''}">
                      <div class="module-info">
                          <div class="module-code">\${module.code}</div>
@@ -2744,6 +2775,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         // 加载模块配置
         function loadModuleConfig(modules) {
             currentModules = modules || [];
+            filteredModules = [];
+            // 清空搜索框
+            document.getElementById('moduleSearch').value = '';
             renderModuleList();
         }
         
