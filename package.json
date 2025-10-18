@@ -61,7 +61,7 @@
         },
         {
           "id": "yonbip-nchome",
-          "name": "NC HOME配置",
+          "name": "HOME配置",
           "icon": "resources/icons/views/nchome-icon.svg",
           "type": "webview"
         },

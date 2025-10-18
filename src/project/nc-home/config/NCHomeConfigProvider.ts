@@ -9,7 +9,7 @@ import { ConfigurationUtils } from '../../../utils/ConfigurationUtils';
 import { ModuleConfigService } from '../../../utils/ModuleConfigService';
 import { ModuleInfo } from '../../../utils/ModuleUtils';
 /**
- * NC Home配置WebView提供者
+ * YonBIP Premium Home配置WebView提供者
  */
 export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'yonbip-nchome';
@@ -33,7 +33,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     }
 
     /**
-     * 检查是否已配置NC Home路径
+     * 检查是否已配置YonBIP Premium Home路径
      * @returns 如果已配置返回true，否则返回false并发送错误消息到WebView
      */
     private checkHomePathConfigured(): boolean {
@@ -336,7 +336,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'homeDirectoryOpened',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -367,7 +367,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'sysConfigOpened',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -398,7 +398,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'logsLoaded',
                     logs: [],
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -429,7 +429,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'macHomeConversionResult',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -495,7 +495,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'homeServiceStopped',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -530,7 +530,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     type: 'connectionTestResult',
                     result: {
                         success: false,
-                        message: '请先配置NC Home路径'
+                        message: '请先配置YonBIP Premium Home路径'
                     }
                 });
                 return;
@@ -571,7 +571,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'dataSourceAdded',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -604,7 +604,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'dataSourceUpdated',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -638,7 +638,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'dataSourceDeleted',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -671,7 +671,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'designDatabaseSet',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -704,7 +704,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'baseDatabaseSet',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -758,7 +758,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 this._view?.webview.postMessage({
                     type: 'homeServiceDebugged',
                     success: false,
-                    error: '请先配置NC Home路径'
+                    error: '请先配置YonBIP Premium Home路径'
                 });
                 return;
             }
@@ -791,7 +791,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     type: 'systemConfigCheckResult',
                     result: {
                         valid: false,
-                        message: '请先配置NC Home路径'
+                        message: '请先配置YonBIP Premium Home路径'
                     }
                 });
                 return;
@@ -833,7 +833,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NC Home配置</title>
+    <title>YonBIP Premium Home配置</title>
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
@@ -1876,7 +1876,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             <div id="home-tab" class="tab-content active">
             <div class="section">
                 <div class="section-title">
-                    <span>NC Home 路径设置</span>
+                    <span>YonBIP Premium Home 路径设置</span>
                 </div>
                 
                 <div class="form-group">
@@ -1889,7 +1889,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             </div>
                         </div>
                     </div>
-                    <div class="help-text">选择YonBIP NC的安装目录，通常包含bin、lib、modules等文件夹</div>
+                    <div class="help-text">选择YonBIP Premium的安装目录，通常包含bin、lib、modules等文件夹</div>
                 </div>
                 
                 <div class="form-group">
@@ -2009,7 +2009,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     <div id="moduleList" class="module-list">
                         <div class="empty-state">
                             <div class="empty-icon">📦</div>
-                            <div class="empty-text">请先配置NC Home路径</div>
+                            <div class="empty-text">请先配置YonBIP Premium Home路径</div>
                             <div class="empty-description">配置Home路径后将自动加载可用模块</div>
                         </div>
                     </div>
@@ -2024,7 +2024,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     <select id="homeVersion">
                         <option value="">请选择HOME版本</option>
                     </select>
-                    <div class="help-text">选择NC HOME的版本，用于适配不同版本的配置</div>
+                    <div class="help-text">选择YonBIP Premium HOME的版本，用于适配不同版本的配置</div>
                 </div>
             </div>
             
@@ -2727,7 +2727,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                  moduleList.innerHTML = \`
                      <div class="empty-state">
                          <div class="empty-icon">\${isEmptyDueToFilter ? '🔍' : '📦'}</div>
-                         <div class="empty-text">\${isEmptyDueToFilter ? '未找到匹配的模块' : '请先配置NC Home路径'}</div>
+                         <div class="empty-text">\${isEmptyDueToFilter ? '未找到匹配的模块' : '请先配置YonBIP Premium Home路径'}</div>
                          <div class="empty-description">\${isEmptyDueToFilter ? '请尝试其他搜索关键词' : '配置Home路径后将自动加载可用模块'}</div>
                      </div>
                  \`;
