@@ -191,6 +191,19 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
                 throw new Error('未找到有效的数据源，请先在"NC HOME配置"视图中配置数据源');
             }
             this._view?.webview.postMessage({ type: 'progress', percent: 25, text: `已选择数据源：${ds.name}` });
+            
+            // 向Webview发送当前使用的数据源信息
+            this._view?.webview.postMessage({
+                type: 'currentDataSource',
+                dataSource: {
+                    name: ds.name,
+                    type: ds.databaseType,
+                    host: ds.host,
+                    port: ds.port,
+                    database: ds.databaseName,
+                    user: ds.username
+                }
+            });
 
             // 逐条生成SQL
             let sqlOutput = `-- 预置脚本导出
@@ -276,8 +289,27 @@ ${inserts.join("\n")}
 
             this._view?.webview.postMessage({ type: 'progress', percent: 100, text: '导出完成' });
             this._view?.webview.postMessage({ type: 'exportFinished' });
-            this._view?.webview.postMessage({ type: 'showMessage', level: 'success', message: `预置脚本导出完成：${filePath}` });
-            vscode.window.showInformationMessage(`预置脚本已导出到 ${filePath}`);
+            
+            // 提供更详细的成功提示信息
+            const fileName = path.basename(filePath);
+            const fileDir = path.dirname(filePath);
+            this._view?.webview.postMessage({ 
+                type: 'showMessage', 
+                level: 'success', 
+                message: `预置脚本导出成功！\n文件名：${fileName}\n位置：${fileDir}` 
+            });
+            
+            // 在VS Code中也显示通知
+            vscode.window.showInformationMessage(
+                `预置脚本导出成功！文件已保存到：${filePath}`, 
+                '打开文件'
+            ).then(selection => {
+                if (selection === '打开文件') {
+                    vscode.workspace.openTextDocument(filePath).then(doc => {
+                        vscode.window.showTextDocument(doc);
+                    });
+                }
+            });
         } catch (error: any) {
             this._view?.webview.postMessage({
                 type: 'showMessage',
@@ -325,109 +357,424 @@ ${inserts.join("\n")}
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>预置脚本导出</title>
 <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif; color: var(--vscode-editor-foreground); background: var(--vscode-editor-background); }
-    .container { padding: 12px; }
-    h2 { margin: 0 0 8px; font-size: 16px; }
-    .card { border: 1px solid var(--vscode-editorWidget-border); border-radius: 6px; padding: 12px; margin-bottom: 12px; }
-    .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .btn { cursor: pointer; padding: 6px 10px; border: 1px solid var(--vscode-button-border); border-radius: 4px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border-bottom: 1px solid var(--vscode-editorWidget-border); padding: 6px; font-size: 12px; }
-    th { text-align: left; color: var(--vscode-foreground); }
-    .muted { color: var(--vscode-descriptionForeground); }
+    :root {
+        --vscode-button-icon-dimmed: #cccccc;
+        --vscode-input-background: #3c3c3c;
+        --vscode-input-foreground: #cccccc;
+        --vscode-input-border: #3c3c3c;
+        --vscode-focusBorder: #007fd4;
+        --vscode-list-hoverBackground: #2a2d2e;
+        --vscode-list-activeSelectionBackground: #094771;
+        --vscode-list-activeSelectionForeground: #ffffff;
+    }
+    
+    body { 
+        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif; 
+        color: var(--vscode-editor-foreground); 
+        background: var(--vscode-editor-background); 
+        margin: 0;
+        padding: 0;
+        font-size: 13px;
+        overflow-x: hidden; /* 防止水平滚动 */
+    }
+    
+    .container { 
+        padding: 16px; 
+        max-width: 800px;
+        margin: 0 auto;
+        box-sizing: border-box; /* 确保padding包含在width内 */
+    }
+    
+    h2 { 
+        margin: 0; 
+        font-size: 16px; 
+        font-weight: 600;
+        color: var(--vscode-foreground);
+        line-height: 1.5;
+        word-wrap: break-word; /* 允许标题换行 */
+    }
+    
+    .card { 
+        border: 1px solid var(--vscode-editorWidget-border); 
+        border-radius: 5px; 
+        padding: 16px; 
+        margin-bottom: 16px; 
+        background: var(--vscode-editorWidget-background);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-sizing: border-box; /* 确保padding和border包含在width内 */
+    }
+    
+    .card-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+        word-wrap: break-word; /* 允许标题换行 */
+    }
+    
+    .card-icon {
+        margin-right: 8px;
+        color: var(--vscode-textLink-foreground);
+        font-size: 16px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        height: 20px;
+        flex-shrink: 0; /* 防止图标被压缩 */
+    }
+    
+    .section-description {
+        color: var(--vscode-descriptionForeground);
+        font-size: 12px;
+        margin-bottom: 16px;
+        line-height: 1.4;
+        word-wrap: break-word; /* 允许描述换行 */
+    }
+    
+    .row { 
+        display: flex; 
+        align-items: center; 
+        gap: 8px; 
+        margin-bottom: 12px; 
+        flex-wrap: wrap; /* 允许换行 */
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        margin-bottom: 12px;
+        box-sizing: border-box; /* 确保padding包含在width内 */
+    }
+    
+    .form-group label {
+        margin-bottom: 4px;
+        font-size: 12px;
+        color: var(--vscode-descriptionForeground);
+        word-wrap: break-word; /* 允许标签换行 */
+    }
+    
+    .path-input-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        box-sizing: border-box; /* 确保padding包含在width内 */
+    }
+    
+    .path-input-icon {
+        position: absolute;
+        right: 8px;
+        color: var(--vscode-descriptionForeground);
+        pointer-events: none;
+        z-index: 1;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    input[type="text"] {
+        background: var(--vscode-input-background);
+        border: 1px solid var(--vscode-input-border);
+        color: var(--vscode-input-foreground);
+        padding: 6px 30px 6px 8px;
+        border-radius: 2px;
+        font-size: 13px;
+        width: 100%;
+        cursor: pointer;
+        box-sizing: border-box; /* 确保padding包含在width内 */
+    }
+    
+    input[type="text"]:focus {
+        outline: 1px solid var(--vscode-focusBorder);
+    }
+    
+    .btn { 
+        cursor: pointer; 
+        padding: 6px 14px; 
+        border: 1px solid var(--vscode-button-border); 
+        border-radius: 2px; 
+        background: var(--vscode-button-background); 
+        color: var(--vscode-button-foreground); 
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap; /* 防止文字换行 */
+        flex-shrink: 0; /* 防止按钮被压缩 */
+        max-width: 100%; /* 防止按钮超出容器 */
+    }
+    
+    .btn:hover {
+        background: var(--vscode-button-hoverBackground);
+    }
+    
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .btn-icon {
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0; /* 防止图标被压缩 */
+    }
+    
+    table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-top: 8px;
+        table-layout: fixed; /* 固定表格布局 */
+    }
+    
+    th { 
+        text-align: left; 
+        color: var(--vscode-foreground); 
+        font-weight: 600;
+        font-size: 12px;
+        padding: 8px 6px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border);
+        word-wrap: break-word; /* 允许表头换行 */
+    }
+    
+    td { 
+        padding: 6px; 
+        font-size: 12px; 
+        border-bottom: 1px solid var(--vscode-editorWidget-border);
+        word-wrap: break-word; /* 允许单元格内容换行 */
+        overflow-wrap: break-word; /* 确保长单词也能换行 */
+    }
+    
+    tr:hover {
+        background-color: var(--vscode-list-hoverBackground);
+    }
+    
+    .muted { 
+        color: var(--vscode-descriptionForeground); 
+        font-size: 12px;
+        word-wrap: break-word; /* 允许静默文本换行 */
+    }
+    
+    .progress-container {
+        width: 100%;
+        margin-top: 8px;
+        box-sizing: border-box; /* 确保padding包含在width内 */
+    }
+    
+    progress {
+        width: 100%;
+        height: 4px;
+    }
+    
+    .progress-text {
+        font-size: 12px;
+        margin-top: 4px;
+        min-height: 18px;
+        word-wrap: break-word; /* 允许长文本换行 */
+        overflow-wrap: break-word; /* 确保长单词也能换行 */
+        white-space: pre-wrap; /* 保持空白符序列，但正常换行 */
+    }
+    
+    .status-bar {
+        display: flex;
+        align-items: flex-start; /* 顶部对齐 */
+        gap: 8px;
+        margin-top: 8px;
+        width: 100%;
+        box-sizing: border-box; /* 确保padding包含在width内 */
+    }
+    
+    .icon {
+        font-size: 14px;
+        width: 16px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        height: 16px;
+        flex-shrink: 0; /* 防止图标被压缩 */
+        align-self: flex-start; /* 顶部对齐 */
+    }
+    
+    .status-text {
+        flex: 1; /* 占据剩余空间 */
+        word-wrap: break-word; /* 允许状态文本换行 */
+        overflow-wrap: break-word; /* 确保长单词也能换行 */
+        white-space: pre-wrap; /* 保持空白符序列，但正常换行 */
+    }
+    
+    .success {
+        color: #89d185;
+    }
+    
+    .error {
+        color: #f48771;
+    }
+    
+    .info {
+        color: #75beff;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 600px) {
+        .container {
+            padding: 12px;
+        }
+        
+        .card {
+            padding: 12px;
+        }
+        
+        .btn {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        
+        h2, .section-description, .muted, .progress-text, .status-text {
+            font-size: 12px; /* 在小屏幕上减小字体 */
+        }
+    }
 </style>
 </head>
 <body>
 <div class="container">
     <div class="card">
-        <h2>输出目录</h2>
-        <div class="row">
-            <input id="outputDir" type="text" style="flex:1" placeholder="选择导出目录" />
-            <button class="btn" id="pickOutput">选择目录</button>
+        <div class="card-header">
+            <span class="card-icon">📁</span>
+            <h2>输出目录</h2>
+        </div>
+        <p class="section-description">选择预置脚本导出的目标目录</p>
+        <div class="form-group">
+            <div class="path-input-container">
+                <input id="outputDir" type="text" placeholder="点击选择导出目录" readonly />
+                <span class="path-input-icon">📁</span>
+            </div>
         </div>
     </div>
 
     <div class="card">
-        <h2>数据源信息（来自 prop.xml）</h2>
-        <div class="row">
-            <button class="btn" id="refreshDs">刷新</button>
-            <span class="muted">未配置 HOME 路径时无法读取</span>
+        <div class="card-header">
+            <span class="card-icon">💾</span>
+            <h2>当前数据源</h2>
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>名称</th>
-                    <th>类型</th>
-                    <th>主机</th>
-                    <th>端口</th>
-                    <th>库名</th>
-                    <th>用户</th>
-                </tr>
-            </thead>
-            <tbody id="dsBody"></tbody>
-        </table>
+        <p class="section-description">导出预置脚本时将默认使用Design数据源</p>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>主机</th>
+                        <th>端口</th>
+                        <th>库名</th>
+                        <th>用户</th>
+                    </tr>
+                </thead>
+                <tbody id="currentDsBody">
+                    <tr>
+                        <td colspan="6" class="muted" style="text-align: center; padding: 16px;">暂无数据源信息</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div class="card">
-        <h2>导出</h2>
+        <div class="card-header">
+            <span class="card-icon">📤</span>
+            <h2>导出预置脚本</h2>
+        </div>
+        <p class="section-description">根据选中的 item.xml 文件生成预置脚本 SQL 文件</p>
         <div class="row">
-            <button class="btn" id="exportBtn">导出预置脚本</button>
+            <button class="btn" id="exportBtn">
+                <span class="btn-icon">🚀</span>
+                开始导出
+            </button>
         </div>
-        <div class="row" id="progressRow" style="display:none">
-            <progress id="progressBar" value="0" max="100" style="width:100%"></progress>
+        <div class="progress-container" id="progressContainer" style="display:none">
+            <progress id="progressBar" value="0" max="100"></progress>
+            <div class="progress-text" id="progressText"></div>
         </div>
-        <div class="row" id="progressTextRow" style="display:none">
-            <span id="progressText" class="muted"></span>
+        <div class="status-bar" id="statusBar" style="display:none">
+            <span id="statusIcon" class="icon"></span>
+            <span id="statusText" class="status-text"></span>
         </div>
     </div>
 </div>
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
-const dsBody = document.getElementById('dsBody');
 const outputDirInput = document.getElementById('outputDir');
-const pickOutputBtn = document.getElementById('pickOutput');
-const refreshDsBtn = document.getElementById('refreshDs');
 const exportBtn = document.getElementById('exportBtn');
-const progressRow = document.getElementById('progressRow');
-const progressTextRow = document.getElementById('progressTextRow');
+const progressContainer = document.getElementById('progressContainer');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
+const statusBar = document.getElementById('statusBar');
+const statusIcon = document.getElementById('statusIcon');
+const statusText = document.getElementById('statusText');
+const currentDsBody = document.getElementById('currentDsBody');
 
 function setExporting(is) {
     exportBtn.disabled = is;
-    pickOutputBtn.disabled = is;
-    refreshDsBtn.disabled = is;
-    progressRow.style.display = is ? 'block' : 'none';
-    progressTextRow.style.display = is ? 'block' : 'none';
+    progressContainer.style.display = is ? 'block' : 'none';
+    statusBar.style.display = 'none';
     if (!is) {
         progressBar.value = 0;
         progressText.textContent = '';
     }
 }
 
-function renderDataSources(list) {
-    var rows = '';
-    (list || []).forEach(function(ds) {
-        rows += '<tr>' +
-            '<td>' + (ds.name || '') + '</td>' +
-            '<td>' + (ds.type || '') + '</td>' +
-            '<td>' + (ds.host || '') + '</td>' +
-            '<td>' + (ds.port || '') + '</td>' +
-            '<td>' + (ds.database || '') + '</td>' +
-            '<td>' + (ds.user || '') + '</td>' +
-        '</tr>';
-    });
-    dsBody.innerHTML = rows;
+function renderCurrentDataSource(ds) {
+    if (!ds) {
+        currentDsBody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align: center; padding: 16px;">暂无数据源信息</td></tr>';
+        return;
+    }
+    
+    currentDsBody.innerHTML = '<tr>' +
+        '<td>' + (ds.name || '') + '</td>' +
+        '<td>' + (ds.type || '') + '</td>' +
+        '<td>' + (ds.host || '') + '</td>' +
+        '<td>' + (ds.port || '') + '</td>' +
+        '<td>' + (ds.database || '') + '</td>' +
+        '<td>' + (ds.user || '') + '</td>' +
+    '</tr>';
+}
+
+function showStatus(message, type) {
+    statusBar.style.display = 'flex';
+    statusText.textContent = message;
+    
+    switch (type) {
+        case 'success':
+            statusIcon.textContent = '✓';
+            statusIcon.className = 'icon success';
+            statusText.className = 'status-text success';
+            break;
+        case 'error':
+            statusIcon.textContent = '✗';
+            statusIcon.className = 'icon error';
+            statusText.className = 'status-text error';
+            break;
+        case 'info':
+            statusIcon.textContent = 'ℹ';
+            statusIcon.className = 'icon info';
+            statusText.className = 'status-text info';
+            break;
+        default:
+            statusIcon.textContent = '';
+            statusIcon.className = 'icon';
+            statusText.className = 'status-text';
+    }
 }
 
 window.addEventListener('message', (event) => {
     const msg = event.data || {};
     switch (msg.type) {
-        case 'dataSourcesUpdated':
-            renderDataSources(msg.dataSources);
-            break;
         case 'setOutputDir':
             outputDirInput.value = msg.path || '';
+            break;
+        case 'currentDataSource':
+            renderCurrentDataSource(msg.dataSource);
             break;
         case 'exportStarted':
             setExporting(true);
@@ -443,25 +790,29 @@ window.addEventListener('message', (event) => {
             break;
         case 'exportFinished':
             setExporting(false);
+            showStatus('导出完成', 'success');
             break;
         case 'showMessage':
-            // 宿主弹消息
+            if (msg.level === 'error') {
+                showStatus(msg.message, 'error');
+            } else if (msg.level === 'success') {
+                showStatus(msg.message, 'success');
+            } else {
+                showStatus(msg.message, 'info');
+            }
             break;
     }
 });
 
 // 事件绑定
-pickOutputBtn.addEventListener('click', () => {
+outputDirInput.addEventListener('click', () => {
     vscode.postMessage({ type: 'selectOutputDir' });
-});
-refreshDsBtn.addEventListener('click', () => {
-    vscode.postMessage({ type: 'refreshDataSources' });
 });
 exportBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'exportPrecast', data: { outputDir: outputDirInput.value } });
 });
 
-// 初始握手，触发数据源刷新 & 默认目录预填
+// 初始握手，触发默认目录预填
 vscode.postMessage({ type: 'ready' });
 </script>
 </body>
