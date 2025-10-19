@@ -84,11 +84,11 @@ export class McpService {
      */
     private loadConfig(): McpConfig {
         const config = this.context.globalState.get<McpConfig>('mcp.config');
-        return config || {
-            port: 9000,
-            jarPath: '',
-            javaPath: 'java',
-            maxMemory: '512m'
+        return {
+            port: (config && config.port) || 9000,
+            jarPath: (config && config.jarPath) || '',
+            javaPath: (config && config.javaPath) || 'java',
+            maxMemory: (config && config.maxMemory) || '512m'
         };
     }
 
@@ -108,15 +108,29 @@ export class McpService {
      * 保存配置
      */
     public async saveConfig(config: McpConfig): Promise<void> {
-        this.config = config;
-        await this.context.globalState.update('mcp.config', config);
+        // 确保必要的配置项有默认值
+        const configWithDefaults = {
+            port: config.port || 9000,
+            jarPath: config.jarPath || '',
+            javaPath: config.javaPath || 'java',
+            maxMemory: config.maxMemory || '512m'
+        };
+        
+        this.config = configWithDefaults;
+        await this.context.globalState.update('mcp.config', configWithDefaults);
     }
 
     /**
      * 获取配置
      */
     public getConfig(): McpConfig {
-        return { ...this.config };
+        // 确保返回的配置包含所有必要的字段
+        return {
+            port: this.config.port || 9000,
+            jarPath: this.config.jarPath || '',
+            javaPath: this.config.javaPath || 'java',
+            maxMemory: this.config.maxMemory || '512m'
+        };
     }
 
     /**

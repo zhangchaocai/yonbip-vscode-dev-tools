@@ -57,6 +57,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 case 'selectJarFile':
                     await this.handleSelectJarFile();
                     break;
+                case 'selectJavaPath':
+                    await this.handleSelectJavaPath();
+                    break;
                 case 'showResetConfirm':
                     await this.handleShowResetConfirm();
                     break;
@@ -320,6 +323,43 @@ export class McpProvider implements vscode.WebviewViewProvider {
         } catch (error: any) {
             this._view?.webview.postMessage({
                 type: 'jarFileSelected',
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理选择Java路径
+     */
+    private async handleSelectJavaPath() {
+        try {
+            const result = await vscode.window.showOpenDialog({
+                canSelectFiles: true,
+                canSelectFolders: false,
+                canSelectMany: false,
+                filters: {
+                    'Executable Files': ['exe', 'bat', 'cmd', 'sh', 'bin'],
+                    'All Files': ['*']
+                },
+                openLabel: '选择Java可执行文件'
+            });
+
+            if (result && result[0]) {
+                this._view?.webview.postMessage({
+                    type: 'javaPathSelected',
+                    success: true,
+                    javaPath: result[0].fsPath
+                });
+            } else {
+                this._view?.webview.postMessage({
+                    type: 'javaPathSelected',
+                    success: false
+                });
+            }
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'javaPathSelected',
                 success: false,
                 error: error.message
             });
@@ -710,6 +750,31 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
+        
+        /* Java路径输入框样式 - 显示文件夹图标 */
+        .path-input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        #javaPath {
+            flex: 1;
+            padding-right: 30px;
+        }
+        
+        .folder-icon {
+            position: absolute;
+            right: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--vscode-foreground);
+            user-select: none;
+        }
+        
+        .folder-icon:hover {
+            color: var(--vscode-textLink-foreground);
+        }
     </style>
 </head>
 <body>
@@ -757,10 +822,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
                         <div class="config-value" id="quickPort">-</div>
                     </div>
                     <div class="config-item">
-                        <div class="config-label">JAR文件路径</div>
-                        <div class="config-value" id="quickJarPath">-</div>
-                    </div>
-                    <div class="config-item">
                         <div class="config-label">Java路径</div>
                         <div class="config-value" id="quickJavaPath">-</div>
                     </div>
@@ -780,24 +841,14 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 </div>
                 
                 <div class="form-group">
-                    <div class="form-row">
-                        <label for="jarPath">JAR文件路径:</label>
-                        <input type="text" id="jarPath" readonly placeholder="选择MCP JAR文件">
-                        <button onclick="selectJarFile()" style="margin-left: 10px; min-width: 80px;">浏览...</button>
-                    </div>
-                    <div class="help-text">MCP服务的JAR包文件路径</div>
-                </div>
-                
-                <div class="form-group">
                     <label for="javaPath">Java可执行文件路径:</label>
-                    <input type="text" id="javaPath" placeholder="java">
+                    <div class="form-row">
+                        <div class="path-input-container">
+                            <input type="text" id="javaPath" placeholder="java" readonly onclick="selectJavaPath()">
+                            <span class="folder-icon" onclick="selectJavaPath()">📁</span>
+                        </div>
+                    </div>
                     <div class="help-text">Java运行时环境路径，留空使用系统默认</div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="maxMemory">最大内存:</label>
-                    <input type="text" id="maxMemory" placeholder="512m">
-                    <div class="help-text">JVM最大内存设置，如：512m, 1g, 2048m</div>
                 </div>
                 
                 <div class="form-group">
@@ -862,13 +913,16 @@ export class McpProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'selectJarFile' });
         }
         
+        // 选择Java路径
+        function selectJavaPath() {
+            vscode.postMessage({ type: 'selectJavaPath' });
+        }
+        
         // 保存配置
         function saveConfig() {
             const config = {
                 port: parseInt(document.getElementById('port').value) || 9000,
-                jarPath: document.getElementById('jarPath').value,
-                javaPath: document.getElementById('javaPath').value || 'java',
-                maxMemory: document.getElementById('maxMemory').value || '512m'
+                javaPath: document.getElementById('javaPath').value || 'java'
             };
             
             vscode.postMessage({
@@ -891,13 +945,10 @@ export class McpProvider implements vscode.WebviewViewProvider {
             currentConfig = config;
             
             document.getElementById('port').value = config.port || 9000;
-            document.getElementById('jarPath').value = config.jarPath || '';
             document.getElementById('javaPath').value = config.javaPath || 'java';
-            document.getElementById('maxMemory').value = config.maxMemory || '512m';
             
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;
-            document.getElementById('quickJarPath').textContent = config.jarPath || '使用内置JAR';
             document.getElementById('quickJavaPath').textContent = config.javaPath || 'java';
 
             // 更新页头端口摘要
@@ -1002,6 +1053,15 @@ export class McpProvider implements vscode.WebviewViewProvider {
                         console.log('JAR文件选择成功: ' + message.jarPath);
                     } else {
                         console.log('取消选择JAR文件');
+                    }
+                    break;
+                    
+                case 'javaPathSelected':
+                    if (message.success && message.javaPath) {
+                        document.getElementById('javaPath').value = message.javaPath;
+                        console.log('Java路径选择成功: ' + message.javaPath);
+                    } else {
+                        console.log('取消选择Java路径');
                     }
                     break;
             }
