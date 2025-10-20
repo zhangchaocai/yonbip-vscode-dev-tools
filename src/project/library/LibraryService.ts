@@ -1173,15 +1173,16 @@ export class LibraryService {
                 this.outputChannel.appendLine('检测到单根工作区或未保存的多根工作区，使用用户设置');
                 
                 // 获取编辑器配置目录（跨平台兼容）
-                const editorConfigPath = this.getVSCodeUserSettingsPath();
-                
+                //const editorConfigPath = this.getVSCodeUserSettingsPath();
+                const editorConfigPath = this.getWorkspaceFolder()?.uri.fsPath || '';
+            
                 // 确保.vscode目录存在
                 if (!fs.existsSync(editorConfigPath)) {
                     fs.mkdirSync(editorConfigPath, { recursive: true });
                 }
 
                 // settings.json文件路径
-                const settingsPath = path.join(editorConfigPath, 'settings.json');
+                const settingsPath = path.join(editorConfigPath, '.vscode','settings.json');
 
                 // 读取现有配置（如果存在）
                 let existingSettings = {};
