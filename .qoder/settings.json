@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "ask": [
+      "Read(!/Users/zhangchaocai/Documents/project/vscode-plugin/**)",
+      "Edit(!/Users/zhangchaocai/Documents/project/vscode-plugin/**)"
+    ],
+    "allow": [
+      "Read(/Users/zhangchaocai/Documents/project/vscode-plugin/**)",
+      "Edit(/Users/zhangchaocai/Documents/project/vscode-plugin/**)"
+    ]
+  },
+  "memoryImport": {},
+  "monitoring": {}
+}

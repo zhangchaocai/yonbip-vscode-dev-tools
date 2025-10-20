@@ -380,376 +380,552 @@ ${inserts.join("\n")}
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>预置脚本导出</title>
 <style>
-    :root {
-        --vscode-button-icon-dimmed: #cccccc;
-        --vscode-input-background: #3c3c3c;
-        --vscode-input-foreground: #cccccc;
-        --vscode-input-border: #3c3c3c;
-        --vscode-focusBorder: #007fd4;
-        --vscode-list-hoverBackground: #2a2d2e;
-        --vscode-list-activeSelectionBackground: #094771;
-        --vscode-list-activeSelectionForeground: #ffffff;
+    /* 全局样式优化 */
+    * {
+        box-sizing: border-box;
     }
-    
-    body { 
-        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif; 
-        color: var(--vscode-editor-foreground); 
-        background: var(--vscode-editor-background); 
-        margin: 0;
-        padding: 0;
-        font-size: 13px;
-        overflow-x: hidden; /* 防止水平滚动 */
-    }
-    
-    .container { 
-        padding: 16px; 
-        max-width: 800px;
-        margin: 0 auto;
-        box-sizing: border-box; /* 确保padding包含在width内 */
-    }
-    
-    h2 { 
-        margin: 0; 
-        font-size: 16px; 
-        font-weight: 600;
+
+    body {
+        font-family: var(--vscode-font-family);
+        font-size: var(--vscode-font-size);
         color: var(--vscode-foreground);
+        background: linear-gradient(135deg, var(--vscode-editor-background) 0%, var(--vscode-sideBar-background) 100%);
+        padding: 0;
+        margin: 0;
         line-height: 1.5;
-        word-wrap: break-word; /* 允许标题换行 */
     }
-    
-    .card { 
-        border: 1px solid var(--vscode-editorWidget-border); 
-        border-radius: 5px; 
-        padding: 16px; 
-        margin-bottom: 16px; 
-        background: var(--vscode-editorWidget-background);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        box-sizing: border-box; /* 确保padding和border包含在width内 */
+
+    .form-container {
+        max-width: 100%;
+        padding: 24px 24px 120px 24px; /* 增加底部padding为120px，为固定按钮留出空间 */
+        background-color: var(--vscode-editor-background);
+        border-radius: 12px;
+        margin: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--vscode-widget-border);
+        overflow-x: hidden; /* Prevent horizontal overflow */
     }
-    
-    .card-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 12px;
-        word-wrap: break-word; /* 允许标题换行 */
-    }
-    
-    .card-icon {
-        margin-right: 8px;
-        color: var(--vscode-textLink-foreground);
-        font-size: 16px;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-        height: 20px;
-        flex-shrink: 0; /* 防止图标被压缩 */
-    }
-    
-    .section-description {
-        color: var(--vscode-descriptionForeground);
-        font-size: 12px;
-        margin-bottom: 16px;
-        line-height: 1.4;
-        word-wrap: break-word; /* 允许描述换行 */
-    }
-    
-    .row { 
-        display: flex; 
-        align-items: center; 
-        gap: 8px; 
-        margin-bottom: 12px; 
-        flex-wrap: wrap; /* 允许换行 */
-    }
-    
+
+    /* 表单组样式优化 */
     .form-group {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        margin-bottom: 12px;
-        box-sizing: border-box; /* 确保padding包含在width内 */
-    }
-    
-    .form-group label {
-        margin-bottom: 4px;
-        font-size: 12px;
-        color: var(--vscode-descriptionForeground);
-        word-wrap: break-word; /* 允许标签换行 */
-    }
-    
-    .path-input-container {
+        margin-bottom: 24px;
         position: relative;
-        display: flex;
-        align-items: center;
-        width: 100%;
-        box-sizing: border-box; /* 确保padding包含在width内 */
     }
-    
-    .path-input-icon {
-        position: absolute;
-        right: 8px;
-        color: var(--vscode-descriptionForeground);
-        pointer-events: none;
-        z-index: 1;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    input[type="text"] {
-        background: var(--vscode-input-background);
-        border: 1px solid var(--vscode-input-border);
-        color: var(--vscode-input-foreground);
-        padding: 6px 30px 6px 8px;
-        border-radius: 2px;
-        font-size: 13px;
-        width: 100%;
-        cursor: pointer;
-        box-sizing: border-box; /* 确保padding包含在width内 */
-    }
-    
-    input[type="text"]:focus {
-        outline: 1px solid var(--vscode-focusBorder);
-    }
-    
-    .btn { 
-        cursor: pointer; 
-        padding: 6px 14px; 
-        border: 1px solid var(--vscode-button-border); 
-        border-radius: 2px; 
-        background: var(--vscode-button-background); 
-        color: var(--vscode-button-foreground); 
-        font-size: 13px;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        white-space: nowrap; /* 防止文字换行 */
-        flex-shrink: 0; /* 防止按钮被压缩 */
-        max-width: 100%; /* 防止按钮超出容器 */
-    }
-    
-    .btn:hover {
-        background: var(--vscode-button-hoverBackground);
-    }
-    
-    .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    
-    .btn-icon {
-        font-size: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0; /* 防止图标被压缩 */
-    }
-    
-    table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        margin-top: 8px;
-        table-layout: fixed; /* 固定表格布局 */
-    }
-    
-    th { 
-        text-align: left; 
-        color: var(--vscode-foreground); 
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
         font-weight: 600;
-        font-size: 12px;
-        padding: 8px 6px;
-        border-bottom: 1px solid var(--vscode-editorWidget-border);
-        word-wrap: break-word; /* 允许表头换行 */
+        color: var(--vscode-input-foreground);
+        font-size: 13px;
+        letter-spacing: 0.3px;
     }
-    
-    td { 
-        padding: 6px; 
-        font-size: 12px; 
-        border-bottom: 1px solid var(--vscode-editorWidget-border);
-        word-wrap: break-word; /* 允许单元格内容换行 */
-        overflow-wrap: break-word; /* 确保长单词也能换行 */
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid var(--vscode-input-border);
+        background-color: var(--vscode-input-background);
+        color: var(--vscode-input-foreground);
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        outline: none;
     }
-    
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        border-color: var(--vscode-focusBorder);
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .form-group input:hover,
+    .form-group select:hover,
+    .form-group textarea:hover {
+        border-color: var(--vscode-inputOption-hoverBackground);
+    }
+
+    .form-group textarea {
+        min-height: 80px;
+        resize: vertical;
+        font-family: var(--vscode-font-family);
+    }
+
+    /* 表单行样式 */
+    .form-row {
+        display: flex;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .form-row input {
+        flex: 1;
+    }
+
+    /* 浏览按钮优化 */
+    .browse-button {
+        padding: 12px 20px;
+        background: linear-gradient(135deg, var(--vscode-button-background) 0%, var(--vscode-button-hoverBackground) 100%);
+        color: var(--vscode-button-foreground);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        white-space: nowrap;
+        font-weight: 500;
+        font-size: 13px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .browse-button:hover {
+        background: linear-gradient(135deg, var(--vscode-button-hoverBackground) 0%, var(--vscode-button-background) 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .browse-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 表格容器优化 */
+    .table-container {
+        border: 2px solid var(--vscode-input-border);
+        border-radius: 12px;
+        margin-bottom: 24px;
+        background-color: var(--vscode-input-background);
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    table {
+        width: 100%;
+        min-width: 600px; /* 确保表格在小屏幕上也有最小宽度 */
+        border-collapse: collapse;
+        margin-top: 8px;
+        table-layout: auto; /* 改为auto以适应内容 */
+    }
+
+    th {
+        text-align: left;
+        color: var(--vscode-foreground);
+        font-weight: 600;
+        font-size: 13px;
+        padding: 12px 16px;
+        border-bottom: 2px solid var(--vscode-input-border);
+        background-color: var(--vscode-sideBar-background);
+        white-space: nowrap; /* 防止表头换行 */
+    }
+
+    td {
+        padding: 12px 16px;
+        font-size: 13px;
+        border-bottom: 1px solid var(--vscode-input-border);
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: nowrap; /* 防止单元格内容换行 */
+    }
+
     tr:hover {
         background-color: var(--vscode-list-hoverBackground);
     }
-    
-    .muted { 
-        color: var(--vscode-descriptionForeground); 
-        font-size: 12px;
-        word-wrap: break-word; /* 允许静默文本换行 */
+
+    .muted {
+        color: var(--vscode-descriptionForeground);
+        font-size: 13px;
+        text-align: center;
+        padding: 24px;
     }
-    
+
+    /* 进度条容器优化 */
     .progress-container {
         width: 100%;
-        margin-top: 8px;
-        box-sizing: border-box; /* 确保padding包含在width内 */
+        margin-top: 20px;
+        padding: 20px;
+        border-radius: 12px;
+        background-color: var(--vscode-input-background);
+        border: 1px solid var(--vscode-input-border);
     }
-    
-    progress {
+
+    .progress-bar {
         width: 100%;
-        height: 4px;
+        height: 12px;
+        border-radius: 6px;
+        background-color: var(--vscode-input-border);
+        overflow: hidden;
+        margin-bottom: 12px;
     }
-    
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--vscode-progressBar-background), var(--vscode-progressBar-foreground));
+        border-radius: 6px;
+        transition: width 0.3s ease;
+    }
+
     .progress-text {
-        font-size: 12px;
-        margin-top: 4px;
-        min-height: 18px;
-        word-wrap: break-word; /* 允许长文本换行 */
-        overflow-wrap: break-word; /* 确保长单词也能换行 */
-        white-space: pre-wrap; /* 保持空白符序列，但正常换行 */
-    }
-    
-    .status-bar {
-        display: flex;
-        align-items: flex-start; /* 顶部对齐 */
-        gap: 8px;
-        margin-top: 8px;
-        width: 100%;
-        box-sizing: border-box; /* 确保padding包含在width内 */
-    }
-    
-    .icon {
-        font-size: 14px;
-        width: 16px;
+        font-size: 13px;
+        color: var(--vscode-descriptionForeground);
         text-align: center;
+        min-height: 20px;
+        white-space: pre-wrap;
+    }
+
+    /* 章节标题优化 */
+    .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 32px 0 16px 0;
+        color: var(--vscode-foreground);
+        border-bottom: 2px solid var(--vscode-textLink-foreground);
+        padding-bottom: 8px;
+        position: relative;
         display: flex;
         align-items: center;
-        height: 16px;
-        flex-shrink: 0; /* 防止图标被压缩 */
-        align-self: flex-start; /* 顶部对齐 */
+        gap: 12px;
     }
-    
+
+    .section-title::before {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 60px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--vscode-button-background), transparent);
+    }
+
+    .section-description {
+        color: var(--vscode-descriptionForeground);
+        font-size: 13px;
+        margin-bottom: 16px;
+        line-height: 1.6;
+    }
+
+    /* 按钮组优化 - 固定在底部 */
+    .button-group {
+        display: flex;
+        gap: 16px;
+        justify-content: flex-end;
+        padding: 24px;
+        border-top: 1px solid var(--vscode-widget-border);
+        background-color: var(--vscode-editor-background);
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(8px);
+    }
+
+    .button {
+        padding: 14px 28px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        min-width: 120px;
+        text-align: center;
+    }
+
+    .button::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .button:hover::before {
+        left: 100%;
+    }
+
+    .button-primary {
+        background: linear-gradient(135deg, var(--vscode-button-background) 0%, var(--vscode-button-hoverBackground) 100%);
+        color: var(--vscode-button-foreground);
+        box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+    }
+
+    .button-primary:hover {
+        background: linear-gradient(135deg, var(--vscode-button-hoverBackground) 0%, var(--vscode-button-background) 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 122, 255, 0.4);
+    }
+
+    .button-secondary {
+        background: linear-gradient(135deg, var(--vscode-button-secondaryBackground) 0%, var(--vscode-input-background) 100%);
+        color: var(--vscode-button-secondaryForeground);
+        border: 2px solid var(--vscode-input-border);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .button-secondary:hover {
+        background: linear-gradient(135deg, var(--vscode-input-background) 0%, var(--vscode-button-secondaryBackground) 100%);
+        border-color: var(--vscode-focusBorder);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    /* 状态消息样式优化 */
+    .status-bar {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 8px;
+        background-color: var(--vscode-input-background);
+        border-left: 4px solid var(--vscode-textLink-foreground);
+        animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        max-width: 100%;
+    }
+
+    .status-bar.success {
+        border-left-color: #4caf50;
+        background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, var(--vscode-input-background) 100%);
+    }
+
+    .status-bar.error {
+        border-left-color: var(--vscode-inputValidation-errorBorder);
+        background: linear-gradient(135deg, var(--vscode-inputValidation-errorBackground) 0%, rgba(255, 0, 0, 0.05) 100%);
+    }
+
+    .status-bar.info {
+        border-left-color: var(--vscode-button-background);
+        background: linear-gradient(135deg, var(--vscode-input-background) 0%, var(--vscode-editor-background) 100%);
+    }
+
+    .status-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
     .status-text {
-        flex: 1; /* 占据剩余空间 */
-        word-wrap: break-word; /* 允许状态文本换行 */
-        overflow-wrap: break-word; /* 确保长单词也能换行 */
-        white-space: pre-wrap; /* 保持空白符序列，但正常换行 */
+        flex: 1;
+        font-size: 13px;
+        line-height: 1.6;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+        max-width: calc(100% - 30px); /* Account for icon width and gap */
     }
-    
-    .success {
-        color: #89d185;
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-    
-    .error {
-        color: #f48771;
+
+    /* 加载状态优化 */
+    .loading {
+        text-align: center;
+        color: var(--vscode-descriptionForeground);
+        font-style: italic;
+        padding: 40px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
     }
-    
-    .info {
-        color: #75beff;
+
+    .loading::before {
+        content: "⏳";
+        font-size: 32px;
+        animation: pulse 2s infinite;
     }
-    
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* 按钮状态优化 */
+    .button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    .button-primary:disabled {
+        background: var(--vscode-button-background) !important;
+    }
+
     /* 响应式设计 */
-    @media (max-width: 600px) {
-        .container {
-            padding: 12px;
+    @media (max-width: 768px) {
+        .form-container {
+            padding: 16px 16px 100px 16px;
+            margin: 12px;
         }
         
-        .card {
-            padding: 12px;
+        .button-group {
+            padding: 16px;
         }
         
-        .btn {
-            padding: 6px 10px;
+        .button {
+            padding: 12px 20px;
+            font-size: 13px;
+            min-width: 100px;
+        }
+        
+        .section-title {
+            font-size: 15px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
             font-size: 12px;
-        }
-        
-        h2, .section-description, .muted, .progress-text, .status-text {
-            font-size: 12px; /* 在小屏幕上减小字体 */
         }
     }
 </style>
 </head>
 <body>
-<div class="container">
-    <div class="card">
-        <div class="card-header">
-            <span class="card-icon">📁</span>
-            <h2>输出目录</h2>
-        </div>
-        <p class="section-description">选择预置脚本导出的目标目录</p>
-        <div class="form-group">
-            <div class="path-input-container">
-                <input id="outputDir" type="text" placeholder="点击选择导出目录" readonly />
-                <span class="path-input-icon">📁</span>
-            </div>
+<div class="form-container">
+    <div class="section-title">
+        <span>📁</span>
+        输出目录配置
+    </div>
+    <p class="section-description">选择预置脚本导出的目标目录</p>
+    <div class="form-group">
+        <label for="outputDir">输出目录</label>
+        <div class="form-row">
+            <input type="text" id="outputDir" placeholder="点击选择导出目录" readonly>
+            <button class="browse-button" id="browseButton">浏览...</button>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <span class="card-icon">💾</span>
-            <h2>当前数据源</h2>
-        </div>
-        <p class="section-description">导出预置脚本时将默认使用Design数据源</p>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>名称</th>
-                        <th>类型</th>
-                        <th>主机</th>
-                        <th>端口</th>
-                        <th>库名</th>
-                        <th>用户</th>
-                    </tr>
-                </thead>
-                <tbody id="currentDsBody">
-                    <tr>
-                        <td colspan="6" class="muted" style="text-align: center; padding: 16px;">暂无数据源信息</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+    <div class="section-title">
+        <span>💾</span>
+        当前数据源信息
+    </div>
+    <p class="section-description">导出预置脚本时将默认使用Design数据源</p>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>类型</th>
+                    <th>主机</th>
+                    <th>端口</th>
+                    <th>库名</th>
+                    <th>用户</th>
+                </tr>
+            </thead>
+            <tbody id="currentDsBody">
+                <tr>
+                    <td colspan="6" class="muted">暂无数据源信息</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <span class="card-icon">📤</span>
-            <h2>导出预置脚本</h2>
+    <div class="section-title">
+        <span>📤</span>
+        导出预置脚本
+    </div>
+    <p class="section-description">根据选中的 item.xml 文件生成预置脚本 SQL 文件</p>
+    <div class="progress-container" id="progressContainer" style="display:none">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
         </div>
-        <p class="section-description">根据选中的 item.xml 文件生成预置脚本 SQL 文件</p>
-        <div class="row">
-            <button class="btn" id="exportBtn">
-                <span class="btn-icon">🚀</span>
-                开始导出
-            </button>
-        </div>
-        <div class="progress-container" id="progressContainer" style="display:none">
-            <progress id="progressBar" value="0" max="100"></progress>
-            <div class="progress-text" id="progressText"></div>
-        </div>
-        <div class="status-bar" id="statusBar" style="display:none">
-            <span id="statusIcon" class="icon"></span>
-            <span id="statusText" class="status-text"></span>
-        </div>
+        <div class="progress-text" id="progressText"></div>
+    </div>
+    <div id="statusBar" class="status-bar" style="display:none">
+        <span id="statusIcon" class="status-icon"></span>
+        <span id="statusText" class="status-text"></span>
     </div>
 </div>
+
+<div class="button-group">
+    <button class="button button-secondary" id="refreshBtn">
+        <span>🔄 刷新</span>
+    </button>
+    <button class="button button-primary" id="exportBtn">
+        <span>🚀 开始导出</span>
+    </button>
+</div>
+
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 const outputDirInput = document.getElementById('outputDir');
 const exportBtn = document.getElementById('exportBtn');
+const refreshBtn = document.getElementById('refreshBtn');
+const browseButton = document.getElementById('browseButton');
 const progressContainer = document.getElementById('progressContainer');
-const progressBar = document.getElementById('progressBar');
+const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
 const statusBar = document.getElementById('statusBar');
 const statusIcon = document.getElementById('statusIcon');
 const statusText = document.getElementById('statusText');
 const currentDsBody = document.getElementById('currentDsBody');
 
+// 表单验证规则
+const validationRules = {
+    outputDir: {
+        required: true,
+        message: '请选择输出目录'
+    }
+};
+
+// 验证单个字段
+function validateField(fieldName, value) {
+    const rule = validationRules[fieldName];
+    if (!rule) return { valid: true };
+    
+    if (rule.required && (!value || value.trim() === '')) {
+        return { valid: false, message: rule.message || '此字段为必填项' };
+    }
+    
+    return { valid: true };
+}
+
+// 显示错误信息
+function showError(message) {
+    showStatus(message, 'error');
+}
+
+// 显示成功信息
+function showSuccess(message) {
+    showStatus(message, 'success');
+}
+
+// 显示信息
+function showInfo(message) {
+    showStatus(message, 'info');
+}
+
 function setExporting(is) {
     exportBtn.disabled = is;
+    refreshBtn.disabled = is;
     progressContainer.style.display = is ? 'block' : 'none';
-    statusBar.style.display = 'none';
     if (!is) {
-        progressBar.value = 0;
+        progressFill.style.width = '0%';
         progressText.textContent = '';
     }
 }
 
 function renderCurrentDataSource(ds) {
     if (!ds) {
-        currentDsBody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align: center; padding: 16px;">暂无数据源信息</td></tr>';
+        currentDsBody.innerHTML = '<tr><td colspan="6" class="muted">暂无数据源信息</td></tr>';
         return;
     }
     
@@ -765,29 +941,46 @@ function renderCurrentDataSource(ds) {
 
 function showStatus(message, type) {
     statusBar.style.display = 'flex';
+    statusBar.className = 'status-bar ' + (type || 'info');
     statusText.textContent = message;
     
     switch (type) {
         case 'success':
-            statusIcon.textContent = '✓';
-            statusIcon.className = 'icon success';
-            statusText.className = 'status-text success';
+            statusIcon.textContent = '✅';
             break;
         case 'error':
-            statusIcon.textContent = '✗';
-            statusIcon.className = 'icon error';
-            statusText.className = 'status-text error';
+            statusIcon.textContent = '❌';
             break;
         case 'info':
-            statusIcon.textContent = 'ℹ';
-            statusIcon.className = 'icon info';
-            statusText.className = 'status-text info';
+            statusIcon.textContent = 'ℹ️';
             break;
         default:
-            statusIcon.textContent = '';
-            statusIcon.className = 'icon';
-            statusText.className = 'status-text';
+            statusIcon.textContent = 'ℹ️';
     }
+}
+
+function selectOutputDir() {
+    vscode.postMessage({ type: 'selectOutputDir' });
+}
+
+function exportPrecast() {
+    // 表单验证
+    const outputDir = outputDirInput.value.trim();
+    const validation = validateField('outputDir', outputDir);
+    
+    if (!validation.valid) {
+        showError(validation.message);
+        return;
+    }
+    
+    // 显示导出开始状态
+    showInfo('开始导出预置脚本...');
+    vscode.postMessage({ type: 'exportPrecast', data: { outputDir: outputDir } });
+}
+
+function refreshDataSources() {
+    showInfo('正在刷新数据源信息...');
+    vscode.postMessage({ type: 'refreshDataSources' });
 }
 
 window.addEventListener('message', (event) => {
@@ -801,19 +994,19 @@ window.addEventListener('message', (event) => {
             break;
         case 'exportStarted':
             setExporting(true);
-            progressBar.value = 0;
+            progressFill.style.width = '0%';
             progressText.textContent = msg.text || '开始导出...';
             break;
         case 'progress':
             if (typeof msg.percent === 'number') {
                 var p = Math.max(0, Math.min(100, Math.floor(msg.percent)));
-                progressBar.value = p;
+                progressFill.style.width = p + '%';
             }
             progressText.textContent = msg.text || '';
             break;
         case 'exportFinished':
             setExporting(false);
-            showStatus('导出完成', 'success');
+            showStatus('预置脚本导出完成', 'success');
             break;
         case 'showMessage':
             if (msg.level === 'error') {
@@ -825,6 +1018,11 @@ window.addEventListener('message', (event) => {
             }
             break;
         case 'dataSourcesUpdated':
+            // Show success message when data sources are updated
+            setTimeout(() => {
+                showSuccess('数据源信息刷新完成');
+            }, 500);
+            
             // 处理数据源更新消息，刷新当前数据源显示
             if (msg.dataSources && msg.dataSources.length > 0) {
                 // 优先选择design数据源
@@ -842,14 +1040,12 @@ window.addEventListener('message', (event) => {
 });
 
 // 事件绑定
-outputDirInput.addEventListener('click', () => {
-    vscode.postMessage({ type: 'selectOutputDir' });
-});
-exportBtn.addEventListener('click', () => {
-    vscode.postMessage({ type: 'exportPrecast', data: { outputDir: outputDirInput.value } });
-});
+outputDirInput.addEventListener('click', selectOutputDir);
+browseButton.addEventListener('click', selectOutputDir);
+exportBtn.addEventListener('click', exportPrecast);
+refreshBtn.addEventListener('click', refreshDataSources);
 
-// 初始握手，触发默认目录预填
+// 初始握手，触发默认目录预填和数据源刷新
 vscode.postMessage({ type: 'ready' });
 </script>
 </body>

@@ -481,30 +481,8 @@ export class McpService {
         // 设置健康检查标志
         this.isHealthCheckRunning = true;
         
-        // 启动定时健康检查（每5秒检查一次）
-        this.healthCheckInterval = setInterval(async () => {
-            // 只在运行状态下进行健康检查
-            if (this.status === McpStatus.RUNNING || this.status === McpStatus.STARTING) {
-                try {
-                    const isAvailable = await this.checkHttpServiceAvailability();
-                    if (!isAvailable && this.status === McpStatus.RUNNING) {
-                        // 如果服务标记为运行中但实际不可用，更新状态为错误
-                        this.setStatus(McpStatus.ERROR);
-                        this.outputChannel.appendLine('❌ MCP服务健康检查失败，服务可能已停止');
-                    }
-                } catch (error: any) {
-                    // 只在运行状态下记录健康检查错误
-                    if (this.status === McpStatus.RUNNING) {
-                        // 减少重复错误信息的输出
-                        if (process.env.NODE_ENV === 'development') {
-                            this.outputChannel.appendLine(`❌ MCP服务健康检查连接失败: ${error.message}`);
-                        }
-                    }
-                }
-            }
-        }, 5000); // 每5秒检查一次
-        
-        this.outputChannel.appendLine('✅ 健康检查已启动');
+        // 健康检查已移除
+        this.outputChannel.appendLine('✅ 健康检查已启动（功能已禁用）');
     }
 
     /**
@@ -516,7 +494,7 @@ export class McpService {
             this.healthCheckInterval = null;
         }
         this.isHealthCheckRunning = false;
-        this.outputChannel.appendLine('⏹️ 健康检查已停止');
+        this.outputChannel.appendLine('⏹️ 健康检查已停止（功能已禁用）');
     }
 
     /**
@@ -528,54 +506,8 @@ export class McpService {
             return false;
         }
 
-        return new Promise((resolve) => {
-            const http = require('http');
-            const options = {
-                hostname: 'localhost',
-                port: this.config.port,
-                path: '/pool/status', // 健康检查端点（与用户提到的地址一致）
-                timeout: 5000
-            };
-
-            const req = http.get(options, (res: any) => {
-                // 如果能收到响应，说明服务可用
-                const isAvailable = res.statusCode >= 200 && res.statusCode < 500;
-                if (isAvailable) {
-                    // 只在调试模式下输出详细信息
-                    if (process.env.NODE_ENV === 'development') {
-                        this.outputChannel.appendLine(`🔍 健康检查响应状态码: ${res.statusCode}`);
-                        this.outputChannel.appendLine('✅ MCP服务健康检查通过');
-                    }
-                } else {
-                    // 只在非停止状态下记录失败信息
-                    if (this.status !== McpStatus.STOPPED && this.status !== McpStatus.STOPPING) {
-                        this.outputChannel.appendLine(`❌ MCP服务健康检查失败，状态码: ${res.statusCode}`);
-                    }
-                }
-                resolve(isAvailable);
-            });
-
-            req.on('error', (err: any) => {
-                // 只在非停止状态下记录错误信息，避免重复输出
-                if (this.status !== McpStatus.STOPPED && this.status !== McpStatus.STOPPING) {
-                    // 减少重复错误信息的输出
-                    if (process.env.NODE_ENV === 'development' || !err.message.includes('ECONNREFUSED')) {
-                        this.outputChannel.appendLine(`❌ MCP服务健康检查连接失败: ${err.message}`);
-                    }
-                }
-                // 连接失败，服务不可用
-                resolve(false);
-            });
-
-            req.on('timeout', () => {
-                // 只在调试模式下输出超时信息
-                if (process.env.NODE_ENV === 'development') {
-                    this.outputChannel.appendLine('⏰ MCP服务健康检查超时');
-                }
-                req.destroy();
-                resolve(false);
-            });
-        });
+        // 健康检查功能已禁用，直接返回true表示服务可用
+        return true;
     }
 
     /**

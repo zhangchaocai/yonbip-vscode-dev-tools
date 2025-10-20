@@ -377,403 +377,478 @@ export class McpProvider implements vscode.WebviewViewProvider {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MCP服务管理</title>
     <style>
+        /* 全局样式优化 */
+        * {
+            box-sizing: border-box;
+        }
         body {
             font-family: var(--vscode-font-family);
             font-size: var(--vscode-font-size);
             color: var(--vscode-foreground);
-            background-color: var(--vscode-editor-background);
-            padding: 15px;
+            background: linear-gradient(135deg, var(--vscode-editor-background) 0%, var(--vscode-sideBar-background) 100%);
+            padding: 0;
             margin: 0;
-            /* 确保body可以滚动 */
-            overflow-y: auto;
+            line-height: 1.5;
         }
-
         /* 页面容器与基础布局 */
         #app {
-            max-width: 980px;
-            margin: 0 auto;
-            /* 确保app容器可以滚动 */
-            overflow-y: auto;
-        }
-        
-        .section {
-            margin-bottom: 20px;
+            max-width: 100%;
+            padding: 24px 24px 120px 24px; /* 增加底部padding为120px，为固定按钮留出空间 */
+            background-color: var(--vscode-editor-background);
+            border-radius: 12px;
+            margin: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             border: 1px solid var(--vscode-widget-border);
-            border-radius: 6px;
-            padding: 20px;
+        }
+        .section {
+            margin-bottom: 24px;
+            position: relative;
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 12px;
+            padding: 24px;
             background-color: var(--vscode-input-background);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+        .section:hover {
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+            border-color: var(--vscode-focusBorder);
+        }
         .section-title {
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: var(--vscode-textLink-foreground);
+            font-weight: 700;
+            margin: 0 0 20px 0;
+            color: var(--vscode-foreground);
             font-size: 16px;
-            border-bottom: 1px solid var(--vscode-widget-border);
-            padding-bottom: 8px;
+            border-bottom: 2px solid var(--vscode-textLink-foreground);
+            padding-bottom: 12px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        
+        .section-title::before {
+            content: "";
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--vscode-button-background), transparent);
+        }
+        /* 表单组样式优化 */
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--vscode-input-foreground);
+            font-size: 13px;
+            letter-spacing: 0.3px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--vscode-input-border);
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            box-sizing: border-box;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            transform: translateY(-1px);
+        }
+        .form-group input:hover,
+        .form-group select:hover,
+        .form-group textarea:hover {
+            border-color: var(--vscode-inputOption-hoverBackground);
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: var(--vscode-font-family);
+        }
+        /* 表单行样式 */
+        .form-row {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+            margin-bottom: 16px;
+        }
+        .form-row input {
+            flex: 1;
+        }
+        /* 状态指示器优化 */
         .status-indicator {
             display: inline-flex;
             align-items: center;
-            padding: 8px 12px;
-            border-radius: 20px;
+            padding: 12px 20px;
+            border-radius: 30px;
             font-weight: 600;
             font-size: 14px;
-            margin-bottom: 15px;
-            gap: 8px;
-            border: 1px solid var(--vscode-widget-border);
+            margin-bottom: 20px;
+            gap: 10px;
+            border: 2px solid var(--vscode-widget-border);
             background-color: var(--vscode-editor-background);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .status-indicator::before {
             content: '';
             display: inline-block;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             background-color: var(--vscode-descriptionForeground);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
         .status-running {
             color: var(--vscode-terminal-ansiGreen);
+            border-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 30%, transparent);
+            background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 10%, transparent);
         }
         .status-running::before {
             background-color: var(--vscode-terminal-ansiGreen);
+            box-shadow: 0 0 8px var(--vscode-terminal-ansiGreen);
         }
         .status-stopped {
             color: var(--vscode-errorForeground);
+            border-color: color-mix(in srgb, var(--vscode-errorForeground) 30%, transparent);
+            background-color: color-mix(in srgb, var(--vscode-errorForeground) 10%, transparent);
         }
         .status-stopped::before {
             background-color: var(--vscode-errorForeground);
+            box-shadow: 0 0 8px var(--vscode-errorForeground);
         }
         .status-unknown {
             color: var(--vscode-descriptionForeground);
+            border-color: color-mix(in srgb, var(--vscode-descriptionForeground) 30%, transparent);
+            background-color: color-mix(in srgb, var(--vscode-descriptionForeground) 10%, transparent);
         }
         .status-unknown::before {
             background-color: var(--vscode-descriptionForeground);
+            box-shadow: 0 0 8px var(--vscode-descriptionForeground);
         }
         .status-warning {
             color: var(--vscode-terminal-ansiYellow);
+            border-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 30%, transparent);
+            background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 10%, transparent);
         }
         .status-warning::before {
             background-color: var(--vscode-terminal-ansiYellow);
+            box-shadow: 0 0 8px var(--vscode-terminal-ansiYellow);
         }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-            gap: 8px; /* 使用gap替代margin */
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600; /* 使用600代替bold */
-            min-width: 120px;
-            color: var(--vscode-foreground);
-        }
-        
-        .form-row label {
-            margin-bottom: 0;
-            margin-right: 0; /* 使用gap替代margin */
-            flex-shrink: 0;
-        }
-        
-        input, select {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid var(--vscode-input-border);
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border-radius: 4px;
-            box-sizing: border-box;
-            height: 38px; /* 统一输入框高度 */
-            line-height: 1.4;
-        }
-        
-        .form-row input, .form-row select {
-            flex: 1;
-            margin-right: 8px; /* 添加右边距 */
-        }
-        
+        /* 按钮样式优化 */
         button {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
+            padding: 12px 24px;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
-            margin-right: 10px;
-            margin-bottom: 8px;
             font-size: 14px;
-            font-weight: 500;
-            height: 38px; /* 统一按钮高度 */
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            min-width: 100px;
+            box-sizing: border-box;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 80px; /* 最小宽度 */
-            box-sizing: border-box;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
-        
+        button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        button:hover::before {
+            left: 100%;
+        }
         button:hover {
-            background-color: var(--vscode-button-hoverBackground);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
-        
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        button.primary {
+            background: linear-gradient(135deg, var(--vscode-button-background) 0%, var(--vscode-button-hoverBackground) 100%);
+            color: var(--vscode-button-foreground);
+            box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+        }
+        button.primary:hover {
+            background: linear-gradient(135deg, var(--vscode-button-hoverBackground) 0%, var(--vscode-button-background) 100%);
+            box-shadow: 0 8px 24px rgba(0, 122, 255, 0.4);
+        }
         button.secondary {
-            background-color: var(--vscode-button-secondaryBackground);
+            background: linear-gradient(135deg, var(--vscode-button-secondaryBackground) 0%, var(--vscode-input-background) 100%);
             color: var(--vscode-button-secondaryForeground);
+            border: 2px solid var(--vscode-input-border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
-        
         button.secondary:hover {
-            background-color: var(--vscode-button-secondaryHoverBackground);
+            background: linear-gradient(135deg, var(--vscode-input-background) 0%, var(--vscode-button-secondaryBackground) 100%);
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
-        
         button.danger {
-            background-color: transparent;
-            color: var(--vscode-errorForeground);
-            border: 1px solid var(--vscode-errorForeground);
+            background: linear-gradient(135deg, var(--vscode-errorForeground) 0%, color-mix(in srgb, var(--vscode-errorForeground) 70%, black) 100%);
+            color: white;
+            box-shadow: 0 4px 16px rgba(255, 0, 0, 0.3);
         }
         button.danger:hover {
-            background-color: color-mix(in srgb, var(--vscode-errorForeground) 10%, transparent);
+            background: linear-gradient(135deg, color-mix(in srgb, var(--vscode-errorForeground) 70%, black) 0%, var(--vscode-errorForeground) 100%);
+            box-shadow: 0 8px 24px rgba(255, 0, 0, 0.4);
         }
-        
+        /* 选项卡样式优化 */
         .tabs {
             display: flex;
             border-bottom: 2px solid var(--vscode-widget-border);
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             position: sticky;
-            top: 0; /* 修改为0，因为已经移除了页头 */
+            top: 0;
             background-color: var(--vscode-editor-background);
             z-index: 90;
-            padding-top: 10px;
+            padding-top: 12px;
+            border-radius: 12px 12px 0 0;
         }
-        
         .tab {
-            padding: 12px 20px;
+            padding: 14px 24px;
             cursor: pointer;
             border: none;
             background: none;
             color: var(--vscode-foreground);
-            margin-right: 4px;
-            border-radius: 6px 6px 0 0;
-            font-weight: 500;
+            margin-right: 6px;
+            border-radius: 8px 8px 0 0;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
-        
+        .tab:hover {
+            background-color: var(--vscode-tab-hoverBackground);
+        }
         .tab.active {
             background-color: var(--vscode-tab-activeBackground);
-            border-bottom: 3px solid var(--vscode-textLink-foreground);
             color: var(--vscode-textLink-foreground);
         }
-        
+        .tab.active::after {
+            content: "";
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--vscode-textLink-foreground), transparent);
+        }
         .tab-content {
             display: none;
         }
-        
         .tab-content.active {
             display: block;
+            animation: fadeIn 0.3s ease-in-out;
         }
-        
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        
-        .checkbox-group input[type="checkbox"] {
-            width: auto;
-            margin-right: 8px;
-        }
-        
+        /* 帮助文本样式 */
         .help-text {
             font-size: 12px;
             color: var(--vscode-descriptionForeground);
-            margin-top: 5px;
+            margin-top: 8px;
+            font-style: italic;
         }
-        
+        /* 服务控制按钮组 */
         .service-controls {
             display: flex;
-            gap: 12px;
-            margin-top: 16px;
-            flex-wrap: wrap; /* 允许按钮换行 */
+            gap: 16px;
+            margin-top: 20px;
+            flex-wrap: wrap;
         }
-
         .service-controls button {
             flex: 1;
-            min-width: 120px;
-            max-width: 200px;
-            transition: all 0.2s ease;
+            min-width: 140px;
+            max-width: 220px;
         }
-        
-        .service-controls button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-
+        /* 快速信息网格 */
         #quickInfo {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
         }
-
         .config-item {
             background-color: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-widget-border);
-            border-radius: 6px;
-            padding: 16px;
-            margin-bottom: 12px;
-            flex: 1 0 auto;
-            max-width: 100%;
-            transition: all 0.2s ease;
+            border: 2px solid var(--vscode-widget-border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
         }
-        
         .config-item:hover {
             border-color: var(--vscode-focusBorder);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
         }
-        
         .config-label {
-            font-weight: 600;
+            font-weight: 700;
             color: var(--vscode-textLink-foreground);
-            margin-bottom: 6px;
-            font-size: 13px;
-            letter-spacing: 0.2px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        
+        .config-label::before {
+            content: "🔹";
+            font-size: 16px;
+        }
         .config-value {
             color: var(--vscode-foreground);
-            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-family: var(--vscode-editor-font-family);
             word-break: break-all;
-            font-size: 13px;
-            line-height: 1.4;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 8px 12px;
+            background-color: var(--vscode-input-background);
+            border-radius: 6px;
+            border: 1px solid var(--vscode-input-border);
         }
-        
-        /* 配置页底部操作条（滚动时固定） */
+        /* 配置页底部操作条 */
         .sticky-actions {
             position: sticky;
             bottom: 0;
             background-color: var(--vscode-input-background);
-            padding: 12px 0;
-            border-top: 1px solid var(--vscode-widget-border);
+            padding: 20px 0;
+            border-top: 2px solid var(--vscode-widget-border);
             z-index: 95;
             display: flex;
-            gap: 10px;
+            gap: 16px;
+            justify-content: flex-end;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 0 0 12px 12px;
+            margin: 0 -24px -24px -24px;
+            padding: 20px 24px;
         }
-
-        /* 避免贴底遮挡内容，给页面底部留出空间 */
-        #app {
-            padding-bottom: 12px;
-        }
-
-        /* 响应式布局 - 窄屏优化 */
-        @media (max-width: 600px) {
-            .tabs {
-                flex-wrap: wrap;
-                gap: 4px;
-            }
-            
-            .tab {
-                padding: 8px 12px;
-                font-size: 13px;
-                margin-right: 2px;
-                flex: 1;
-                min-width: 0;
-                text-align: center;
-            }
-            
-            .form-row {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 8px;
-            }
-            
-            .form-row label {
-                margin-right: 0;
-                margin-bottom: 4px;
-                min-width: auto;
-            }
-            
-            .form-row input {
-                margin-right: 0;
-                width: 100%;
-            }
-            
-            .form-row button {
-                width: 100%;
-                margin-left: 0;
-            }
-            
-            .service-controls {
-                flex-direction: column;
-            }
-            
-            .service-controls button {
-                max-width: 100%;
-                width: 100%;
-            }
-            
-            #quickInfo {
-                grid-template-columns: 1fr;
-            }
-            
-            .config-item {
-                max-width: 100%;
-            }
-            
-            .section {
-                padding: 15px;
-            }
-            
-            .section-title {
-                font-size: 15px;
-            }
-        }
-        
-        /* 中等屏幕优化 */
-        @media (max-width: 800px) and (min-width: 601px) {
-            .form-row {
-                flex-wrap: wrap;
-            }
-            
-            .form-row label {
-                min-width: 80px;
-            }
-            
-            .service-controls button {
-                max-width: calc(33.333% - 10px);
-            }
-            #quickInfo {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-        
-        /* Java路径输入框样式 - 显示文件夹图标 */
+        /* Java路径输入框样式 */
         .path-input-container {
             position: relative;
             display: flex;
             align-items: center;
         }
-        
         #javaPath {
             flex: 1;
-            padding-right: 30px;
+            padding-right: 40px;
         }
-        
         .folder-icon {
             position: absolute;
-            right: 8px;
+            right: 12px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
             color: var(--vscode-foreground);
             user-select: none;
+            transition: all 0.2s ease;
+            background: var(--vscode-input-background);
+            padding: 8px;
+            border-radius: 6px;
         }
-        
         .folder-icon:hover {
             color: var(--vscode-textLink-foreground);
+            background: var(--vscode-input-border);
+            transform: scale(1.1);
+        }
+        /* 响应式布局 - 窄屏优化 */
+        @media (max-width: 600px) {
+            #app {
+                padding: 16px 16px 100px 16px;
+                margin: 12px;
+            }
+            .section {
+                padding: 16px;
+            }
+            .tabs {
+                flex-wrap: wrap;
+                gap: 6px;
+                padding-top: 8px;
+            }
+            .tab {
+                padding: 10px 16px;
+                font-size: 13px;
+                margin-right: 4px;
+                flex: 1;
+                min-width: 0;
+                text-align: center;
+            }
+            .form-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .form-row label {
+                margin-right: 0;
+                margin-bottom: 6px;
+                min-width: auto;
+            }
+            .form-row input {
+                margin-right: 0;
+                width: 100%;
+            }
+            .service-controls {
+                flex-direction: column;
+            }
+            .service-controls button {
+                max-width: 100%;
+                width: 100%;
+            }
+            #quickInfo {
+                grid-template-columns: 1fr;
+            }
+            .config-item {
+                max-width: 100%;
+            }
+            .section-title {
+                font-size: 15px;
+            }
+            .sticky-actions {
+                flex-direction: column;
+                gap: 12px;
+                margin: 0 -16px -16px -16px;
+                padding: 16px;
+            }
+        }
+        /* 中等屏幕优化 */
+        @media (max-width: 800px) and (min-width: 601px) {
+            .form-row {
+                flex-wrap: wrap;
+            }
+            .form-row label {
+                min-width: 100px;
+            }
+            .service-controls button {
+                max-width: calc(50% - 10px);
+            }
+            #quickInfo {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
     </style>
 </head>
