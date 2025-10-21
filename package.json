@@ -66,6 +66,12 @@
           "type": "webview"
         },
         {
+          "id": "yonbip-openapi",
+          "name": "OpenAPI测试",
+          "icon": "resources/icons/views/openapi-icon.svg",
+          "type": "webview"
+        },
+        {
           "id": "yonbip.patchExportConfig",
           "name": "补丁导出配置",
           "icon": "resources/icons/views/openapi-icon.svg",

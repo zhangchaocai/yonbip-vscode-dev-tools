@@ -36,6 +36,13 @@ YonBIP高级版开发者工具是一款专为用友YonBIP平台开发者设计�
 - 端口冲突自动检测和解决
 - 详细的启动日志输出
 
+### 6. OpenAPI测试工具
+- 支持多个OpenAPI配置管理
+- 可视化HTTP请求测试
+- 支持GET/POST/PUT/DELETE/PATCH等HTTP方法
+- JSON格式请求体和响应体展示
+- 连接测试功能
+
 ## 🚀 安装说明
 
 1. 在VS Code中打开扩展市场
@@ -70,6 +77,12 @@ YonBIP高级版开发者工具是一款专为用友YonBIP平台开发者设计�
 2. 使用"创建YonBIP项目"功能初始化新项目
 3. 使用"导出补丁包"功能创建补丁
 
+### OpenAPI测试工具
+1. 在侧边栏找到"OpenAPI测试"选项卡
+2. 在"配置管理"标签页中添加和管理多个API配置
+3. 在"请求测试"标签页中选择配置并发送HTTP请求
+4. 在"响应结果"标签页中查看API响应
+
 
 ## ⚙️ 配置选项
 
@@ -81,6 +94,8 @@ YonBIP高级版开发者工具是一款专为用友YonBIP平台开发者设计�
 | `yonbip.homePath` | NC Home目录路径 | "" |
 | `yonbip.home.debugPort` | NC Home调试模式端口 | 8888 |
 | `yonbip.openapi.baseUrl` | OpenAPI测试基础URL | "http://localhost:9000" |
+| `yonbip.openapi.headers` | OpenAPI测试默认请求头 | {} |
+| `yonbip.openapi.timeout` | OpenAPI测试请求超时时间(毫秒) | 30000 |
 
 ## 🔧 常见问题
 
