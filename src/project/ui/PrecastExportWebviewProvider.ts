@@ -32,6 +32,20 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
                 this._prefillDefaultOutputDir();
             })
         );
+
+        // 监听工作区状态变化，检查XML文件选择状态
+        this._context.subscriptions.push(
+            vscode.workspace.onDidChangeWorkspaceFolders(() => {
+                this._checkXmlSelection();
+            })
+        );
+
+        // 监听活动文本编辑器变化，检查XML文件选择状态
+        this._context.subscriptions.push(
+            vscode.window.onDidChangeActiveTextEditor(() => {
+                this._checkXmlSelection();
+            })
+        );
     }
 
     public resolveWebviewView(
@@ -70,6 +84,10 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
                     case 'ready':
                         this._refreshDataSources();
                         this._prefillDefaultOutputDir();
+                        this._checkXmlSelection();
+                        break;
+                    case 'checkXmlSelection':
+                        this._checkXmlSelection();
                         break;
                 }
             },
@@ -101,6 +119,26 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
             }
         } catch (e) {
             // ignore prefill errors
+        }
+    }
+
+    private _checkXmlSelection(): void {
+        try {
+            const xmlPaths = this._resolveInitCfgXmlPaths();
+            const showWarning = xmlPaths.length === 0;
+            const currentXml = xmlPaths.length > 0 ? xmlPaths[0] : '';
+            
+            this._view?.webview.postMessage({
+                type: 'showXmlWarning',
+                show: showWarning
+            });
+            
+            this._view?.webview.postMessage({
+                type: 'setCurrentXml',
+                path: currentXml
+            });
+        } catch (error) {
+            // Ignore errors in checking XML selection
         }
     }
 
@@ -160,7 +198,7 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
             // 解析 InitDataCfgs XML 路径
             const xmlPaths = this._resolveInitCfgXmlPaths();
             if (xmlPaths.length === 0) {
-                throw new Error('未找到 item.xml，请在资源管理器中右键选择该文件后再导出');
+                throw new Error('未找到 items.xml 文件，请在资源管理器中右键选择该文件后再导出');
             }
             this._view?.webview.postMessage({ type: 'progress', percent: 10, text: `定位 InitDataCfgs 文件 (${xmlPaths.length} 个)` });
 
@@ -460,36 +498,66 @@ ${inserts.join("\n")}
         display: flex;
         gap: 12px;
         align-items: stretch;
+        position: relative;
     }
 
     .form-row input {
         flex: 1;
-    }
-
-    /* 浏览按钮优化 */
-    .browse-button {
-        padding: 12px 20px;
-        background: linear-gradient(135deg, var(--vscode-button-background) 0%, var(--vscode-button-hoverBackground) 100%);
-        color: var(--vscode-button-foreground);
-        border: none;
-        border-radius: 8px;
+        padding-right: 40px; /* 为图标留出空间 */
         cursor: pointer;
-        white-space: nowrap;
-        font-weight: 500;
+    }
+
+    /* 文件夹图标样式 */
+    .folder-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 18px;
+        color: var(--vscode-foreground);
+        background: none;
+        border: none;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .folder-icon:hover {
+        background-color: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
+    }
+
+    /* 警告提示样式 */
+    .warning-message {
+        background-color: var(--vscode-input-background);
+        border: 1px solid var(--vscode-input-border);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin: 16px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .warning-message.warning {
+        border-left: 4px solid #FFA500;
+        background: linear-gradient(135deg, rgba(255, 165, 0, 0.1) 0%, var(--vscode-input-background) 100%);
+    }
+
+    .warning-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 2px;
+        color: #FFA500;
+    }
+
+    .warning-text {
+        flex: 1;
         font-size: 13px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .browse-button:hover {
-        background: linear-gradient(135deg, var(--vscode-button-hoverBackground) 0%, var(--vscode-button-background) 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    }
-
-    .browse-button:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        line-height: 1.6;
+        color: var(--vscode-descriptionForeground);
     }
 
     /* 表格容器优化 */
@@ -809,7 +877,23 @@ ${inserts.join("\n")}
         <label for="outputDir">输出目录</label>
         <div class="form-row">
             <input type="text" id="outputDir" placeholder="点击选择导出目录" readonly>
-            <button class="browse-button" id="browseButton">浏览...</button>
+            <button class="folder-icon" id="folderIcon">📁</button>
+        </div>
+    </div>
+
+    <div id="xmlWarning" class="warning-message warning" style="display: none;">
+        <span class="warning-icon">⚠️</span>
+        <span class="warning-text">请在资源管理器中右键选择 items.xml 文件后再执行导出操作</span>
+    </div>
+
+    <div class="section-title">
+        <span>📄</span>
+        当前XML文件
+    </div>
+    <p class="section-description">导出预置脚本将基于以下XML文件</p>
+    <div class="form-group">
+        <div class="form-row">
+            <input type="text" id="currentXml" placeholder="未选择XML文件" readonly>
         </div>
     </div>
 
@@ -842,7 +926,7 @@ ${inserts.join("\n")}
         <span>📤</span>
         导出预置脚本
     </div>
-    <p class="section-description">根据选中的 item.xml 文件生成预置脚本 SQL 文件</p>
+    <p class="section-description">根据选中的 items.xml 文件生成预置脚本 SQL 文件</p>
     <div class="progress-container" id="progressContainer" style="display:none">
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill" style="width: 0%"></div>
@@ -869,7 +953,9 @@ const vscode = acquireVsCodeApi();
 const outputDirInput = document.getElementById('outputDir');
 const exportBtn = document.getElementById('exportBtn');
 const refreshBtn = document.getElementById('refreshBtn');
-const browseButton = document.getElementById('browseButton');
+const folderIcon = document.getElementById('folderIcon');
+const xmlWarning = document.getElementById('xmlWarning');
+const currentXmlInput = document.getElementById('currentXml');
 const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
@@ -973,6 +1059,13 @@ function exportPrecast() {
         return;
     }
     
+    // 检查是否选择了XML文件
+    const currentXml = currentXmlInput.value.trim();
+    if (!currentXml || currentXml === '未选择XML文件') {
+        showError('请先选择 items.xml 文件后再执行导出操作');
+        return;
+    }
+    
     // 显示导出开始状态
     showInfo('开始导出预置脚本...');
     vscode.postMessage({ type: 'exportPrecast', data: { outputDir: outputDir } });
@@ -981,6 +1074,12 @@ function exportPrecast() {
 function refreshDataSources() {
     showInfo('正在刷新数据源信息...');
     vscode.postMessage({ type: 'refreshDataSources' });
+}
+
+// 检查是否选择了XML文件
+function checkXmlSelection() {
+    // 向后端请求检查XML文件状态
+    vscode.postMessage({ type: 'checkXmlSelection' });
 }
 
 window.addEventListener('message', (event) => {
@@ -1036,17 +1135,33 @@ window.addEventListener('message', (event) => {
                 renderCurrentDataSource(null);
             }
             break;
+        case 'showXmlWarning':
+            xmlWarning.style.display = msg.show ? 'flex' : 'none';
+            break;
+        case 'setCurrentXml':
+            currentXmlInput.value = msg.path || '未选择XML文件';
+            // 如果没有XML文件，显示警告
+            if (!msg.path) {
+                currentXmlInput.style.borderColor = 'var(--vscode-inputValidation-errorBorder)';
+                currentXmlInput.style.backgroundColor = 'var(--vscode-inputValidation-errorBackground)';
+            } else {
+                currentXmlInput.style.borderColor = 'var(--vscode-input-border)';
+                currentXmlInput.style.backgroundColor = 'var(--vscode-input-background)';
+            }
+            break;
     }
 });
 
 // 事件绑定
 outputDirInput.addEventListener('click', selectOutputDir);
-browseButton.addEventListener('click', selectOutputDir);
+folderIcon.addEventListener('click', selectOutputDir);
 exportBtn.addEventListener('click', exportPrecast);
 refreshBtn.addEventListener('click', refreshDataSources);
 
 // 初始握手，触发默认目录预填和数据源刷新
 vscode.postMessage({ type: 'ready' });
+// 检查XML文件选择状态
+checkXmlSelection();
 </script>
 </body>
 </html>`;
@@ -1069,13 +1184,13 @@ vscode.postMessage({ type: 'ready' });
             if (fs.existsSync(p)) {
                 const stat = fs.statSync(p);
                 if (stat.isFile()) {
-                    // 仅当文件名为 item.xml 或 items.xml 时加入
+                    // 仅当文件名为 items.xml 时加入
                     const name = path.basename(p).toLowerCase();
-                    if (name === 'item.xml' || name === 'items.xml') res.push(p);
+                    if (name === 'items.xml') res.push(p);
                 } else if (stat.isDirectory()) {
-                    // 在目录内优先查找 item.xml / items.xml
+                    // 在目录内优先查找 items.xml
                     const files = fs.readdirSync(p).map(f => f.toLowerCase());
-                    const itemXml = files.find(f => f === 'item.xml') || files.find(f => f === 'items.xml');
+                    const itemXml = files.find(f => f === 'items.xml');
                     if (itemXml) {
                         res.push(path.join(p, itemXml));
                     }
@@ -1092,7 +1207,7 @@ vscode.postMessage({ type: 'ready' });
                 const stat = fs.statSync(active);
                 if (stat.isFile()) {
                     const name = path.basename(active).toLowerCase();
-                    if (name === 'item.xml' || name === 'items.xml') {
+                    if (name === 'items.xml') {
                         res.push(active);
                     } else {
                         pushIfItemXml(path.dirname(active));
@@ -1140,7 +1255,7 @@ vscode.postMessage({ type: 'ready' });
 
             const items: InitDataCfgItem[] = [];
             for (const it of rawItems) {
-                // item.xml 映射：itemRule -> tableName, fixedWhere -> whereCondition
+                // items.xml 映射：itemRule -> tableName, fixedWhere -> whereCondition
                 const tableName = it?.itemRule || it?.tableName || it?.table || it?.TableName;
                 const where = it?.fixedWhere || it?.whereCondition || it?.where || it?.WhereCondition;
                 const itemKey = it?.itemKey || it?.ItemKey;

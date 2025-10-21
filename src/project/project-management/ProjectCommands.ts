@@ -120,7 +120,7 @@ export class ProjectCommands {
                     const stat = fs.existsSync(p) ? fs.statSync(p) : undefined;
                     const name = path.basename(p).toLowerCase();
                     if (!stat || !stat.isFile() || (name !== 'item.xml' && name !== 'items.xml')) {
-                        vscode.window.showWarningMessage('请右键选择 item.xml 文件后再导出');
+                        vscode.window.showWarningMessage('请右键选择 items.xml 文件后再导出');
                         return;
                     }
                     projectCommands.exportPrecastScript(p);
@@ -1308,7 +1308,7 @@ public class Application{
 
         // 必须为单选且为 item.xml/items.xml
         if (!selectedPath) {
-            vscode.window.showWarningMessage('请右键选择 item.xml 文件后再导出');
+            vscode.window.showWarningMessage('请右键选择 items.xml 文件后再导出');
             return;
         }
         try {
