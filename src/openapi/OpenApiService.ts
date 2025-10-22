@@ -4,14 +4,18 @@ import axios from 'axios';
 /**
  * OpenAPI配置接口
  */
+export type HomeVersionOption = '2105及之后版本' | '2105之前版本';
 export interface OpenApiConfig {
     id: string;
-    name: string;
-    baseUrl: string;
-    accessKey: string;
-    secretKey: string;
-    timeout: number;
-    headers: Record<string, string>;
+    name: string; // 名称
+    homeVersion: HomeVersionOption; // Home版本
+    ip: string; // IP
+    port: number; // 端口
+    accountCode: string; // 帐套编码
+    appId: string; // APP ID
+    appSecret: string; // APP Secret
+    userCode: string; // 用户编码
+    publicKey?: string; // 公钥（可选）
 }
 
 /**
@@ -156,12 +160,19 @@ export class OpenApiService {
             const axiosConfig: any = {
                 method: request.method,
                 url: fullUrl,
-                timeout: config.timeout,
+                timeout: 30000,
                 headers: {
-                    ...config.headers,
-                    ...request.headers
+                    ...(request.headers || {})
                 }
             };
+
+            // 附加来自配置的业务头
+            if (config.userCode) {
+                axiosConfig.headers['X-User-Code'] = config.userCode;
+            }
+            if (config.accountCode) {
+                axiosConfig.headers['X-Account-Code'] = config.accountCode;
+            }
 
             // 添加请求参数
             if (request.params) {
@@ -176,8 +187,8 @@ export class OpenApiService {
                 }
             }
 
-            // 添加认证头
-            if (config.accessKey && config.secretKey) {
+            // 添加认证头（使用 APP ID/APP Secret）
+            if (config.appId && config.appSecret) {
                 axiosConfig.headers['Authorization'] = this.generateAuthHeader(request, config);
             }
 
@@ -221,21 +232,17 @@ export class OpenApiService {
             return path;
         }
         
-        const baseUrl = config.baseUrl.endsWith('/') 
-            ? config.baseUrl.slice(0, -1) 
-            : config.baseUrl;
+        const baseUrl = `http://${config.ip}:${config.port}`;
         const url = path.startsWith('/') ? path : `/${path}`;
         
         return `${baseUrl}${url}`;
     }
 
     /**
-     * 生成认证头
+     * 生成认证头（APP ID/APP Secret）
      */
     private generateAuthHeader(request: ApiRequest, config: OpenApiConfig): string {
-        // 这里可以实现具体的认证逻辑，比如签名算法
-        // 目前使用简单的Basic Auth格式
-        const credentials = `${config.accessKey}:${config.secretKey}`;
+        const credentials = `${config.appId}:${config.appSecret}`;
         return `Basic ${Buffer.from(credentials).toString('base64')}`;
     }
 

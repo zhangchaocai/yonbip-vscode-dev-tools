@@ -231,6 +231,44 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
             font-size: 13px;
             letter-spacing: 0.3px;
         }
+        /* 分段选择控件（Home版本） */
+        .segmented {
+            display: inline-flex;
+            gap: 0;
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--vscode-input-background);
+        }
+        .segment {
+            display: inline-flex;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+        }
+        .segment input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .segment span {
+            padding: 10px 16px;
+            font-weight: 600;
+            color: var(--vscode-foreground);
+            transition: all .15s ease-in-out;
+            border-right: 1px solid var(--vscode-widget-border);
+            user-select: none;
+        }
+        .segment:last-child span {
+            border-right: 0;
+        }
+        .segment input:checked + span {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        .segment:hover span {
+            background: var(--vscode-inputOption-hoverBackground, rgba(255,255,255,0.06));
+        }
         .form-group input,
         .form-group select,
         .form-group textarea {
@@ -551,24 +589,49 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                     <div id="configForm" class="hidden">
                         <input type="hidden" id="configId">
                         <div class="form-group">
-                            <label for="configName">配置名称 *</label>
-                            <input type="text" id="configName" placeholder="请输入配置名称">
+                            <label>Home版本 *</label>
+                            <div class="segmented" role="radiogroup" aria-label="Home版本">
+                                <label class="segment">
+                                    <input type="radio" name="homeVersion" value="2105及之后版本" checked>
+                                    <span>2105及之后版本</span>
+                                </label>
+                                <label class="segment">
+                                    <input type="radio" name="homeVersion" value="2105之前版本">
+                                    <span>2105之前版本</span>
+                                </label>
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label for="baseUrl">Base URL *</label>
-                            <input type="text" id="baseUrl" placeholder="http://localhost:8080/api">
+                            <label for="configName">名称 *</label>
+                            <input type="text" id="configName" placeholder="请输入名称">
                         </div>
                         <div class="form-group">
-                            <label for="accessKey">Access Key</label>
-                            <input type="text" id="accessKey" placeholder="访问密钥">
+                            <label for="ip">IP *</label>
+                            <input type="text" id="ip" placeholder="例如 127.0.0.1">
                         </div>
                         <div class="form-group">
-                            <label for="secretKey">Secret Key</label>
-                            <input type="password" id="secretKey" placeholder="秘密密钥">
+                            <label for="port">端口 *</label>
+                            <input type="number" id="port" placeholder="例如 8080">
                         </div>
                         <div class="form-group">
-                            <label for="timeout">超时时间 (ms)</label>
-                            <input type="number" id="timeout" value="30000">
+                            <label for="accountCode">帐套编码 *</label>
+                            <input type="text" id="accountCode" placeholder="请输入帐套编码">
+                        </div>
+                        <div class="form-group">
+                            <label for="appId">APP ID *</label>
+                            <input type="text" id="appId" placeholder="请输入APP ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="appSecret">APP Secret *</label>
+                            <input type="password" id="appSecret" placeholder="请输入APP Secret">
+                        </div>
+                        <div class="form-group">
+                            <label for="userCode">用户编码 *</label>
+                            <input type="text" id="userCode" placeholder="请输入用户编码">
+                        </div>
+                        <div class="form-group">
+                            <label for="publicKey">公钥</label>
+                            <textarea id="publicKey" rows="6" placeholder="请输入公钥（可选）"></textarea>
                         </div>
                         <div class="form-actions">
                             <button class="button-primary" id="save-config-btn">保存配置</button>
@@ -691,10 +754,15 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
             document.getElementById('configForm').classList.remove('hidden');
             document.getElementById('configId').value = '';
             document.getElementById('configName').value = '';
-            document.getElementById('baseUrl').value = '';
-            document.getElementById('accessKey').value = '';
-            document.getElementById('secretKey').value = '';
-            document.getElementById('timeout').value = '30000';
+            document.querySelector('input[name="homeVersion"][value="2105及之后版本"]').checked = true;
+            document.querySelector('input[name="homeVersion"][value="2105之前版本"]').checked = false;
+            document.getElementById('ip').value = '';
+            document.getElementById('port').value = '';
+            document.getElementById('accountCode').value = '';
+            document.getElementById('appId').value = '';
+            document.getElementById('appSecret').value = '';
+            document.getElementById('userCode').value = '';
+            document.getElementById('publicKey').value = '';
             document.getElementById('delete-config-btn').classList.add('hidden');
             
             // 切换到配置选项卡
@@ -708,34 +776,34 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
         
         // 保存配置
         function saveConfig() {
+            const selectedVersion = document.querySelector('input[name="homeVersion"]:checked');
             const config = {
-                id: document.getElementById('configId').value || generateId(),
+                id: (document.getElementById('configId').value || generateId()),
                 name: document.getElementById('configName').value,
-                baseUrl: document.getElementById('baseUrl').value,
-                accessKey: document.getElementById('accessKey').value,
-                secretKey: document.getElementById('secretKey').value,
-                timeout: parseInt(document.getElementById('timeout').value) || 30000,
-                headers: {}
+                homeVersion: selectedVersion ? selectedVersion.value : '2105及之后版本',
+                ip: document.getElementById('ip').value,
+                port: parseInt(document.getElementById('port').value, 10),
+                accountCode: document.getElementById('accountCode').value,
+                appId: document.getElementById('appId').value,
+                appSecret: document.getElementById('appSecret').value,
+                userCode: document.getElementById('userCode').value,
+                publicKey: document.getElementById('publicKey').value
             };
             
-            if (!config.name) {
-                alert('请输入配置名称');
-                return;
-            }
-            
-            if (!config.baseUrl) {
-                alert('请输入Base URL');
-                return;
-            }
+            if (!config.name) { alert('请输入名称'); return; }
+            if (!config.ip) { alert('请输入IP'); return; }
+            if (!config.port || isNaN(config.port)) { alert('请输入有效端口'); return; }
+            if (!config.accountCode) { alert('请输入帐套编码'); return; }
+            if (!config.appId) { alert('请输入APP ID'); return; }
+            if (!config.appSecret) { alert('请输入APP Secret'); return; }
+            if (!config.userCode) { alert('请输入用户编码'); return; }
             
             if (document.getElementById('configId').value) {
-                // 更新配置
                 vscode.postMessage({
                     type: 'updateConfig',
                     config: config
                 });
             } else {
-                // 添加配置
                 vscode.postMessage({
                     type: 'addConfig',
                     config: config
@@ -770,10 +838,15 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
             document.getElementById('configForm').classList.remove('hidden');
             document.getElementById('configId').value = config.id;
             document.getElementById('configName').value = config.name;
-            document.getElementById('baseUrl').value = config.baseUrl;
-            document.getElementById('accessKey').value = config.accessKey;
-            document.getElementById('secretKey').value = config.secretKey;
-            document.getElementById('timeout').value = config.timeout;
+            document.querySelector('input[name="homeVersion"][value="2105及之后版本"]').checked = (config.homeVersion === '2105及之后版本');
+            document.querySelector('input[name="homeVersion"][value="2105之前版本"]').checked = (config.homeVersion === '2105之前版本');
+            document.getElementById('ip').value = config.ip || '';
+            document.getElementById('port').value = (config.port != null ? String(config.port) : '');
+            document.getElementById('accountCode').value = config.accountCode || '';
+            document.getElementById('appId').value = config.appId || '';
+            document.getElementById('appSecret').value = config.appSecret || '';
+            document.getElementById('userCode').value = config.userCode || '';
+            document.getElementById('publicKey').value = config.publicKey || '';
             document.getElementById('delete-config-btn').classList.remove('hidden');
         }
         
@@ -882,7 +955,7 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                 configItem.innerHTML = [
                     '<div class="config-item-info">',
                     '<strong>' + config.name + '</strong>',
-                    '<small>' + config.baseUrl + '</small>',
+                    '<small>' + (config.ip + ':' + config.port) + '</small>',
                     '</div>',
                     '<div class="config-item-actions">',
                     '<button class="button-secondary button-small" id="' + editBtnId + '">编辑</button>',
