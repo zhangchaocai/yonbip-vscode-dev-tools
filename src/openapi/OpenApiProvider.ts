@@ -61,6 +61,17 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                 case 'showError':
                     vscode.window.showErrorMessage(data.message);
                     break;
+                case 'confirmDeleteConfig':
+                    const confirm = await vscode.window.showWarningMessage(
+                        '确定要删除此配置吗？', 
+                        { modal: true }, 
+                        '确定', 
+                        '取消'
+                    );
+                    if (confirm === '确定') {
+                        await this.handleDeleteConfig(data.configId);
+                    }
+                    break;
             }
         });
 
@@ -561,6 +572,122 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                 align-self: flex-end;
             }
         }
+        /* 新增样式 */
+        .card {
+            background: var(--vscode-editor-background);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--vscode-widget-border);
+        }
+        .card-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--vscode-foreground);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-header::before {
+            content: "🔹";
+        }
+        .required::after {
+            content: " *";
+            color: var(--vscode-inputValidation-errorBackground);
+        }
+        .form-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .form-col {
+            flex: 1;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            background: var(--vscode-textLink-foreground);
+            color: white;
+        }
+        .divider {
+            height: 1px;
+            background: var(--vscode-widget-border);
+            margin: 24px 0;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            border-bottom: 1px dotted var(--vscode-descriptionForeground);
+            cursor: help;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-foreground);
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid var(--vscode-widget-border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        .icon-button {
+            background: none;
+            border: none;
+            color: var(--vscode-foreground);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .icon-button:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+        .flex-space-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .text-muted {
+            color: var(--vscode-descriptionForeground);
+            font-size: 12px;
+        }
+        .button-danger {
+            background: linear-gradient(135deg, var(--vscode-inputValidation-errorBackground) 0%, #c0392b 100%);
+            color: white;
+            border: 2px solid var(--vscode-inputValidation-errorBorder);
+        }
+        .button-danger:hover {
+            background: linear-gradient(135deg, #c0392b 0%, var(--vscode-inputValidation-errorBackground) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -575,8 +702,8 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
 
             <!-- 配置管理面板 -->
             <div id="config-tab" class="tab-content active">
-                <div class="section">
-                    <h3 class="section-title">配置列表</h3>
+                <div class="card">
+                    <div class="card-header">配置列表</div>
                     <div class="config-list" id="configList">
                         <div class="no-data">
                             <div class="no-data-icon">⚙️</div>
@@ -584,15 +711,15 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                             <div class="no-data-subtext">点击下方按钮添加第一个OpenAPI配置</div>
                         </div>
                     </div>
-                    <button class="button-primary" id="add-config-btn">添加配置</button>
+                    <button class="button-primary" id="add-config-btn">➕ 添加配置</button>
                 </div>
                 
-                <div class="section">
-                    <h3 class="section-title">配置详情</h3>
+                <div class="card">
+                    <div class="card-header">配置详情</div>
                     <div id="configForm" class="hidden">
                         <input type="hidden" id="configId">
                         <div class="form-group">
-                            <label>Home版本 *</label>
+                            <label class="required">Home版本</label>
                             <div class="segmented" role="radiogroup" aria-label="Home版本">
                                 <label class="segment">
                                     <input type="radio" name="homeVersion" value="2105及之后版本" checked>
@@ -604,42 +731,60 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                                 </label>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="configName">名称 *</label>
-                            <input type="text" id="configName" placeholder="请输入名称">
+                        <div class="form-row">
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label class="required" for="configName">名称</label>
+                                    <input type="text" id="configName" placeholder="请输入配置名称">
+                                </div>
+                            </div>
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label class="required" for="accountCode">帐套编码</label>
+                                    <input type="text" id="accountCode" placeholder="请输入帐套编码">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label class="required" for="ip">IP地址</label>
+                                    <input type="text" id="ip" placeholder="例如 127.0.0.1">
+                                </div>
+                            </div>
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label class="required" for="port">端口</label>
+                                    <input type="number" id="port" placeholder="例如 8080">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label class="required" for="appId">APP ID</label>
+                                    <input type="text" id="appId" placeholder="请输入APP ID">
+                                </div>
+                            </div>
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label class="required" for="appSecret">APP Secret</label>
+                                    <input type="password" id="appSecret" placeholder="请输入APP Secret">
+                                </div>
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label for="ip">IP *</label>
-                            <input type="text" id="ip" placeholder="例如 127.0.0.1">
-                        </div>
-                        <div class="form-group">
-                            <label for="port">端口 *</label>
-                            <input type="number" id="port" placeholder="例如 8080">
-                        </div>
-                        <div class="form-group">
-                            <label for="accountCode">帐套编码 *</label>
-                            <input type="text" id="accountCode" placeholder="请输入帐套编码">
-                        </div>
-                        <div class="form-group">
-                            <label for="appId">APP ID *</label>
-                            <input type="text" id="appId" placeholder="请输入APP ID">
-                        </div>
-                        <div class="form-group">
-                            <label for="appSecret">APP Secret *</label>
-                            <input type="password" id="appSecret" placeholder="请输入APP Secret">
-                        </div>
-                        <div class="form-group">
-                            <label for="userCode">用户编码 *</label>
+                            <label class="required" for="userCode">用户编码</label>
                             <input type="text" id="userCode" placeholder="请输入用户编码">
                         </div>
                         <div class="form-group">
-                            <label for="publicKey">公钥</label>
-                            <textarea id="publicKey" rows="6" placeholder="请输入公钥（可选）"></textarea>
+                            <label for="publicKey">公钥 <span class="text-muted">(可选)</span></label>
+                            <textarea id="publicKey" rows="4" placeholder="请输入公钥"></textarea>
                         </div>
                         <div class="form-actions">
-                            <button class="button-primary" id="save-config-btn">保存配置</button>
-                            <button class="button-secondary" id="cancel-config-btn">取消</button>
-                            <button class="button-secondary" id="delete-config-btn" class="hidden">删除配置</button>
+                            <button class="button-primary" id="save-config-btn">💾 保存配置</button>
+                            <button class="button-secondary" id="cancel-config-btn">❌ 取消</button>
+                            <button class="button-danger hidden" id="delete-config-btn">🗑️ 删除配置</button>
                         </div>
                     </div>
                 </div>
@@ -647,52 +792,58 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
 
             <!-- 请求测试面板 -->
             <div id="request-tab" class="tab-content">
-                <div class="section">
-                    <h3 class="section-title">HTTP请求</h3>
+                <div class="card">
+                    <div class="card-header">HTTP请求</div>
                     <div class="form-group">
-                        <label for="selectedConfig">选择配置 *</label>
+                        <label class="required" for="selectedConfig">选择配置</label>
                         <select id="selectedConfig">
                             <option value="">请选择配置</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="method">请求方法</label>
-                        <select id="method">
-                            <option value="GET">GET</option>
-                            <option value="POST">POST</option>
-                            <option value="PUT">PUT</option>
-                            <option value="DELETE">DELETE</option>
-                            <option value="PATCH">PATCH</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="method">请求方法</label>
+                                <select id="method">
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                    <option value="PUT">PUT</option>
+                                    <option value="DELETE">DELETE</option>
+                                    <option value="PATCH">PATCH</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label class="required" for="url">请求URL</label>
+                                <input type="text" id="url" placeholder="/api/users">
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="url">请求URL *</label>
-                        <input type="text" id="url" placeholder="/api/users">
-                    </div>
-                    <div class="form-group">
-                        <label for="headers">请求头 (JSON格式)</label>
+                        <label for="headers">请求头 <span class="text-muted">(JSON格式)</span></label>
                         <textarea id="headers" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
                     </div>
                     <div class="form-group">
-                        <label for="params">查询参数 (JSON格式)</label>
+                        <label for="params">查询参数 <span class="text-muted">(JSON格式)</span></label>
                         <textarea id="params" rows="3" placeholder='{"page": 1, "size": 10}'></textarea>
                     </div>
                     <div class="form-group">
-                        <label for="body">请求体 (JSON格式)</label>
+                        <label for="body">请求体 <span class="text-muted">(JSON格式)</span></label>
                         <textarea id="body" rows="6" placeholder='{"name": "test", "email": "test@example.com"}'></textarea>
                     </div>
                     <div class="form-actions">
-                        <button class="button-primary" id="send-request-btn">发送请求</button>
-                        <button class="button-secondary" id="clear-request-btn">清空</button>
-                        <button class="button-secondary" id="test-connection-btn">测试连接</button>
+                        <button class="button-primary" id="send-request-btn">🚀 发送请求</button>
+                        <button class="button-secondary" id="clear-request-btn">🧹 清空</button>
+                        <button class="button-secondary" id="test-connection-btn">🔍 测试连接</button>
                     </div>
                 </div>
             </div>
 
             <!-- 响应结果面板 -->
             <div id="response-tab" class="tab-content">
-                <div class="section">
-                    <h3 class="section-title">响应结果</h3>
+                <div class="card">
+                    <div class="card-header">响应结果</div>
                     <div id="responseStatus"></div>
                     <div class="response-area" id="responseContent">点击"发送请求"按钮查看响应结果</div>
                 </div>
@@ -793,13 +944,34 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                 publicKey: document.getElementById('publicKey').value
             };
             
-            if (!config.name) { vscode.postMessage({ type: 'showError', message: '请输入名称' }); return; }
-            if (!config.ip) { vscode.postMessage({ type: 'showError', message: '请输入IP' }); return; }
-            if (!config.port || isNaN(config.port)) { vscode.postMessage({ type: 'showError', message: '请输入有效端口' }); return; }
-            if (!config.accountCode) { vscode.postMessage({ type: 'showError', message: '请输入帐套编码' }); return; }
-            if (!config.appId) { vscode.postMessage({ type: 'showError', message: '请输入APP ID' }); return; }
-            if (!config.appSecret) { vscode.postMessage({ type: 'showError', message: '请输入APP Secret' }); return; }
-            if (!config.userCode) { vscode.postMessage({ type: 'showError', message: '请输入用户编码' }); return; }
+            if (!config.name) { 
+                vscode.postMessage({ type: 'showError', message: '请输入名称' });
+                return; 
+            }
+            if (!config.ip) { 
+                vscode.postMessage({ type: 'showError', message: '请输入IP' }); 
+                return; 
+            }
+            if (!config.port || isNaN(config.port)) { 
+                vscode.postMessage({ type: 'showError', message: '请输入有效端口' }); 
+                return; 
+            }
+            if (!config.accountCode) { 
+                vscode.postMessage({ type: 'showError', message: '请输入帐套编码' }); 
+                return; 
+            }
+            if (!config.appId) { 
+                vscode.postMessage({ type: 'showError', message: '请输入APP ID' }); 
+                return; 
+            }
+            if (!config.appSecret) { 
+                vscode.postMessage({ type: 'showError', message: '请输入APP Secret' }); 
+                return; 
+            }
+            if (!config.userCode) { 
+                vscode.postMessage({ type: 'showError', message: '请输入用户编码' }); 
+                return; 
+            }
             
             if (document.getElementById('configId').value) {
                 vscode.postMessage({
@@ -819,12 +991,11 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
         // 删除配置
         function deleteConfig() {
             const configId = document.getElementById('configId').value;
-            if (configId && confirm('确定要删除此配置吗？')) {
+            if (configId) {
                 vscode.postMessage({
-                    type: 'deleteConfig',
+                    type: 'confirmDeleteConfig',
                     configId: configId
                 });
-                document.getElementById('configForm').classList.add('hidden');
             }
         }
         
@@ -904,7 +1075,7 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                 vscode.postMessage({ type: 'showError', message: '请求参数格式错误: ' + error.message });
             }
         }
-
+        
         // 清空请求
         function clearRequest() {
             document.getElementById('url').value = '';
