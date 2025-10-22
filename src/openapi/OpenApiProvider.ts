@@ -58,6 +58,9 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                 case 'setCurrentConfig':
                     await this.handleSetCurrentConfig(data.configId);
                     break;
+                case 'showError':
+                    vscode.window.showErrorMessage(data.message);
+                    break;
             }
         });
 
@@ -790,13 +793,13 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                 publicKey: document.getElementById('publicKey').value
             };
             
-            if (!config.name) { alert('请输入名称'); return; }
-            if (!config.ip) { alert('请输入IP'); return; }
-            if (!config.port || isNaN(config.port)) { alert('请输入有效端口'); return; }
-            if (!config.accountCode) { alert('请输入帐套编码'); return; }
-            if (!config.appId) { alert('请输入APP ID'); return; }
-            if (!config.appSecret) { alert('请输入APP Secret'); return; }
-            if (!config.userCode) { alert('请输入用户编码'); return; }
+            if (!config.name) { vscode.postMessage({ type: 'showError', message: '请输入名称' }); return; }
+            if (!config.ip) { vscode.postMessage({ type: 'showError', message: '请输入IP' }); return; }
+            if (!config.port || isNaN(config.port)) { vscode.postMessage({ type: 'showError', message: '请输入有效端口' }); return; }
+            if (!config.accountCode) { vscode.postMessage({ type: 'showError', message: '请输入帐套编码' }); return; }
+            if (!config.appId) { vscode.postMessage({ type: 'showError', message: '请输入APP ID' }); return; }
+            if (!config.appSecret) { vscode.postMessage({ type: 'showError', message: '请输入APP Secret' }); return; }
+            if (!config.userCode) { vscode.postMessage({ type: 'showError', message: '请输入用户编码' }); return; }
             
             if (document.getElementById('configId').value) {
                 vscode.postMessage({
@@ -854,7 +857,7 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
         function testConnection() {
             const selectedConfigId = document.getElementById('selectedConfig').value;
             if (!selectedConfigId) {
-                alert('请选择一个配置');
+                vscode.postMessage({ type: 'showError', message: '请选择一个配置' });
                 return;
             }
             
@@ -868,13 +871,13 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
         function sendRequest() {
             const selectedConfigId = document.getElementById('selectedConfig').value;
             if (!selectedConfigId) {
-                alert('请选择一个配置');
+                vscode.postMessage({ type: 'showError', message: '请选择一个配置' });
                 return;
             }
             
             const url = document.getElementById('url').value;
             if (!url) {
-                alert('请输入请求URL');
+                vscode.postMessage({ type: 'showError', message: '请输入请求URL' });
                 return;
             }
             
@@ -898,10 +901,10 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                 document.getElementById('responseContent').textContent = '请求发送中...';
                 
             } catch (error) {
-                alert('请求参数格式错误: ' + error.message);
+                vscode.postMessage({ type: 'showError', message: '请求参数格式错误: ' + error.message });
             }
         }
-        
+
         // 清空请求
         function clearRequest() {
             document.getElementById('url').value = '';
