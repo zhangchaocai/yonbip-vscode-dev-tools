@@ -444,7 +444,7 @@ export class HomeService {
                     output.includes('Started ServerConnector') ||
                     output.includes('Tomcat started on port')) {
                     this.setStatus(HomeStatus.RUNNING);
-                    vscode.window.showInformationMessage('NC HOME服务启动成功!');
+                    vscode.window.showInformationMessage('YonBIP Premium HOME服务启动成功!');
                 }
             });
 

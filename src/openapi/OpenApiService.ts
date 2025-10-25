@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
+import { createHash } from 'crypto';
+import { OpenApiTokenUtils } from '../utils/OpenApiTokenUtils';
 
 /**
  * OpenAPI配置接口
@@ -15,6 +17,7 @@ export interface OpenApiConfig {
     appId: string; // APP ID
     appSecret: string; // APP Secret
     userCode: string; // 用户编码
+    userPassword?: string; // 用户密码（可选）
     publicKey?: string; // 公钥（可选）
 }
 
@@ -153,6 +156,25 @@ export class OpenApiService {
         const startTime = Date.now();
         
         try {
+            // 获取token
+            let tokenResult: any = null;
+            let securityKey: string | null = null;
+            try {
+                console.log('开始获取token', { configId: config.id, configName: config.name });
+                const tokenResponse = await OpenApiTokenUtils.getToken(config);
+                console.log('获取token响应:', tokenResponse);
+                if (tokenResponse && tokenResponse.data && tokenResponse.data.access_token) {
+                    tokenResult = tokenResponse.data;
+                    securityKey = tokenResponse.data.security_key || null;
+                    console.log('成功获取access_token和security_key');
+                } else {
+                    console.warn('未获取到access_token，使用原有认证方式');
+                }
+            } catch (tokenError) {
+                console.error('获取token失败:', tokenError);
+                // token获取失败不中断请求，继续使用原有的认证方式
+            }
+            
             // 构建完整URL
             const fullUrl = this.buildUrl(request.url, config);
             
@@ -166,6 +188,49 @@ export class OpenApiService {
                 }
             };
 
+            // 添加请求参数
+            if (request.params) {
+                axiosConfig.params = request.params;
+            }
+
+            // 处理请求体
+            let requestBody = request.body;
+            if (request.body) {
+                // 如果有securityKey，则根据安全级别处理请求体
+                if (securityKey) {
+                    requestBody = this.dealRequestBody(JSON.stringify(request.body), securityKey, 'L0');
+                } else {
+                    requestBody = typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
+                }
+                
+                axiosConfig.data = requestBody;
+                if (!axiosConfig.headers['Content-Type']) {
+                    axiosConfig.headers['Content-Type'] = 'application/json;charset=utf-8';
+                }
+            }
+
+            // 添加认证头
+            if (tokenResult && tokenResult.access_token) {
+                // 使用新的认证方式
+                axiosConfig.headers['access_token'] = tokenResult.access_token;
+                axiosConfig.headers['client_id'] = config.appId;
+                
+                // 生成签名
+                const signContent = `${config.appId}${requestBody || ''}${config.publicKey || ''}`;
+                const signature = this.generateSignature(signContent, config.publicKey || '');
+                axiosConfig.headers['signature'] = signature;
+                
+                // 添加其他必需的请求头
+                axiosConfig.headers['repeat_check'] = 'Y';
+                axiosConfig.headers['ucg_flag'] = 'y';
+                
+                console.log('使用新的认证方式');
+            } else if (config.appId && config.appSecret) {
+                // 回退到原有的Basic认证
+                axiosConfig.headers['Authorization'] = this.generateAuthHeader(request, config);
+                console.log('回退到Basic认证');
+            }
+
             // 附加来自配置的业务头
             if (config.userCode) {
                 axiosConfig.headers['X-User-Code'] = config.userCode;
@@ -174,39 +239,54 @@ export class OpenApiService {
                 axiosConfig.headers['X-Account-Code'] = config.accountCode;
             }
 
-            // 添加请求参数
-            if (request.params) {
-                axiosConfig.params = request.params;
-            }
-
-            // 添加请求体
-            if (request.body) {
-                axiosConfig.data = request.body;
-                if (!axiosConfig.headers['Content-Type']) {
-                    axiosConfig.headers['Content-Type'] = 'application/json';
-                }
-            }
-
-            // 添加认证头（使用 APP ID/APP Secret）
-            if (config.appId && config.appSecret) {
-                axiosConfig.headers['Authorization'] = this.generateAuthHeader(request, config);
-            }
+            console.log('发送请求:', {
+                method: axiosConfig.method,
+                url: axiosConfig.url,
+                headers: axiosConfig.headers
+            });
 
             // 发送请求
             const response: any = await axios(axiosConfig);
             
+            // 处理响应体
+            let responseData = response.data;
+            if (securityKey && response.data) {
+                // 如果有securityKey，则根据安全级别处理响应体
+                const responseStr = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+                responseData = this.dealResponseBody(responseStr, securityKey, 'L0');
+                
+                // 尝试解析JSON
+                try {
+                    responseData = JSON.parse(responseData);
+                } catch (e) {
+                    // 如果解析失败，保持原样
+                }
+            }
+            
             const duration = Date.now() - startTime;
+            
+            console.log('请求成功:', {
+                status: response.status,
+                statusText: response.statusText,
+                duration: duration
+            });
             
             return {
                 status: response.status,
                 statusText: response.statusText,
                 headers: response.headers,
-                data: response.data,
+                data: responseData,
                 duration
             };
 
         } catch (error: any) {
             const duration = Date.now() - startTime;
+            
+            console.error('请求失败:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
             
             if (error.response) {
                 // 服务器响应错误
@@ -244,6 +324,53 @@ export class OpenApiService {
     private generateAuthHeader(request: ApiRequest, config: OpenApiConfig): string {
         const credentials = `${config.appId}:${config.appSecret}`;
         return `Basic ${Buffer.from(credentials).toString('base64')}`;
+    }
+
+    /**
+     * 根据加密等级加密请求体
+     * @param source 原始数据
+     * @param securityKey 安全密钥
+     * @param level 加密等级
+     * @returns 处理后的数据
+     */
+    private dealRequestBody(source: string, securityKey: string, level: string): string {
+        // 目前只实现L0级别（不加密、不压缩）
+        // 后续可根据需要实现其他级别的加密和压缩
+        if (level === 'L0') {
+            return source;
+        }
+        // 其他级别暂未实现，返回原始数据
+        return source;
+    }
+
+    /**
+     * 根据加密等级解密返回数据
+     * @param source 原始数据
+     * @param securityKey 安全密钥
+     * @param level 解密等级
+     * @returns 处理后的数据
+     */
+    private dealResponseBody(source: string, securityKey: string, level: string): string {
+        // 目前只实现L0级别（不加密、不压缩）
+        // 后续可根据需要实现其他级别的解密和解压缩
+        if (level === 'L0') {
+            return source;
+        }
+        // 其他级别暂未实现，返回原始数据
+        return source;
+    }
+
+    /**
+     * 生成签名
+     * @param content 签名内容
+     * @param publicKey 公钥
+     * @returns 签名结果
+     */
+    private generateSignature(content: string, publicKey: string): string {
+        // 使用SHA256生成签名
+        const hash = createHash('sha256');
+        hash.update(content);
+        return hash.digest('hex');
     }
 
     /**
