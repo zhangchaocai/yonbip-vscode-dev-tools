@@ -32,7 +32,7 @@ export class OpenApiTokenUtils {
             config.appSecret,
             config.publicKey || '',
             'token',
-            config.homeVersion >= "2105" ? "2105after" : "2105before"
+            config.homeVersion == "2105及之后版本" ? "2105after" : "2105before"
         ];
         
         // 如果提供了用户密码，则添加到参数中
