@@ -31,11 +31,17 @@ fi
 
 echo "✅ 插件打包完成"
 
-# 登录并发布（需要手动输入 Personal Access Token）
-echo "🔐 请登录到您的发布者账户..."
-echo "   提示：您需要输入 Personal Access Token"
-echo "   如果还没有，请访问 https://dev.azure.com 创建"
-vsce login zhangchck
+# 检查是否有环境变量中的PAT
+if [ -n "$VSCE_PAT" ]; then
+    echo "🔑 使用环境变量中的PAT进行发布..."
+    echo "Publisher 'zhangchck' is already known" | vsce login zhangchck <<< "$VSCE_PAT"
+else
+    # 登录并发布（需要手动输入 Personal Access Token）
+    echo "🔐 请登录到您的发布者账户..."
+    echo "   提示：您需要输入 Personal Access Token"
+    echo "   如果还没有，请访问 https://dev.azure.com 创建"
+    vsce login zhangchck
+fi
 
 if [ $? -ne 0 ]; then
     echo "❌ 登录失败"
