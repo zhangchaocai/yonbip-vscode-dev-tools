@@ -379,7 +379,7 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
         .form-group select,
         .form-group textarea {
             width: 100%;
-            padding: var(--space-lg) var(--space-lg);
+            padding: var(--space-sm) var(--space-md);
             border: 2px solid transparent;
             background: linear-gradient(135deg, 
                 var(--vscode-input-background) 0%,
@@ -394,8 +394,7 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
             position: relative;
             box-shadow: inset 0 1px 3px color-mix(in srgb, var(--vscode-input-border) 30%, transparent),
                         0 1px 0 color-mix(in srgb, var(--vscode-editor-background) 80%, transparent);
-            min-height: 80px;
-            max-height: 120px;
+            min-height: 36px;
             resize: vertical;
         }
         
@@ -1426,6 +1425,26 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
             font-weight: bold;
             font-size: var(--font-size-lg);
         }
+        
+        /* 双列布局样式 */
+        .form-row {
+            display: flex;
+            gap: var(--space-md);
+            margin-bottom: var(--space-md);
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        /* 响应式设计 - 当屏幕宽度小于768px时，使用单列布局 */
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+                gap: var(--space-md);
+            }
+        }
     </style>
 </head>
 <body>
@@ -1511,25 +1530,29 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                             <label for="configName">名称 *</label>
                             <input type="text" id="configName" placeholder="请输入名称">
                         </div>
-                        <div class="form-group">
-                            <label for="ip">IP *</label>
-                            <input type="text" id="ip" placeholder="例如 127.0.0.1">
-                        </div>
-                        <div class="form-group">
-                            <label for="port">端口 *</label>
-                            <input type="number" id="port" placeholder="例如 8080">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ip">IP *</label>
+                                <input type="text" id="ip" placeholder="例如 127.0.0.1">
+                            </div>
+                            <div class="form-group">
+                                <label for="port">端口 *</label>
+                                <input type="number" id="port" placeholder="例如 8080">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="accountCode">帐套编码 *</label>
                             <input type="text" id="accountCode" placeholder="请输入帐套编码">
                         </div>
-                        <div class="form-group">
-                            <label for="appId">APP ID *</label>
-                            <input type="text" id="appId" placeholder="请输入APP ID">
-                        </div>
-                        <div class="form-group">
-                            <label for="appSecret">APP Secret *</label>
-                            <input type="password" id="appSecret" placeholder="请输入APP Secret">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="appId">APP ID *</label>
+                                <input type="text" id="appId" placeholder="请输入APP ID">
+                            </div>
+                            <div class="form-group">
+                                <label for="appSecret">APP Secret *</label>
+                                <input type="password" id="appSecret" placeholder="请输入APP Secret">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="userCode">用户编码 *</label>
