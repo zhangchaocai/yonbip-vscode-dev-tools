@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="sm_workbench">
+	<tableName>sm_workbench</tableName>
+	<sqlNo>001</sqlNo>
+	<substitutionGroup/>
+	<subTableGroup>
+		<subTable>
+			<tableName>sm_app_group</tableName>
+			<foreignKeyColumn>workbenchid</foreignKeyColumn>
+			<sqlNo>002</sqlNo>
+			<substitutionGroup/>
+			<subTableGroup>
+				<subTable>
+					<tableName>sm_group_app</tableName>
+					<foreignKeyColumn>groupid</foreignKeyColumn>
+					<sqlNo>003</sqlNo>
+					<substitutionGroup/>
+				</subTable>
+			</subTableGroup>
+		</subTable>
+		<subTable>
+			<tableName>pub_workbench_assignment</tableName>
+			<foreignKeyColumn>workbenchid</foreignKeyColumn>
+			<sqlNo>004</sqlNo>
+			<substitutionGroup/>
+		</subTable>
+		<subTable>
+			<tableName>sm_quicklaunch</tableName>
+			<foreignKeyColumn>workbenchid</foreignKeyColumn>
+			<sqlNo>005</sqlNo>
+			<substitutionGroup/>
+		</subTable>
+		<subTable>
+			<tableName>sm_workbench_linkconfig</tableName>
+			<foreignKeyColumn>workbenchid</foreignKeyColumn>
+			<sqlNo>006</sqlNo>
+			<substitutionGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

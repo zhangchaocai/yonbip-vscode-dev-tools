@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="atp_checkitem">
+    <tableName>atp_checkitem</tableName>
+    <sqlNo>001</sqlNo>
+    <substitutionGroup/>
+    <subTableGroup>
+        <subTable>
+            <tableName>atp_checkitemparam</tableName>
+            <foreignKeyColumn>pk_checkitem</foreignKeyColumn>
+            <sqlNo>002</sqlNo>
+        </subTable>
+        <subTable>
+            <tableName>atp_checkitemfunc</tableName>
+            <foreignKeyColumn>pk_checkitem</foreignKeyColumn>
+            <sqlNo>003</sqlNo>
+        </subTable>
+        <subTable>
+            <tableName>atp_checkitemadvance</tableName>
+            <foreignKeyColumn>pk_checkitem</foreignKeyColumn>
+            <sqlNo>004</sqlNo>
+        </subTable>
+        <subTable>
+            <tableName>atp_checkitemfuncvector</tableName>
+            <foreignKeyColumn>pk_checkitem</foreignKeyColumn>
+            <sqlNo>005</sqlNo>
+        </subTable>
+    </subTableGroup>
+</hierarchy>

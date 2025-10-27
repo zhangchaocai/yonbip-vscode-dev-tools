@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="report_reportobject">
+	<tableName>report_reportobject</tableName>
+	<sqlNo>001</sqlNo>
+	<substitutionGroup/>
+	<subTableGroup>
+		<subTable>
+			<tableName>report_reportdetail</tableName>
+			<foreignKeyColumn>pk_report</foreignKeyColumn>
+			<sqlNo>002</sqlNo>		
+		</subTable>
+		<subTable>
+			<tableName>report_defdim</tableName>
+			<foreignKeyColumn>pk_report</foreignKeyColumn>
+			<sqlNo>003</sqlNo>		
+		</subTable>
+		<subTable>
+			<tableName>report_reportpublish</tableName>
+			<foreignKeyColumn>pk_report</foreignKeyColumn>
+			<sqlNo>004</sqlNo>		
+		</subTable>
+		<subTable>
+			<tableName>report_querycondition</tableName>
+			<foreignKeyColumn>pk_report</foreignKeyColumn>
+			<sqlNo>005</sqlNo>		
+		</subTable>
+	</subTableGroup>
+</hierarchy>

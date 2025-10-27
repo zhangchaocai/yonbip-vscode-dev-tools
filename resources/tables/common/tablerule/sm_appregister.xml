@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="sm_appregister">
+	<tableName>sm_appregister</tableName>
+	<sqlNo>001</sqlNo>
+	<substitutionGroup/>
+	<subTableGroup>
+		<subTable>
+			<tableName>sm_apppage</tableName>
+			<foreignKeyColumn>parent_id</foreignKeyColumn>
+			<sqlNo>002</sqlNo>
+			<subTableGroup>
+				<subTable>
+					<tableName>sm_appparam</tableName>
+					<foreignKeyColumn>parentid</foreignKeyColumn>
+					<sqlNo>004</sqlNo>
+				</subTable>
+				<subTable>
+					<tableName>pub_assign_register</tableName>
+					<foreignKeyColumn>apppageid</foreignKeyColumn>
+					<sqlNo>007</sqlNo>
+				</subTable>
+			</subTableGroup>
+		</subTable>
+		<subTable>
+			<tableName>sm_appbutnregister</tableName>
+			<foreignKeyColumn>appid</foreignKeyColumn>
+			<sqlNo>003</sqlNo>
+		</subTable>
+		<subTable>
+			<tableName>sm_appparam</tableName>
+			<foreignKeyColumn>parentid</foreignKeyColumn>
+			<sqlNo>004</sqlNo>
+		</subTable>
+		<subTable>
+			<tableName>sm_appbusiactivereg</tableName>
+			<foreignKeyColumn>parent_id</foreignKeyColumn>
+			<sqlNo>005</sqlNo>
+			<subTableGroup>
+				<subTable>
+					<tableName>sm_appbusi_btn</tableName>
+					<foreignKeyColumn>pk_busiactive</foreignKeyColumn>
+					<sqlNo>006</sqlNo>
+				</subTable>
+			</subTableGroup>
+		</subTable>			
+	</subTableGroup>
+</hierarchy>

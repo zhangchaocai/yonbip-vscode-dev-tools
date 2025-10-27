@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bd_billtype">
+	<tableName>bd_billtype</tableName>
+	<sqlNo>001</sqlNo>
+    <subTableGroup>
+		<subTable>
+		    <tableName>dap_defitem</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>002</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>dap_billfactor</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>003</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>pub_votable</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>004</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>pub_billtobillrefer</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>005</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>pub_function</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>006</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>pub_billaction</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>007</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>pub_billactiongroup</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>008</sqlNo>
+		    <subTableGroup>
+		        <subTable>
+			        <tableName>pub_billactionconfig</tableName>
+			        <foreignKeyColumn>pk_billactiongroup</foreignKeyColumn>
+			        <whereCondition/>
+			        <sqlNo>009</sqlNo>
+			        <subTableGroup/>
+		        </subTable>
+		    </subTableGroup>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>pub_busiclass</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>010</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>bd_billtype2</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>011</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+
+	    <subTable>
+		    <tableName>bd_fwdbilltype</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>012</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+		<subTable>
+		    <tableName>bd_relatedapp</tableName>
+		    <foreignKeyColumn>pk_billtypeid</foreignKeyColumn>
+		    <whereCondition/>
+		    <sqlNo>013</sqlNo>
+		    <subTableGroup/>
+	    </subTable>
+	</subTableGroup>
+</hierarchy>

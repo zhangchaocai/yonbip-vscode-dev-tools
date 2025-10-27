@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="opm_apimanager">
+  <tableName>opm_apimanager</tableName>
+  <sqlNo>001</sqlNo>
+  <subTableGroup>
+    <subTable>
+      <tableName>opm_apiparam</tableName>
+      <foreignKeyColumn>pk_api</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>002</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>opm_jsonexample</tableName>
+      <foreignKeyColumn>pk_api</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>003</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>opm_errorcode</tableName>
+      <foreignKeyColumn>pk_api</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>004</sqlNo>
+      <subTableGroup/>
+    </subTable>
+  </subTableGroup>
+</hierarchy>

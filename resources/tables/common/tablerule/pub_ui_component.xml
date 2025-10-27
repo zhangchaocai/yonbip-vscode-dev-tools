@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="pub_ui_component">
+	<tableName>pub_ui_component</tableName>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>pub_component_templet</tableName>
+			<foreignKeyColumn>pk_uicomponent</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

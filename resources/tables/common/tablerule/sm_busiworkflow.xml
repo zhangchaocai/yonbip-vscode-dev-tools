@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="sm_busiworkflow">
+	<tableName>sm_busiworkflow</tableName>
+    <sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>sm_busiflow_nodes</tableName>
+			<foreignKeyColumn>pk_busiworkflow</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+   		<subTable>
+			<tableName>sm_busiworkflow_cell</tableName>
+			<foreignKeyColumn>pk_busiworkflow</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>003</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>
+

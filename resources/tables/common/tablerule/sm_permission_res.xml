@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="sm_permission_res">
+	<tableName>sm_permission_res</tableName>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>sm_rule_type</tableName>
+			<foreignKeyColumn>OWNRESOURCE</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>003</sqlNo>
+			<subTableGroup/>
+		</subTable>		
+		<subTable>
+			<tableName>sm_specialpermission</tableName>
+			<foreignKeyColumn>RESOURCEID</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>004</sqlNo>
+			<subTableGroup>
+				<subTable>
+					<tableName>sm_ctpermdetail</tableName>
+					<foreignKeyColumn>OWNERCONFIG</foreignKeyColumn>
+					<whereCondition/>
+					<sqlNo>005</sqlNo>
+					<subTableGroup/>
+				</subTable>
+			</subTableGroup>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

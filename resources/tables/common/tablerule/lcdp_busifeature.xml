@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="lcdp_busifeature">
+  <tableName>lcdp_busifeature</tableName>
+  <sqlNo>001</sqlNo>
+  <subTableGroup>
+    <subTable>
+      <tableName>lcdp_busirelation</tableName>
+      <foreignKeyColumn>pk_busi</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>002</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>lcdp_busiattr</tableName>
+      <foreignKeyColumn>pk_busi</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>003</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>lcdp_busibtn</tableName>
+      <foreignKeyColumn>pk_busi</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>004</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>lcdp_busiconfig</tableName>
+      <foreignKeyColumn>pk_busi</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>005</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>lcdp_mobileapp</tableName>
+      <foreignKeyColumn>pk_busi</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>006</sqlNo>
+      <subTableGroup/>
+    </subTable>
+  </subTableGroup>
+</hierarchy>

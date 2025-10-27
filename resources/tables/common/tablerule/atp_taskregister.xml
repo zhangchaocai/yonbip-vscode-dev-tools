@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="atp_taskregister">
+  <tableName>atp_taskregister</tableName>
+  <sqlNo>001</sqlNo>
+  <substitutionGroup/>
+  <subTableGroup>
+    <subTable>
+      <tableName>atp_taskregisterparam</tableName>
+      <foreignKeyColumn>pk_taskregister</foreignKeyColumn>
+      <sqlNo>002</sqlNo>
+    </subTable>
+    <subTable>
+      <tableName>atp_taskdependency</tableName>
+      <foreignKeyColumn>pk_taskregister</foreignKeyColumn>
+      <sqlNo>003</sqlNo>
+    </subTable>
+  </subTableGroup>
+</hierarchy>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="pub_print_template">
+	<tableName>pub_print_template</tableName>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>pub_print_datasource</tableName>
+			<foreignKeyColumn>ctemplateid</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+		<subTable>
+			<tableName>pub_print_line</tableName>
+			<foreignKeyColumn>ctemplateid</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>003</sqlNo>
+			<subTableGroup/>
+		</subTable>
+		<subTable>
+			<tableName>pub_print_cell</tableName>
+			<foreignKeyColumn>ctemplateid</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>004</sqlNo>
+			<subTableGroup/>
+		</subTable>
+		<subTable>
+			<tableName>pub_print_variable</tableName>
+			<foreignKeyColumn>ctemplateid</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>005</sqlNo>
+			<subTableGroup/>
+		</subTable>
+		<subTable>
+			<tableName>pub_print_region</tableName>
+			<foreignKeyColumn>ctemplateid</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>006</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

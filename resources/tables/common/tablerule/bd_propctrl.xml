@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bd_propctrl">
+	<tableName>bd_propctrl</tableName>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>bd_propctrldetail</tableName>
+			<foreignKeyColumn>pk_propctrl</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

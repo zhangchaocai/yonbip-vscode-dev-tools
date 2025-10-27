@@ -172,27 +172,24 @@ export class CopyResourcesToHomeCommand {
         const metaInfDir = path.join(selectedPath, 'META-INF');
         if (fs.existsSync(metaInfDir) && fs.statSync(metaInfDir).isDirectory()) {
             metaInfPaths.push(metaInfDir);
-        } else {
-            // 如果选中的是文件，则检查其所在目录
-            if (fs.existsSync(selectedPath) && fs.statSync(selectedPath).isFile()) {
-                const parentDir = path.dirname(selectedPath);
-                if (fs.existsSync(parentDir) && fs.statSync(parentDir).isDirectory()) {
-                    metaInfPaths.push(parentDir);
-                }
-            }
-            // 如果选中的是目录但没有直接的META-INF，则递归查找子目录中的META-INF
-            else if (fs.existsSync(selectedPath) && fs.statSync(selectedPath).isDirectory()) {
-                this.findMetaInfInSubdirectories(selectedPath, metaInfPaths);
-            }
+        }
+        
+        // 无论是否在当前目录找到META-INF，都继续递归查找子目录中的META-INF（最多5层）
+        if (fs.existsSync(selectedPath) && fs.statSync(selectedPath).isDirectory()) {
+            this.findMetaInfInSubdirectoriesWithDepth(selectedPath, metaInfPaths, 5);
         }
         
         return metaInfPaths;
     }
 
     /**
-     * 递归查找子目录中的META-INF目录
+     * 递归查找子目录中的META-INF目录，限制最大深度
      */
-    private findMetaInfInSubdirectories(dirPath: string, metaInfPaths: string[]): void {
+    private findMetaInfInSubdirectoriesWithDepth(dirPath: string, metaInfPaths: string[], maxDepth: number): void {
+        if (maxDepth <= 0) {
+            return;
+        }
+        
         try {
             const items = fs.readdirSync(dirPath);
             for (const item of items) {
@@ -207,8 +204,8 @@ export class CopyResourcesToHomeCommand {
                     if (fs.existsSync(metaInfDir) && fs.statSync(metaInfDir).isDirectory()) {
                         metaInfPaths.push(metaInfDir);
                     } else {
-                        // 继续递归查找
-                        this.findMetaInfInSubdirectories(fullPath, metaInfPaths);
+                        // 继续递归查找，深度减1
+                        this.findMetaInfInSubdirectoriesWithDepth(fullPath, metaInfPaths, maxDepth - 1);
                     }
                 }
             }
@@ -259,11 +256,53 @@ export class CopyResourcesToHomeCommand {
      * 从module.xml获取模块名称
      */
     private getModuleNameFromModuleXml(projectPath: string): { name: string } | null {
-        const moduleXmlPath = path.join(projectPath, 'META-INF', 'module.xml');
-        if (!fs.existsSync(moduleXmlPath)) {
-            return null;
+        // 首先尝试在当前目录的META-INF中查找module.xml
+        let moduleXmlPath = path.join(projectPath, 'META-INF', 'module.xml');
+        if (fs.existsSync(moduleXmlPath)) {
+            return this.parseModuleXml(moduleXmlPath);
         }
 
+        // 向下递归查找，最多5层
+        let currentPaths: string[] = [projectPath];
+        for (let i = 0; i < 5; i++) {
+            const nextLevelPaths: string[] = [];
+            for (const currentPath of currentPaths) {
+                const subDirs = this.getSubDirectories(currentPath);
+                for (const subDir of subDirs) {
+                    const subModuleXmlPath = path.join(subDir, 'META-INF', 'module.xml');
+                    if (fs.existsSync(subModuleXmlPath)) {
+                        return this.parseModuleXml(subModuleXmlPath);
+                    }
+                    nextLevelPaths.push(subDir);
+                }
+            }
+            currentPaths = nextLevelPaths;
+            if (currentPaths.length === 0) {
+                break;
+            }
+        }
+
+        // 向上递归查找，最多5层
+        let parentPath = projectPath;
+        for (let i = 0; i < 5; i++) {
+            parentPath = path.dirname(parentPath);
+            if (parentPath === projectPath) {
+                break; // 防止无限循环
+            }
+            
+            const parentModuleXmlPath = path.join(parentPath, 'META-INF', 'module.xml');
+            if (fs.existsSync(parentModuleXmlPath)) {
+                return this.parseModuleXml(parentModuleXmlPath);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 解析module.xml文件获取模块名称
+     */
+    private parseModuleXml(moduleXmlPath: string): { name: string } | null {
         try {
             const content = fs.readFileSync(moduleXmlPath, 'utf-8');
             // 简单解析XML获取name属性
@@ -274,8 +313,61 @@ export class CopyResourcesToHomeCommand {
         } catch (error) {
             // 忽略解析错误
         }
-
         return null;
+    }
+
+    /**
+     * 获取指定目录下的所有子目录
+     */
+    private getSubDirectories(dirPath: string): string[] {
+        const subDirs: string[] = [];
+        try {
+            const items = fs.readdirSync(dirPath);
+            for (const item of items) {
+                const fullPath = path.join(dirPath, item);
+                // 跳过一些不需要递归的目录
+                if (item === 'node_modules' || item === '.git' || item === 'target') {
+                    continue;
+                }
+                
+                const stat = fs.statSync(fullPath);
+                if (stat.isDirectory()) {
+                    subDirs.push(fullPath);
+                }
+            }
+        } catch (error) {
+            // 忽略无法访问的目录
+            console.warn(`无法访问目录: ${dirPath}`, error);
+        }
+        return subDirs;
+    }
+
+    /**
+     * 获取指定目录下所有层级的子目录（用于向下递归查找）
+     */
+    private getAllSubDirectories(dirPath: string): string[] {
+        const allSubDirs: string[] = [];
+        try {
+            const items = fs.readdirSync(dirPath);
+            for (const item of items) {
+                const fullPath = path.join(dirPath, item);
+                // 跳过一些不需要递归的目录
+                if (item === 'node_modules' || item === '.git' || item === 'target') {
+                    continue;
+                }
+                
+                const stat = fs.statSync(fullPath);
+                if (stat.isDirectory()) {
+                    allSubDirs.push(fullPath);
+                    // 递归获取更深层的子目录
+                    allSubDirs.push(...this.getAllSubDirectories(fullPath));
+                }
+            }
+        } catch (error) {
+            // 忽略无法访问的目录
+            console.warn(`无法访问目录: ${dirPath}`, error);
+        }
+        return allSubDirs;
     }
 
     /**

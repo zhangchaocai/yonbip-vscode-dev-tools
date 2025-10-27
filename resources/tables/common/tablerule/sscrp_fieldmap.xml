@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="sscrp_fieldmap">
+  <tableName>sscrp_fieldmap</tableName>
+  <sqlNo>001</sqlNo>
+  <substitutionGroup/>
+  <subTableGroup>
+    <subTable>
+      <tableName>sscrp_fieldmap_b</tableName>
+      <foreignKeyColumn>pk_fieldmap</foreignKeyColumn>
+      <sqlNo>002</sqlNo>
+    </subTable>
+  </subTableGroup>
+</hierarchy>

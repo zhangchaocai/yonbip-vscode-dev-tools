@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="pub_msgtemp_type">
+	<tableName>pub_msgtemp_type</tableName>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>pub_msgtemp_var</tableName>
+			<foreignKeyColumn>pk_temptype</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

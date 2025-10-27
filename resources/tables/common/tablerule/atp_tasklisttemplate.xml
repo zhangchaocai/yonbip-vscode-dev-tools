@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="atp_tasklisttemplate">
+  <tableName>atp_tasklisttemplate</tableName>
+  <sqlNo>001</sqlNo>
+  <substitutionGroup/>
+  <subTableGroup>
+    <subTable>
+      <tableName>atp_taskdetailtemplate</tableName>
+      <foreignKeyColumn>pk_tasklisttemplate</foreignKeyColumn>
+      <sqlNo>002</sqlNo>
+      <subTableGroup>
+        <subTable>
+          <tableName>atp_pretasktemplate</tableName>
+          <foreignKeyColumn>pk_taskdetailtemplate</foreignKeyColumn>
+          <sqlNo>003</sqlNo>
+        </subTable>
+      </subTableGroup>
+    </subTable>
+  </subTableGroup>
+</hierarchy>
