@@ -138,6 +138,7 @@ export class TableRuleParser {
         const tableStructure: TableStructure = {
             table: hierarchy.tableName,
             sqlNo: hierarchy.sqlNo,
+            primaryKey: hierarchy.pk || '',
             subTables: []
         };
 
@@ -260,6 +261,8 @@ export interface TableStructure {
     table: string;
     /** SQL编号 */
     sqlNo: string;
+    /** 主键字段名 */
+    primaryKey: string;
     /** 子表列表 */
     subTables: SubTableStructure[];
 }

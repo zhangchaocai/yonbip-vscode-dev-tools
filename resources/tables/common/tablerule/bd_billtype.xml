@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bd_billtype">
 	<tableName>bd_billtype</tableName>
+	<pk>pk_billtypeid</pk>
 	<sqlNo>001</sqlNo>
     <subTableGroup>
 		<subTable>

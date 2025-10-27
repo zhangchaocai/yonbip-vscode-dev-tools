@@ -367,12 +367,21 @@ ${inserts.join("\n")}
                 }
             });
         } catch (error: any) {
-            this._view?.webview.postMessage({
-                type: 'showMessage',
-                level: 'error',
-                message: `导出失败: ${error.message || String(error)}`
-            });
-            this._view?.webview.postMessage({ type: 'exportFinished' });
+            console.error('导出预置脚本时发生错误:', error);
+            
+            // 确保_view存在并且webview可以接收消息
+            if (this._view && this._view.webview) {
+                this._view.webview.postMessage({
+                    type: 'showMessage',
+                    level: 'error',
+                    message: `导出失败: ${error.message || String(error)}`
+                });
+                // 发送导出错误完成消息，重置界面状态
+                this._view.webview.postMessage({ type: 'exportError' });
+            } else {
+                // 如果无法通过webview发送消息，使用vscode的通知
+                vscode.window.showErrorMessage(`导出失败: ${error.message || String(error)}`);
+            }
         }
     }
 
@@ -390,38 +399,43 @@ ${inserts.join("\n")}
         where: string,
         excludeTimestamp: boolean = false
     ): Promise<string> {
-        let sqlOutput = '';
-        
-        // 处理主表
-        const mainTable = tableStructure.table;
-        
-        // DELETE 语句（如果有 where 条件）
-        if (where) {
-            sqlOutput += `-- 删除 ${mainTable}\nDELETE FROM ${mainTable} WHERE ${where};\n\n`;
-        }
+        try {
+            let sqlOutput = '';
+            
+            // 处理主表
+            const mainTable = tableStructure.table;
+            
+            // DELETE 语句（如果有 where 条件）
+            if (where) {
+                sqlOutput += `-- 删除 ${mainTable}\nDELETE FROM ${mainTable} WHERE ${where};\n\n`;
+            }
 
-        // 查询主表数据
-        const mainSelectSql = `SELECT * FROM ${mainTable}${where ? ' WHERE ' + where : ''}`;
-        const mainRows = await this._queryRows(ds, mainSelectSql);
-        
-        if (!mainRows || mainRows.length === 0) {
-            sqlOutput += `-- ${mainTable} 无匹配数据\n\n`;
-            return sqlOutput;
-        }
+            // 查询主表数据
+            const mainSelectSql = `SELECT * FROM ${mainTable}${where ? ' WHERE ' + where : ''}`;
+            const mainRows = await this._queryRows(ds, mainSelectSql);
+            
+            if (!mainRows || mainRows.length === 0) {
+                sqlOutput += `-- ${mainTable} 无匹配数据\n\n`;
+                return sqlOutput;
+            }
 
-        // 生成主表INSERT语句
-        const mainInserts = this._generateInsertSql(ds.databaseType, mainTable, mainRows, excludeTimestamp);
-        sqlOutput += `-- 插入 ${mainTable} (${mainRows.length} 行)
+            // 生成主表INSERT语句
+            const mainInserts = this._generateInsertSql(ds.databaseType, mainTable, mainRows, excludeTimestamp);
+            sqlOutput += `-- 插入 ${mainTable} (${mainRows.length} 行)
 ${mainInserts.join("\n")}
 
 `;
 
-        // 处理子表
-        for (const subTable of tableStructure.subTables) {
-            sqlOutput += await this._processSubTable(ds, subTable, mainTable, mainRows, excludeTimestamp);
+            // 处理子表
+            for (const subTable of tableStructure.subTables) {
+                sqlOutput += await this._processSubTable(ds, subTable, mainTable, mainRows, excludeTimestamp);
+            }
+            
+            return sqlOutput;
+        } catch (error: any) {
+            console.error('处理表结构时发生错误:', error);
+            throw new Error(`处理表 ${tableStructure.table} 时发生错误: ${error.message || String(error)}`);
         }
-        
-        return sqlOutput;
     }
 
     /**
@@ -440,66 +454,86 @@ ${mainInserts.join("\n")}
         parentRows: Array<Record<string, any>>,
         excludeTimestamp: boolean = false
     ): Promise<string> {
-        let sqlOutput = '';
-        
-        // 获取父表的主键列名（简化处理，实际应该从表结构中获取）
-        // 支持常见的主键命名规则
-        const parentPkColumnCandidates = [
-            'pk_' + parentTable,     // pk_表名
-            'id',                    // id
-            parentTable + '_id',     // 表名_id
-            'pkid'                   // pkid
-        ];
-        
-        let parentPkColumn = '';
-        if (parentRows.length > 0) {
-            // 尝试找到匹配的主键列
-            for (const candidate of parentPkColumnCandidates) {
-                if (candidate in parentRows[0]) {
-                    parentPkColumn = candidate;
-                    break;
+        try {
+            let sqlOutput = '';
+            
+            // 从表结构规则中获取父表的主键列名
+            let parentPkColumn = '';
+            
+            // 解析父表的表结构规则以获取主键信息
+            const parentTableStructure = await this.tableRuleParser.parseTableRule(parentTable.toUpperCase());
+            if (parentTableStructure && parentTableStructure.primaryKey) {
+                parentPkColumn = parentTableStructure.primaryKey.toUpperCase();
+            } else {
+                // 如果无法从XML获取主键，则回退到原来的候选列表方式
+                const parentPkColumnCandidates = [
+                    'pk_' + parentTable.toUpperCase(),     // pk_表名
+                    'id',                    // id
+                    parentTable.toUpperCase() + '_id',     // 表名_id
+                    'pkid'                   // pkid
+                ];
+                
+                if (parentRows.length > 0) {
+                    // 尝试找到匹配的主键列
+                    for (const candidate of parentPkColumnCandidates) {
+                        if (candidate in parentRows[0]) {
+                            parentPkColumn = candidate;
+                            break;
+                        }
+                    }
+                    
+                    // 如果还是没找到，使用第一个列作为主键（最后的备选方案）
+                    if (!parentPkColumn) {
+                        parentPkColumn = Object.keys(parentRows[0])[0];
+                    }
                 }
             }
             
-            // 如果还是没找到，使用第一个列作为主键（最后的备选方案）
-            if (!parentPkColumn) {
-                parentPkColumn = Object.keys(parentRows[0])[0];
+            // 收集父表的所有主键值
+            const parentPkValues = parentRows
+                .map(row => row[parentPkColumn])
+                .filter(pk => pk !== undefined && pk !== null);
+            
+            if (parentPkValues.length === 0) {
+                return sqlOutput;
             }
-        }
-        
-        // 收集父表的所有主键值
-        const parentPkValues = parentRows
-            .map(row => row[parentPkColumn])
-            .filter(pk => pk !== undefined && pk !== null);
-        
-        if (parentPkValues.length === 0) {
-            return sqlOutput;
-        }
-        
-        // 构建子表查询SQL
-        const pkList = parentPkValues.map(pk => `'${String(pk).replace(/'/g, "''")}'`).join(',');
-        const subSelectSql = `SELECT * FROM ${subTable.table} WHERE ${subTable.foreignKeyColumn} IN (${pkList})`;
-        
-        // 查询子表数据
-        const subRows = await this._queryRows(ds, subSelectSql);
-        
-        if (!subRows || subRows.length === 0) {
-            sqlOutput += `-- ${subTable.table} 无匹配数据\n\n`;
-        } else {
-            // 生成子表INSERT语句
-            const subInserts = this._generateInsertSql(ds.databaseType, subTable.table, subRows, excludeTimestamp);
-            sqlOutput += `-- 插入 ${subTable.table} (${subRows.length} 行)
+            
+            // 构建子表查询SQL
+            const pkList = parentPkValues.map(pk => `'${String(pk).replace(/'/g, "''")}'`).join(',');
+            const subSelectSql = `SELECT * FROM ${subTable.table.toUpperCase()} WHERE ${subTable.foreignKeyColumn.toUpperCase()} IN (${pkList})`;
+            
+            // 查询子表数据
+            const subRows = await this._queryRows(ds, subSelectSql);
+            
+            if (!subRows || subRows.length === 0) {
+                sqlOutput += `-- ${subTable.table.toUpperCase()} 无匹配数据\n\n`;
+            } else {
+                // 生成子表INSERT语句
+                const subInserts = this._generateInsertSql(ds.databaseType, subTable.table.toUpperCase(), subRows, excludeTimestamp);
+                sqlOutput += `-- 插入 ${subTable.table.toUpperCase()} (${subRows.length} 行)
 ${subInserts.join("\n")}
 
 `;
 
-            // 递归处理嵌套子表
-            for (const nestedSubTable of subTable.subTables) {
-                sqlOutput += await this._processSubTable(ds, nestedSubTable, subTable.table, subRows, excludeTimestamp);
+                // 递归处理嵌套子表
+                for (const nestedSubTable of subTable.subTables) {
+                    sqlOutput += await this._processSubTable(ds, nestedSubTable, subTable.table.toUpperCase(), subRows, excludeTimestamp);
+                }
             }
+            
+            return sqlOutput;
+        } catch (error: any) {
+            console.error('处理子表时发生错误:', error);
+            // 根据需求修改：不中断流程执行，将错误以警告形式提示用户
+            const errorMsg = `处理子表 ${subTable.table} 时发生错误: ${error.message || String(error)}`;
+            this._view?.webview.postMessage({
+                type: 'showMessage',
+                level: 'warning',
+                message: errorMsg
+            });
+            // 返回空字符串而不是抛出异常，确保流程继续执行
+            return '';
         }
-        
-        return sqlOutput;
     }
 
     private _refreshDataSources(): void {
@@ -1249,7 +1283,14 @@ window.addEventListener('message', (event) => {
             break;
         case 'exportFinished':
             setExporting(false);
-            showStatus('预置脚本导出完成', 'success');
+            // 只有在没有显示错误消息的情况下才显示成功消息
+            if (!statusBar.classList.contains('error')) {
+                showStatus('预置脚本导出完成', 'success');
+            }
+            break;
+        case 'exportError':
+            // 处理导出错误，重置界面状态
+            setExporting(false);
             break;
         case 'showMessage':
             if (msg.level === 'error') {

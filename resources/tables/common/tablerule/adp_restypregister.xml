@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="adp_restypregister">
 	<tableName>adp_restypregister</tableName>
+	<pk>restypeid</pk>
 	<sqlNo>001</sqlNo>
 	<subTableGroup>
 		<subTable>
