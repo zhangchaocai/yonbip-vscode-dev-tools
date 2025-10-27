@@ -6,6 +6,7 @@ import { NCHomeConfigService } from '../../project/nc-home/config/NCHomeConfigSe
 import { PasswordEncryptor } from '../../utils/PasswordEncryptor';
 import { DataSourceMeta } from '../../project/nc-home/config/NCHomeConfigTypes';
 import { OracleClientService } from '../../project/nc-home/OracleClientService';
+import { TableRuleParser, TableStructure, SubTableStructure } from '../../utils/TableRuleParser';
 const xml2js = require('xml2js');
 
 /**
@@ -17,6 +18,7 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
     private _view?: vscode.WebviewView;
     private configService: NCHomeConfigService;
     private oracleClientService: OracleClientService;
+    private tableRuleParser: TableRuleParser;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -24,6 +26,7 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
     ) {
         this.configService = new NCHomeConfigService(_context);
         this.oracleClientService = new OracleClientService(_context);
+        this.tableRuleParser = new TableRuleParser(_context.extensionPath);
 
         // 注册刷新命令
         this._context.subscriptions.push(
@@ -195,6 +198,9 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
             this._view?.webview.postMessage({ type: 'progress', percent: 5, text: '校验配置与输出目录' });
             this._view?.webview.postMessage({ type: 'showMessage', level: 'info', message: '正在读取 InitDataCfgs 并生成SQL...' });
 
+            // 获取需要排除时间戳的表列表
+            const excludeTimestampTables = this.tableRuleParser.getExcludeTimestampTables();
+
             // 解析 InitDataCfgs XML 路径
             const xmlPaths = this._resolveInitCfgXmlPaths();
             if (xmlPaths.length === 0) {
@@ -272,46 +278,58 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
                     text: `处理表: ${table}...` 
                 });
 
-                // DELETE 语句（如果有 where 条件）
-                if (where) {
-                    sqlOutput += `-- 删除 ${table}\nDELETE FROM ${table} WHERE ${where};\n\n`;
-                }
+                // 检查是否存在对应的表规则文件
+                const tableStructure = await this.tableRuleParser.parseTableRule(table);
+                
+                // 检查是否需要排除时间戳字段
+                const excludeTimestamp = excludeTimestampTables.includes(table);
+                
+                if (tableStructure) {
+                    // 如果存在表规则，则按照表规则处理主表和子表
+                    sqlOutput += await this._processTableWithStructure(ds, tableStructure, where, excludeTimestamp);
+                } else {
+                    // 如果不存在表规则，则按照原有逻辑处理
+                    // DELETE 语句（如果有 where 条件）
+                    if (where) {
+                        sqlOutput += `-- 删除 ${table}\nDELETE FROM ${table} WHERE ${where};\n\n`;
+                    }
 
-                // 查询并生成 INSERT
-                const selectSql = `SELECT * FROM ${table}${where ? ' WHERE ' + where : ''}`;
-                
-                // 更新进度 - 正在查询数据
-                this._view?.webview.postMessage({ 
-                    type: 'progress', 
-                    percent: 25 + Math.floor(processed / total * 60), 
-                    text: `查询表 ${table} 数据...` 
-                });
-                
-                const rows = await this._queryRows(ds, selectSql);
-                if (!rows || rows.length === 0) {
-                    sqlOutput += `-- ${table} 无匹配数据\n\n`;
-                    processed++;
-                    const percent = 25 + Math.floor(processed / total * 60);
-                    this._view?.webview.postMessage({ type: 'progress', percent, text: `处理 ${table}（无数据）` });
-                    continue;
-                }
+                    // 查询并生成 INSERT
+                    const selectSql = `SELECT * FROM ${table}${where ? ' WHERE ' + where : ''}`;
+                    
+                    // 更新进度 - 正在查询数据
+                    this._view?.webview.postMessage({ 
+                        type: 'progress', 
+                        percent: 25 + Math.floor(processed / total * 60), 
+                        text: `查询表 ${table} 数据...` 
+                    });
+                    
+                    const rows = await this._queryRows(ds, selectSql);
+                    if (!rows || rows.length === 0) {
+                        sqlOutput += `-- ${table} 无匹配数据\n\n`;
+                        processed++;
+                        const percent = 25 + Math.floor(processed / total * 60);
+                        this._view?.webview.postMessage({ type: 'progress', percent, text: `处理 ${table}（无数据）` });
+                        continue;
+                    }
 
-                // 更新进度 - 正在生成INSERT语句
-                this._view?.webview.postMessage({ 
-                    type: 'progress', 
-                    percent: 25 + Math.floor(processed / total * 60), 
-                    text: `生成 ${table} 的 ${rows.length} 行 INSERT 语句...` 
-                });
-                
-                const inserts = this._generateInsertSql(ds.databaseType, table, rows);
-                sqlOutput += `-- 插入 ${table} (${rows.length} 行)
+                    // 更新进度 - 正在生成INSERT语句
+                    this._view?.webview.postMessage({ 
+                        type: 'progress', 
+                        percent: 25 + Math.floor(processed / total * 60), 
+                        text: `生成 ${table} 的 ${rows.length} 行 INSERT 语句...` 
+                    });
+                    
+                    const inserts = this._generateInsertSql(ds.databaseType, table, rows, excludeTimestamp);
+                    sqlOutput += `-- 插入 ${table} (${rows.length} 行)
 ${inserts.join("\n")}
 
 `;
 
-                processed++;
-                const percent = 25 + Math.floor(processed / total * 60);
-                this._view?.webview.postMessage({ type: 'progress', percent, text: `完成处理 ${table} (${rows.length} 行)` });
+                    processed++;
+                    const percent = 25 + Math.floor(processed / total * 60);
+                    this._view?.webview.postMessage({ type: 'progress', percent, text: `完成处理 ${table} (${rows.length} 行)` });
+                }
             }
 
             // 写入文件
@@ -356,6 +374,132 @@ ${inserts.join("\n")}
             });
             this._view?.webview.postMessage({ type: 'exportFinished' });
         }
+    }
+
+    /**
+     * 根据表结构处理主表和子表的数据导出
+     * @param ds 数据源配置
+     * @param tableStructure 表结构信息
+     * @param where WHERE条件
+     * @param excludeTimestamp 是否排除时间戳字段
+     * @returns SQL输出字符串
+     */
+    private async _processTableWithStructure(
+        ds: DataSourceMeta, 
+        tableStructure: TableStructure, 
+        where: string,
+        excludeTimestamp: boolean = false
+    ): Promise<string> {
+        let sqlOutput = '';
+        
+        // 处理主表
+        const mainTable = tableStructure.table;
+        
+        // DELETE 语句（如果有 where 条件）
+        if (where) {
+            sqlOutput += `-- 删除 ${mainTable}\nDELETE FROM ${mainTable} WHERE ${where};\n\n`;
+        }
+
+        // 查询主表数据
+        const mainSelectSql = `SELECT * FROM ${mainTable}${where ? ' WHERE ' + where : ''}`;
+        const mainRows = await this._queryRows(ds, mainSelectSql);
+        
+        if (!mainRows || mainRows.length === 0) {
+            sqlOutput += `-- ${mainTable} 无匹配数据\n\n`;
+            return sqlOutput;
+        }
+
+        // 生成主表INSERT语句
+        const mainInserts = this._generateInsertSql(ds.databaseType, mainTable, mainRows, excludeTimestamp);
+        sqlOutput += `-- 插入 ${mainTable} (${mainRows.length} 行)
+${mainInserts.join("\n")}
+
+`;
+
+        // 处理子表
+        for (const subTable of tableStructure.subTables) {
+            sqlOutput += await this._processSubTable(ds, subTable, mainTable, mainRows, excludeTimestamp);
+        }
+        
+        return sqlOutput;
+    }
+
+    /**
+     * 处理子表数据导出
+     * @param ds 数据源配置
+     * @param subTable 子表结构
+     * @param parentTable 父表名
+     * @param parentRows 父表数据
+     * @param excludeTimestamp 是否排除时间戳字段
+     * @returns SQL输出字符串
+     */
+    private async _processSubTable(
+        ds: DataSourceMeta,
+        subTable: SubTableStructure,
+        parentTable: string,
+        parentRows: Array<Record<string, any>>,
+        excludeTimestamp: boolean = false
+    ): Promise<string> {
+        let sqlOutput = '';
+        
+        // 获取父表的主键列名（简化处理，实际应该从表结构中获取）
+        // 支持常见的主键命名规则
+        const parentPkColumnCandidates = [
+            'pk_' + parentTable,     // pk_表名
+            'id',                    // id
+            parentTable + '_id',     // 表名_id
+            'pkid'                   // pkid
+        ];
+        
+        let parentPkColumn = '';
+        if (parentRows.length > 0) {
+            // 尝试找到匹配的主键列
+            for (const candidate of parentPkColumnCandidates) {
+                if (candidate in parentRows[0]) {
+                    parentPkColumn = candidate;
+                    break;
+                }
+            }
+            
+            // 如果还是没找到，使用第一个列作为主键（最后的备选方案）
+            if (!parentPkColumn) {
+                parentPkColumn = Object.keys(parentRows[0])[0];
+            }
+        }
+        
+        // 收集父表的所有主键值
+        const parentPkValues = parentRows
+            .map(row => row[parentPkColumn])
+            .filter(pk => pk !== undefined && pk !== null);
+        
+        if (parentPkValues.length === 0) {
+            return sqlOutput;
+        }
+        
+        // 构建子表查询SQL
+        const pkList = parentPkValues.map(pk => `'${String(pk).replace(/'/g, "''")}'`).join(',');
+        const subSelectSql = `SELECT * FROM ${subTable.table} WHERE ${subTable.foreignKeyColumn} IN (${pkList})`;
+        
+        // 查询子表数据
+        const subRows = await this._queryRows(ds, subSelectSql);
+        
+        if (!subRows || subRows.length === 0) {
+            sqlOutput += `-- ${subTable.table} 无匹配数据\n\n`;
+        } else {
+            // 生成子表INSERT语句
+            const subInserts = this._generateInsertSql(ds.databaseType, subTable.table, subRows, excludeTimestamp);
+            sqlOutput += `-- 插入 ${subTable.table} (${subRows.length} 行)
+${subInserts.join("\n")}
+
+`;
+
+            // 递归处理嵌套子表
+            for (const nestedSubTable of subTable.subTables) {
+                sqlOutput += await this._processSubTable(ds, nestedSubTable, subTable.table, subRows, excludeTimestamp);
+            }
+        }
+        
+        return sqlOutput;
     }
 
     private _refreshDataSources(): void {
@@ -1428,7 +1572,7 @@ checkXmlSelection();
         throw new Error(`不支持的数据库类型: ${ds.databaseType}`);
     }
 
-    private _generateInsertSql(dbType: string, table: string, rows: Array<Record<string, any>>): string[] {
+    private _generateInsertSql(dbType: string, table: string, rows: Array<Record<string, any>>, excludeTimestamp: boolean = false): string[] {
         const type = (dbType || '').toLowerCase();
         const escapeStr = (val: any): string => {
             if (val === null || val === undefined) return 'NULL';
@@ -1451,9 +1595,25 @@ checkXmlSelection();
             return `'${s}'`;
         };
 
+        // 定义常见的需要排除的时间戳字段名
+        const timestampFields = [
+            'createdtime', 
+            'creationtime', 
+            'lastmodifiedtime', 
+            'lastupdatetime', 
+            'modifytime',
+            'ts',
+            'updatetime'
+        ];
+
         const sqls: string[] = [];
         for (const row of rows) {
-            const cols = Object.keys(row);
+            // 过滤掉时间戳字段（如果需要）
+            let cols = Object.keys(row);
+            if (excludeTimestamp) {
+                cols = cols.filter(col => !timestampFields.includes(col.toLowerCase()));
+            }
+            
             const vals = cols.map(c => escapeStr(row[c]));
             sqls.push(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${vals.join(', ')});`);
         }
