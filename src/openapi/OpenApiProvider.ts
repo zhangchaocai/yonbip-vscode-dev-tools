@@ -1475,35 +1475,35 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
                                 <input type="radio" 
                                        id="version-new" 
                                        name="homeVersion" 
-                                       value="2105及之后版本" 
+                                       value="2105后(包含)" 
                                        checked
                                        aria-describedby="version-new-desc">
                                 <input type="radio" 
                                        id="version-old" 
                                        name="homeVersion" 
-                                       value="2105之前版本"
+                                       value="2105前"
                                        aria-describedby="version-old-desc">
                                 <div class="toggle-track" role="presentation">
                                     <div class="toggle-thumb" role="presentation" aria-hidden="true"></div>
                                     <label for="version-new" 
                                            class="toggle-option toggle-option--left"
                                            tabindex="-1">
-                                        <span class="toggle-option__text">2105及之后版本</span>
+                                        <span class="toggle-option__text">2105后(包含)</span>
                                     </label>
                                     <label for="version-old" 
                                            class="toggle-option toggle-option--right"
                                            tabindex="-1">
-                                        <span class="toggle-option__text">2105之前版本</span>
+                                        <span class="toggle-option__text">2105前</span>
                                     </label>
                                 </div>
                                 <div id="home-version-desc" class="sr-only">
-                                    选择您的Home版本。2105及之后版本支持更多功能，2105之前版本保持兼容性。
+                                    选择您的Home版本。2105后(包含)支持更多功能，2105前保持兼容性。
                                 </div>
                                 <div id="version-new-desc" class="sr-only">
-                                    2105及之后版本，支持最新功能和安全特性
+                                    2105后(包含)，支持最新功能和安全特性
                                 </div>
                                 <div id="version-old-desc" class="sr-only">
-                                    2105之前版本，保持向后兼容性
+                                    2105前，保持向后兼容性
                                 </div>
                             </div>
                         </div>
@@ -1954,7 +1954,7 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
             const config = {
                 id: (document.getElementById('configId').value || generateId()),
                 name: document.getElementById('configName').value,
-                homeVersion: selectedVersion ? selectedVersion.value : '2105及之后版本',
+                homeVersion: selectedVersion ? selectedVersion.value : '2105后(包含)',
                 ip: document.getElementById('ip').value,
                 port: parseInt(document.getElementById('port').value, 10),
                 accountCode: document.getElementById('accountCode').value,
@@ -2013,8 +2013,8 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
             document.getElementById('configForm').classList.remove('hidden');
             document.getElementById('configId').value = config.id;
             document.getElementById('configName').value = config.name;
-            document.getElementById('version-new').checked = (config.homeVersion === '2105及之后版本');
-            document.getElementById('version-old').checked = (config.homeVersion === '2105之前版本');
+            document.getElementById('version-new').checked = (config.homeVersion === '2105后(包含)');
+            document.getElementById('version-old').checked = (config.homeVersion === '2105前');
             document.getElementById('ip').value = config.ip || '';
             document.getElementById('port').value = (config.port != null ? String(config.port) : '');
             document.getElementById('accountCode').value = config.accountCode || '';
@@ -2039,8 +2039,8 @@ export class OpenApiProvider implements vscode.WebviewViewProvider {
             document.getElementById('configForm').classList.remove('hidden');
             document.getElementById('configId').value = config.id;
             document.getElementById('configName').value = config.name;
-            document.getElementById('version-new').checked = (config.homeVersion === '2105及之后版本');
-            document.getElementById('version-old').checked = (config.homeVersion === '2105之前版本');
+            document.getElementById('version-new').checked = (config.homeVersion === '2105后(包含)');
+            document.getElementById('version-old').checked = (config.homeVersion === '2105前');
             document.getElementById('ip').value = config.ip || '';
             document.getElementById('port').value = (config.port != null ? String(config.port) : '');
             document.getElementById('accountCode').value = config.accountCode || '';
