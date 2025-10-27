@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="sm_role">
 	<tableName>sm_role</tableName>
+	<pk>pk_role</pk>
 	<sqlNo>001</sqlNo>
 	<subTableGroup>
 		<subTable>

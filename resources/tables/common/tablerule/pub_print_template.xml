@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="pub_print_template">
 	<tableName>pub_print_template</tableName>
+	<pk>ctemplateid</pk>
 	<sqlNo>001</sqlNo>
 	<subTableGroup>
 		<subTable>

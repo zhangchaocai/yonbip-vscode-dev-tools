@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="report_reportobject">
 	<tableName>report_reportobject</tableName>
+	<pk>pk_report</pk>
 	<sqlNo>001</sqlNo>
 	<substitutionGroup/>
 	<subTableGroup>

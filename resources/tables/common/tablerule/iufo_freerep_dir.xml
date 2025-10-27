@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="iufo_freerep_dir">
 	<tableName>iufo_freerep_dir</tableName>
+	<pk>pk_dir</pk>
 	<sqlNo>001</sqlNo>
 	<subTableGroup>
 		<subTable>

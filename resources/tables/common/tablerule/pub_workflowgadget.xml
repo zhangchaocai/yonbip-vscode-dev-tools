@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="pub_workflowgadget">
 	<tableName>pub_workflowgadget</tableName>
+	<pk>pk_workflowgadget</pk>
 	<sqlNo>001</sqlNo>
 	<subTableGroup>
 		<subTable>

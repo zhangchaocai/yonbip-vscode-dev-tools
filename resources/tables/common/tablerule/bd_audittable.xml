@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bd_audittable">
 	<tableName>bd_audittable</tableName>
+	<pk>pk_audittable</pk>
 	<sqlNo>001</sqlNo>
 	<subTableGroup>
 		<subTable>

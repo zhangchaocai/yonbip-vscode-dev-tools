@@ -526,6 +526,8 @@ ${subInserts.join("\n")}
             console.error('处理子表时发生错误:', error);
             // 根据需求修改：不中断流程执行，将错误以警告形式提示用户
             const errorMsg = `处理子表 ${subTable.table} 时发生错误: ${error.message || String(error)}`;
+            // 同时在VS Code输出面板中显示警告信息
+            vscode.window.showWarningMessage(errorMsg);
             this._view?.webview.postMessage({
                 type: 'showMessage',
                 level: 'warning',

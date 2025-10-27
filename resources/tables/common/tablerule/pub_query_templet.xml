@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="pub_query_templet">
 	<tableName>pub_query_templet</tableName>
+	<pk>id</pk>
 	<sqlNo>001</sqlNo>
 	<subTableGroup>
 		<subTable>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="fip_classview">
   <tableName>fip_classview</tableName>
+  <pk>pk_classview</pk>
   <sqlNo>001</sqlNo>
   <subTableGroup>
     <subTable>

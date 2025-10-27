@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="scm_smconfig">
   <tableName>scm_smconfig</tableName>
+  <pk>csmconfigid</pk>
   <sqlNo>001</sqlNo>
   <subTableGroup>
     <subTable>

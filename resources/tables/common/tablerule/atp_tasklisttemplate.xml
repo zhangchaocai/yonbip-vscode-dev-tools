@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="atp_tasklisttemplate">
   <tableName>atp_tasklisttemplate</tableName>
+  <pk>pk_tasklisttemplate</pk>
   <sqlNo>001</sqlNo>
   <substitutionGroup/>
   <subTableGroup>

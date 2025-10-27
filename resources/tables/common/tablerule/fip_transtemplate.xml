@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding='gb2312'?>
 <hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="fip_transtemplate">
   <tableName>fip_transtemplate</tableName>
+  <pk>pk_transtemplate</pk>
   <sqlNo>001</sqlNo>
   <subTableGroup>
     <subTable>
