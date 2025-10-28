@@ -105,6 +105,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 case 'viewLogs':
                     await this.handleViewLogs();
                     break;
+                case 'openLogsDirectory':
+                    await this.handleOpenLogsDirectory();
+                    break;
                 // case 'startHomeService':
                 //     await this.handleStartHomeService();
                 //     break;
@@ -417,6 +420,51 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             this._view?.webview.postMessage({
                 type: 'logsLoaded',
                 logs: [],
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理打开日志文件夹
+     */
+    private async handleOpenLogsDirectory() {
+        try {
+            // 先检查是否已配置Home目录
+            if (!this.checkHomePathConfigured()) {
+                this._view?.webview.postMessage({
+                    type: 'logsDirectoryOpened',
+                    success: false,
+                    error: '请先配置YonBIP Premium Home路径'
+                });
+                return;
+            }
+
+            const config = this.configService.getConfig();
+            const logsPath = path.join(config.homePath, 'nclogs', 'server');
+            
+            // 检查日志目录是否存在
+            if (!fs.existsSync(logsPath)) {
+                this._view?.webview.postMessage({
+                    type: 'logsDirectoryOpened',
+                    success: false,
+                    error: `日志目录不存在: ${logsPath}`
+                });
+                return;
+            }
+            
+            // 使用VS Code API打开文件夹
+            const logsUri = vscode.Uri.file(logsPath);
+            await vscode.env.openExternal(logsUri);
+            
+            this._view?.webview.postMessage({
+                type: 'logsDirectoryOpened',
+                success: true
+            });
+        } catch (error: any) {
+            this._view?.webview.postMessage({
+                type: 'logsDirectoryOpened',
+                success: false,
                 error: error.message
             });
         }
@@ -1906,6 +1954,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         <button class="secondary" onclick="viewLogs()">
                             <span style="margin-right: 6px;">📋</span> 查看日志
                         </button>
+                        <button class="secondary" onclick="openLogsDirectory()">
+                            <span style="margin-right: 6px;">📁</span> 打开日志文件夹
+                        </button>
                         <button class="secondary" onclick="convertToMacHome()" id="convertToMacHomeBtn" style="display: none;">
                             <span style="margin-right: 6px;">🔄</span> 转换为Mac/Linux HOME
                         </button>
@@ -2105,6 +2156,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         // 查看日志
         function viewLogs() {
             vscode.postMessage({ type: 'viewLogs' });
+        }
+        
+        // 打开日志文件夹
+        function openLogsDirectory() {
+            vscode.postMessage({ type: 'openLogsDirectory' });
         }
         
         // 转换为Mac/Linux HOME
@@ -2856,12 +2912,21 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                     
+                case 'logsDirectoryOpened':
+                    if (message.success) {
+                        showMessage('日志文件夹已打开', 'success');
+                    } else {
+                        showMessage('打开日志文件夹失败: ' + message.error, 'error');
+                    }
+                    break;
+                    
                 case 'homeServiceStarted':
                     if (message.success) {
                         showMessage('HOME服务启动成功', 'success');
                     } else {
                         showMessage('启动HOME服务失败: ' + message.error, 'error');
                     }
+                    break;
                     break;
                 case 'homeServiceStopped':
                     if (message.success) {

@@ -29,7 +29,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "✅ 插件打包完成，生成的文件: yonbip-devtool-1.2.0.vsix"
+echo "✅ 插件打包完成，生成的文件: yonbip-devtool-1.2.1.vsix"
 
 # 检查是否有环境变量中的PAT
 if [ -n "$VSCE_PAT" ]; then

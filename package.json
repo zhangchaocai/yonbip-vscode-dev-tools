@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Tools",
   "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -168,7 +168,7 @@
       },
       {
         "command": "yonbip.project.initContext",
-        "title": "🚀 YONBIP 工程初始化",
+        "title": "🚀 YonBIP 工程初始化",
         "category": "YonBIP/项目管理"
       },
       {
@@ -208,7 +208,7 @@
       },
       {
         "command": "yonbip.project.exportPrecastScript",
-        "title": "📤 导出预置脚本",
+        "title": "🐘 导出预置脚本",
         "category": "YonBIP/项目管理"
       },
       {
@@ -235,7 +235,7 @@
       },
       {
         "command": "yonbip.project.autoAccessHotwebs",
-        "title": "🌐 自动访问HOTWEBS资源",
+        "title": "🌐 自动访问Hotwebs资源",
         "category": "YonBIP/项目管理"
       },
       {
