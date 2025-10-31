@@ -234,6 +234,18 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
             if (!ds) {
                 throw new Error('未找到有效的数据源，请先在"NC HOME配置"视图中配置数据源');
             }
+            
+            // 检查是否为base数据源或配置的基准库，如果不是则提示用户
+            const cfg = this.configService.getConfig();
+            const isBaseDataSource = ds.name === 'base' || ds.name === cfg.baseDatabase;
+            if (!isBaseDataSource) {
+                this._view?.webview.postMessage({ 
+                    type: 'showMessage', 
+                    level: 'warning', 
+                    message: `警告：未找到base数据源，当前使用的是"${ds.name}"数据源进行导出` 
+                });
+            }
+            
             this._view?.webview.postMessage({ type: 'progress', percent: 25, text: `已选择数据源：${ds.name}` });
             
             // 向Webview发送当前使用的数据源信息
@@ -542,11 +554,15 @@ ${subInserts.join("\n")}
         try {
             this.configService.reloadConfig();
             const { dataSources } = this.configService.getPortFromPropXml();
+            const cfg = this.configService.getConfig();
             
-            // 优先选择design数据源
-            let selectedDataSource = dataSources.find(ds => ds.name === 'design');
+            // 优先选择base数据源，然后是配置的基准库，最后是第一个数据源
+            let selectedDataSource = dataSources.find(ds => ds.name === 'base');
+            if (!selectedDataSource && cfg.baseDatabase) {
+                selectedDataSource = dataSources.find(ds => ds.name === cfg.baseDatabase);
+            }
             if (!selectedDataSource && dataSources.length > 0) {
-                // 如果没有design数据源，使用第一个数据源
+                // 如果没有base数据源，使用第一个数据源
                 selectedDataSource = dataSources[0];
             }
             
@@ -1081,7 +1097,7 @@ ${subInserts.join("\n")}
         <span>💾</span>
         当前数据源信息
     </div>
-    <p class="section-description">导出预置脚本时将默认使用Design数据源</p>
+    <p class="section-description">导出预置脚本时将默认使用Base数据源</p>
     <div class="table-container">
         <table>
             <thead>
@@ -1311,10 +1327,10 @@ window.addEventListener('message', (event) => {
             
             // 处理数据源更新消息，刷新当前数据源显示
             if (msg.dataSources && msg.dataSources.length > 0) {
-                // 优先选择design数据源
-                let selectedDataSource = msg.dataSources.find(ds => ds.name === 'design');
+                // 优先选择base数据源
+                let selectedDataSource = msg.dataSources.find(ds => ds.name === 'base');
                 if (!selectedDataSource) {
-                    // 如果没有design数据源，使用第一个数据源
+                    // 如果没有base数据源，使用第一个数据源
                     selectedDataSource = msg.dataSources[0];
                 }
                 renderCurrentDataSource(selectedDataSource);
@@ -1326,6 +1342,7 @@ window.addEventListener('message', (event) => {
             xmlWarning.style.display = msg.show ? 'flex' : 'none';
             break;
         case 'setCurrentXml':
+            console.log('设置当前XML文件路径:', msg.path);
             currentXmlInput.value = msg.path || '未选择XML文件';
             // 如果没有XML文件，显示警告
             if (!msg.path) {
@@ -1371,14 +1388,17 @@ checkXmlSelection();
             if (fs.existsSync(p)) {
                 const stat = fs.statSync(p);
                 if (stat.isFile()) {
-                    // 仅当文件名为 items.xml 时加入
+                    // 仅当文件名为 items.xml 或 item.xml 时加入
                     const name = path.basename(p).toLowerCase();
-                    if (name === 'items.xml') res.push(p);
+                    if (name === 'items.xml' || name === 'item.xml') res.push(p);
                 } else if (stat.isDirectory()) {
-                    // 在目录内优先查找 items.xml
+                    // 在目录内优先查找 items.xml，然后查找 item.xml
                     const files = fs.readdirSync(p).map(f => f.toLowerCase());
-                    const itemXml = files.find(f => f === 'items.xml');
-                    if (itemXml) {
+                    const itemsXml = files.find(f => f === 'items.xml');
+                    const itemXml = files.find(f => f === 'item.xml');
+                    if (itemsXml) {
+                        res.push(path.join(p, itemsXml));
+                    } else if (itemXml) {
                         res.push(path.join(p, itemXml));
                     }
                 }
@@ -1394,7 +1414,7 @@ checkXmlSelection();
                 const stat = fs.statSync(active);
                 if (stat.isFile()) {
                     const name = path.basename(active).toLowerCase();
-                    if (name === 'items.xml') {
+                    if (name === 'items.xml' || name === 'item.xml') {
                         res.push(active);
                     } else {
                         pushIfItemXml(path.dirname(active));
@@ -1468,10 +1488,10 @@ checkXmlSelection();
         const cfg = this.configService.getConfig();
         const { dataSources } = this.configService.getPortFromPropXml();
         
-        // 优先选择design数据源，如果没有则按原来逻辑选择
-        let ds = dataSources.find(d => d.name === 'design');
+        // 优先选择base数据源，如果没有则按原来逻辑选择
+        let ds = dataSources.find(d => d.name === 'base');
         if (!ds) {
-            const namePref = cfg.selectedDataSource || cfg.baseDatabase || 'design';
+            const namePref = cfg.selectedDataSource || cfg.baseDatabase || 'base';
             ds = dataSources.find(d => d.name === namePref);
         }
         if (!ds && dataSources.length > 0) ds = dataSources[0];
