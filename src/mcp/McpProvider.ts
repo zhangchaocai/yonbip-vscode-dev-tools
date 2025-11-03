@@ -392,11 +392,13 @@ export class McpProvider implements vscode.WebviewViewProvider {
         }
         /* 页面容器与基础布局 */
         #app {
-            max-width: 100%;
+            /* 宽屏下限制内容宽度，避免过度拉伸导致布局混乱 */
+            max-width: 1100px;
+            width: 100%;
             padding: 24px 24px 120px 24px; /* 增加底部padding为120px，为固定按钮留出空间 */
             background-color: var(--vscode-editor-background);
             border-radius: 12px;
-            margin: 16px;
+            margin: 16px auto; /* 居中显示 */
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             border: 1px solid var(--vscode-widget-border);
         }
@@ -676,6 +678,16 @@ export class McpProvider implements vscode.WebviewViewProvider {
             margin-top: 8px;
             font-style: italic;
         }
+        .sample-text {
+            font-style: normal;
+            font-family: var(--vscode-editor-font-family);
+            background-color: var(--vscode-editor-background);
+            border: 1px dashed var(--vscode-widget-border);
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-top: 6px;
+            word-break: break-all;
+        }
         /* 服务控制按钮组 */
         .service-controls {
             display: flex;
@@ -684,9 +696,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
             flex-wrap: wrap;
         }
         .service-controls button {
-            flex: 1;
+            /* 按钮保持自然宽度，避免在超宽屏下被拉伸 */
+            flex: 0 0 auto;
             min-width: 140px;
-            max-width: 220px;
         }
         /* 快速信息网格 */
         #quickInfo {
@@ -754,14 +766,20 @@ export class McpProvider implements vscode.WebviewViewProvider {
             position: relative;
             display: flex;
             align-items: center;
+            width: 100%;
+            min-width: 0;
         }
         #javaPath {
-            flex: 1;
-            padding-right: 40px;
+            flex: 1 1 auto;
+            width: 100%;
+            min-width: 0;
+            padding-right: 44px;
         }
         .folder-icon {
             position: absolute;
             right: 12px;
+            top: 50%;
+            transform: translateY(-50%); /* 垂直居中，避免宽屏/不同高度下漂移 */
             cursor: pointer;
             font-size: 18px;
             color: var(--vscode-foreground);
@@ -924,6 +942,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
                         </div>
                     </div>
                     <div class="help-text">Java运行时环境路径，留空使用系统默认</div>
+                    <div class="help-text sample-text">示例（macOS）：/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home/bin/java</div>
+                    <div class="help-text sample-text">示例（Windows）：C:\\Program Files\\Java\\jdk-17\\bin\\java.exe</div>
+                    <div class="help-text sample-text">示例（Linux）：/usr/bin/java 或 /usr/lib/jvm/java-17/bin/java</div>
                 </div>
                 
                 <div class="form-group">
