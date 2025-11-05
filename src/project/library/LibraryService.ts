@@ -1177,8 +1177,16 @@ export class LibraryService {
                 const editorConfigPath = this.getWorkspaceFolder()?.uri.fsPath || '';
             
                 // 确保.vscode目录存在
-                if (!fs.existsSync(editorConfigPath)) {
-                    fs.mkdirSync(editorConfigPath, { recursive: true });
+                const vscodeDirPath = path.join(editorConfigPath, '.vscode');
+                if (!fs.existsSync(vscodeDirPath)) {
+                    try {
+                        fs.mkdirSync(vscodeDirPath, { recursive: true });
+                    } catch (mkdirError: unknown) {
+                        this.outputChannel.appendLine(`创建.vscode目录失败: ${mkdirError instanceof Error ? mkdirError.message : String(mkdirError)}`);
+                        // 回退到用户设置
+                        await this.fallbackToUserSettings(homePath);
+                        return;
+                    }
                 }
 
                 // settings.json文件路径
@@ -1218,7 +1226,14 @@ export class LibraryService {
                 const mergedSettings = { ...existingSettings, ...newSettings };
 
                 // 写入文件
-                fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
+                try {
+                    fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
+                } catch (writeError: unknown) {
+                    this.outputChannel.appendLine(`写入settings.json文件失败: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+                    // 回退到用户设置
+                    await this.fallbackToUserSettings(homePath);
+                    return;
+                }
                 
                 this.outputChannel.appendLine(`编辑器settings.json文件已更新: ${settingsPath}`);
                 vscode.window.showInformationMessage('编辑器settings.json文件已更新，文件编码已设置为GBK，JDK运行时已配置');
@@ -1236,55 +1251,60 @@ export class LibraryService {
     private async fallbackToUserSettings(homePath: string): Promise<void> {
         this.outputChannel.appendLine('回退到用户级settings.json进行配置写入');
         
-        // 获取编辑器配置目录（跨平台兼容）
-        const editorConfigPath = this.getVSCodeUserSettingsPath();
-        
-        // 确保.vscode目录存在
-        if (!fs.existsSync(editorConfigPath)) {
-            fs.mkdirSync(editorConfigPath, { recursive: true });
-        }
-
-        // settings.json文件路径
-        const settingsPath = path.join(editorConfigPath, 'settings.json');
-
-        // 读取现有配置（如果存在）
-        let existingSettings = {};
-        if (fs.existsSync(settingsPath)) {
-            try {
-                const content = fs.readFileSync(settingsPath, 'utf-8');
-                existingSettings = JSON.parse(content);
-            } catch (error) {
-                this.outputChannel.appendLine(`读取现有settings.json失败: ${error}`);
+        try {
+            // 获取编辑器配置目录（跨平台兼容）
+            const editorConfigPath = this.getVSCodeUserSettingsPath();
+            
+            // 确保.vscode目录存在
+            if (!fs.existsSync(editorConfigPath)) {
+                fs.mkdirSync(editorConfigPath, { recursive: true });
             }
-        }
 
-        // 获取JDK运行时配置
-        const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
+            // settings.json文件路径
+            const settingsPath = path.join(editorConfigPath, 'settings.json');
 
-        // 要添加的配置内容
-        const newSettings = {
-            "java.saveActions.organizeImports": true,
-            "java.compile.nullAnalysis.mode": "automatic",
-            "java.configuration.runtimes": javaRuntimeConfig,
-            "[java]": {
-                "files.encoding": "gbk"
-            },
-            "[javascript]": {
-                "files.encoding": "utf8"
-            },
-            "[typescript]": {
-                "files.encoding": "utf8"
+            // 读取现有配置（如果存在）
+            let existingSettings = {};
+            if (fs.existsSync(settingsPath)) {
+                try {
+                    const content = fs.readFileSync(settingsPath, 'utf-8');
+                    existingSettings = JSON.parse(content);
+                } catch (error) {
+                    this.outputChannel.appendLine(`读取现有settings.json失败: ${error}`);
+                }
             }
-        };
 
-        // 合并现有配置和新配置
-        const mergedSettings = { ...existingSettings, ...newSettings };
+            // 获取JDK运行时配置
+            const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
 
-        // 写入文件
-        fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
-        
-        this.outputChannel.appendLine(`编辑器settings.json文件已更新: ${settingsPath}`);
-        vscode.window.showInformationMessage('编辑器settings.json文件已更新，文件编码已设置为GBK，JDK运行时已配置');
+            // 要添加的配置内容
+            const newSettings = {
+                "java.saveActions.organizeImports": true,
+                "java.compile.nullAnalysis.mode": "automatic",
+                "java.configuration.runtimes": javaRuntimeConfig,
+                "[java]": {
+                    "files.encoding": "gbk"
+                },
+                "[javascript]": {
+                    "files.encoding": "utf8"
+                },
+                "[typescript]": {
+                    "files.encoding": "utf8"
+                }
+            };
+
+            // 合并现有配置和新配置
+            const mergedSettings = { ...existingSettings, ...newSettings };
+
+            // 写入文件
+            fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
+            
+            this.outputChannel.appendLine(`编辑器settings.json文件已更新: ${settingsPath}`);
+            vscode.window.showInformationMessage('编辑器settings.json文件已更新，文件编码已设置为GBK，JDK运行时已配置');
+        } catch (error: unknown) {
+            this.outputChannel.appendLine(`回退到用户设置失败: ${error instanceof Error ? error.message : String(error)}`);
+            vscode.window.showErrorMessage(`回退到用户设置失败: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 
     /**

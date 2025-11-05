@@ -1869,10 +1869,17 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         // 生成补丁文件名，自动添加patch_前缀，并包含作者信息
-        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        // 修改日期格式，包含时分秒并放在最后
+        const now = new Date();
+        const timestamp = now.getFullYear().toString() + 
+            (now.getMonth() + 1).toString().padStart(2, '0') + 
+            now.getDate().toString().padStart(2, '0') + 
+            now.getHours().toString().padStart(2, '0') + 
+            now.getMinutes().toString().padStart(2, '0') + 
+            now.getSeconds().toString().padStart(2, '0');
         // 从patchInfo中获取作者信息（如果存在）
         const authorPart = (patchInfo as any).author ? `_${(patchInfo as any).author}` : '';
-        const patchName = `patch_${patchInfo.name}${authorPart}_${timestamp}_V${patchInfo.version.replace(/\./g, '_')}`;
+        const patchName = `patch_${patchInfo.name}${authorPart}_V${patchInfo.version.replace(/\./g, '_')}_${timestamp}`;
         const zipPath = path.join(outputDir, `${patchName}.zip`);
 
         return new Promise((resolve, reject) => {
