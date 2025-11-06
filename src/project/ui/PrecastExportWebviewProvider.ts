@@ -1500,7 +1500,24 @@ checkXmlSelection();
         }
         if (!ds && dataSources.length > 0) ds = dataSources[0];
         if (!ds) return undefined;
-        ds.password = PasswordEncryptor.getSecurePassword(cfg.homePath, ds.password || '');
+        
+        // 获取解密后的密码并确保是字符串类型
+        const decryptedPassword = PasswordEncryptor.getSecurePassword(cfg.homePath, ds.password || '');
+        ds.password = typeof decryptedPassword === 'string' ? decryptedPassword : String(decryptedPassword || '');
+        return ds;
+    }
+
+    private _getDataSource(): DataSourceMeta | undefined {
+        const cfg = this.configService.getConfig();
+        if (!cfg) return undefined;
+        let ds = cfg.dataSources?.find((d: DataSourceMeta) => d.name === 'design');
+        const dataSources = cfg.dataSources || [];
+        if (!ds && dataSources.length > 0) ds = dataSources[0];
+        if (!ds) return undefined;
+        
+        // 获取解密后的密码并确保是字符串类型
+        const decryptedPassword = PasswordEncryptor.getSecurePassword(cfg.homePath, ds.password || '');
+        ds.password = typeof decryptedPassword === 'string' ? decryptedPassword : String(decryptedPassword || '');
         return ds;
     }
 
@@ -1515,7 +1532,9 @@ checkXmlSelection();
         }
         if (['postgresql', 'pg'].includes(type)) {
             const pg = await import('pg');
-            const client = new pg.Client({ host: ds.host, port: ds.port, user: ds.username, password: ds.password || '', database: ds.databaseName, connectionTimeoutMillis: 10000 });
+            // 确保密码是字符串类型，避免SCRAM认证错误
+            const password = typeof ds.password === 'string' ? ds.password : String(ds.password || '');
+            const client = new pg.Client({ host: ds.host, port: ds.port, user: ds.username, password: password, database: ds.databaseName, connectionTimeoutMillis: 10000 });
             await client.connect();
             const result = await client.query(sql);
             await client.end();

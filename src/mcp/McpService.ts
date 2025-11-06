@@ -940,6 +940,11 @@ export class McpService {
                         }
                     }
                     
+                    // 确保密码是字符串类型，避免SCRAM认证错误
+                    if (typeof decryptedPassword !== 'string') {
+                        decryptedPassword = String(decryptedPassword || '');
+                    }
+                    
                     return {
                         url: url,
                         username: designDataSource.username,

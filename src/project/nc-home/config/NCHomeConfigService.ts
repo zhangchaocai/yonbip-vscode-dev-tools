@@ -82,23 +82,14 @@ export class NCHomeConfigService {
         // 创建配置的深拷贝，避免修改原始配置
         const configCopy: NCHomeConfig = JSON.parse(JSON.stringify(this.config));
 
-        // 如果存在数据源，对密码进行解密处理
+        // 如果存在数据源，确保密码已正确处理
+        // 注意：数据源应该已经从prop.xml中读取，并且密码已经被正确处理过了
+        // 这里只需要确保密码是字符串类型
         if (configCopy.dataSources && configCopy.dataSources.length > 0) {
             for (const dataSource of configCopy.dataSources) {
                 if (dataSource.password) {
-                    // 使用PasswordEncryptor解密密码
-                    const decryptedPassword = PasswordEncryptor.getSecurePassword(configCopy.homePath, dataSource.password);
-
-                    // 检查解密结果是否包含大量乱码字符
-                    // 如果解密后包含多个连续的替换字符，说明解密可能失败
-                    const replacementCharCount = (decryptedPassword.match(/\uFFFD/g) || []).length;
-                    if (replacementCharCount > 2) {
-                        // 如果解密后包含过多乱码，说明可能使用了不同的加密方式
-                        // 在这种情况下，我们显示一个占位符而不是乱码
-                        dataSource.password = '[加密密码-需要重新输入]';
-                    } else {
-                        dataSource.password = decryptedPassword;
-                    }
+                    // 确保密码是字符串类型，避免SCRAM认证错误
+                    dataSource.password = typeof dataSource.password === 'string' ? dataSource.password : String(dataSource.password || '');
                 }
             }
         }
@@ -385,11 +376,11 @@ export class NCHomeConfigService {
                 };
             }
 
-            // 处理密码解密
-            const securePassword = PasswordEncryptor.getSecurePassword(this.config.homePath, dataSource.password || '');
+            // 使用从prop.xml中读取的已经解密的密码
+            // 注意：dataSource.password应该已经是从prop.xml中读取并处理过的密码
             const secureDataSource = {
                 ...dataSource,
-                password: securePassword
+                password: dataSource.password || ''
             };
 
             this.outputChannel.appendLine(`使用解密后的密码进行连接测试`);
@@ -495,17 +486,24 @@ export class NCHomeConfigService {
             // 动态导入pg驱动
             const pg = await import('pg');
 
+            // 确保密码是字符串类型，避免SCRAM认证错误
+            let password = dataSource.password || '';
+            if (typeof password !== 'string') {
+                password = String(password);
+            }
+
             const connectionConfig = {
                 host: dataSource.host,
                 port: dataSource.port,
                 user: dataSource.username,
-                password: dataSource.password || '',
+                password: password,
                 database: dataSource.databaseName,
                 connectionTimeoutMillis: 10000,
                 statement_timeout: 10000
             };
 
             this.outputChannel.appendLine(`连接PostgreSQL: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}, 密码值: ${password}`);
 
             const client = new pg.Client(connectionConfig);
             await client.connect();
@@ -520,6 +518,7 @@ export class NCHomeConfigService {
             };
 
         } catch (error: any) {
+            this.outputChannel.appendLine(`PostgreSQL连接失败详情: ${error.message}`);
             return {
                 success: false,
                 message: `PostgreSQL连接失败: ${error.message}`,
@@ -1555,6 +1554,11 @@ export class NCHomeConfigService {
                                     this.outputChannel.appendLine(`解密密码失败: ${decryptError.message}`);
                                     decryptedPassword = '[加密密码-需要重新输入]';
                                 }
+                            }
+                            
+                            // 确保密码是字符串类型，避免SCRAM认证错误
+                            if (typeof decryptedPassword !== 'string') {
+                                decryptedPassword = String(decryptedPassword || '');
                             }
 
                             // 创建DataSourceMeta对象

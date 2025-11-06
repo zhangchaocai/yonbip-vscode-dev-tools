@@ -113,6 +113,7 @@ export class PasswordEncryptor {
 
     /**
      * 判断密码是否已经加密
+     * @param homePath NC HOME路径
      * @param password 密码字符串
      * @returns 是否已加密
      */
@@ -121,9 +122,38 @@ export class PasswordEncryptor {
             return false;
         }
 
-        // 简单判断：如果密码只包含小写字母且长度看起来像加密后的格式
-        // 这是一个启发式判断，可能需要根据实际情况调整
-        return /^[a-z]+$/.test(password) && password.length >= 8;
+        // 检查prop.xml文件中的isEncode标签来判断密码是否加密
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const iconv = require('iconv-lite');
+            
+            const propXmlPath = path.join(homePath, 'ierp', 'bin', 'prop.xml');
+            
+            // 检查文件是否存在
+            if (!fs.existsSync(propXmlPath)) {
+                // 如果prop.xml不存在，默认认为密码未加密
+                return false;
+            }
+            
+            // 读取文件内容，文件编码为gb2312
+            const buffer = fs.readFileSync(propXmlPath);
+            const content = iconv.decode(buffer, 'gb2312');
+            
+            // 查找isEncode标签
+            const isEncodeMatch = content.match(/<isEncode>([^<]*)<\/isEncode>/);
+            if (isEncodeMatch && isEncodeMatch[1]) {
+                // 如果isEncode为true，则密码是加密的
+                return isEncodeMatch[1].trim().toLowerCase() === 'true';
+            }
+            
+            // 如果找不到isEncode标签，默认认为密码未加密
+            return false;
+        } catch (error) {
+            // 如果读取文件出错，默认认为密码未加密
+            console.error('检查密码加密状态时出错:', error);
+            return false;
+        }
     }
 
     /**
@@ -136,12 +166,18 @@ export class PasswordEncryptor {
             return '';
         }
 
+        // 确保返回的是字符串类型
+        let result: string;
+        
         // 如果密码已加密，则解密
         if (PasswordEncryptor.isEncrypted(homePath, password)) {
-            return PasswordEncryptor.decrypt(homePath, password);
+            result = PasswordEncryptor.decrypt(homePath, password);
+        } else {
+            // 否则返回原密码
+            result = password;
         }
-
-        // 否则返回原密码
-        return password;
+        
+        // 确保返回的是字符串类型，避免SCRAM认证错误
+        return typeof result === 'string' ? result : String(result || '');
     }
 }
