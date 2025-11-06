@@ -188,6 +188,11 @@ export function activate(context: vscode.ExtensionContext) {
 			functionTreeProvider.createOrShowWebview('yonbip.patchExportConfig', '补丁导出配置');
 		})
 	);
+	
+	// 插件激活后默认打开HOME配置界面
+	setTimeout(() => {
+		vscode.commands.executeCommand('yonbip.function.showHomeConfig');
+	}, 1000);
 
 }
 
