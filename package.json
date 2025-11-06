@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Tools",
   "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "1.2.4",
+  "version": "2.0.0",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -48,40 +48,20 @@
           "id": "yonbip-view",
           "title": "YonBIP高级版开发者工具",
           "icon": "resources/icons/views/icon.png"
+        },
+        {
+          "id": "yonbip-explorer",
+          "title": "YonBIP功能导航",
+          "icon": "resources/icons/views/icon.png"
         }
       ]
     },
     "views": {
-      "yonbip-view": [
+      "yonbip-explorer": [
         {
-          "id": "yonbip-mcp",
-          "name": "MCP服务",
-          "icon": "resources/icons/views/mcp-icon.svg",
-          "type": "webview"
-        },
-        {
-          "id": "yonbip-nchome",
-          "name": "HOME配置",
-          "icon": "resources/icons/views/nchome-icon.svg",
-          "type": "webview"
-        },
-        {
-          "id": "yonbip-openapi",
-          "name": "OpenAPI测试",
-          "icon": "resources/icons/views/openapi-icon.svg",
-          "type": "webview"
-        },
-        {
-          "id": "yonbip.patchExportConfig",
-          "name": "补丁导出配置",
-          "icon": "resources/icons/views/openapi-icon.svg",
-          "type": "webview"
-        },
-        {
-          "id": "yonbip.precastExportConfig",
-          "name": "预置脚本导出",
-          "icon": "resources/icons/views/openapi-icon.svg",
-          "type": "webview"
+          "id": "yonbip-function-tree",
+          "name": "功能导航",
+          "type": "tree"
         }
       ]
     },
@@ -252,6 +232,31 @@
         "command": "yonbip.patch.removeFromHome",
         "title": "↩️ 从HOME取消补丁",
         "category": "YonBIP/补丁"
+      },
+      {
+        "command": "yonbip.function.showMcp",
+        "title": "显示MCP服务",
+        "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.function.showHomeConfig",
+        "title": "显示HOME配置",
+        "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.function.showOpenApi",
+        "title": "显示OpenAPI测试",
+        "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.function.showPatchExport",
+        "title": "显示补丁导出配置",
+        "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.function.showPrecastExport",
+        "title": "显示预置脚本导出",
+        "category": "YonBIP/功能导航"
       }
     ],
     "submenus": [

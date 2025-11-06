@@ -603,6 +603,10 @@ ${subInserts.join("\n")}
         }
     }
 
+    public getHtmlForWebview(webview: vscode.Webview): string {
+        return this._getHtmlForWebview(webview);
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const nonce = String(Date.now());
 

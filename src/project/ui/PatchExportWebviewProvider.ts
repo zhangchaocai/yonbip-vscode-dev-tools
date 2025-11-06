@@ -494,6 +494,10 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         };
     }
 
+    public getHtmlForWebview(webview: vscode.Webview): string {
+        return this._getHtmlForWebview(webview);
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview): string {
         return `<!DOCTYPE html>
 <html lang="zh-CN">

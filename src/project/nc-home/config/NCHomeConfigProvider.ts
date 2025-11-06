@@ -869,6 +869,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     /**
      * 生成WebView HTML内容
      */
+    public getHtmlForWebview(webview: vscode.Webview): string {
+        return this._getHtmlForWebview(webview);
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview) {
         // 直接返回内嵌的HTML，避免使用fs和path模块
         // 在生产环境中，Webview中不能使用Node.js内置模块

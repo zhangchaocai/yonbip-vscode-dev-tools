@@ -23,6 +23,8 @@ import { HomeService } from './project/nc-home/HomeService';
 import { MacHomeConversionService } from './project/mac/MacHomeConversionService';
 // 导入密码加密解密工具类
 import { PasswordEncryptor } from './utils/PasswordEncryptor';
+// 导入功能树提供者
+import { FunctionTreeProvider } from './project/ui/FunctionTreeProvider';
 
 // 全局变量用于在deactivate时释放资源
 let ncHomeConfigService: NCHomeConfigService | undefined;
@@ -157,6 +159,34 @@ export function activate(context: vscode.ExtensionContext) {
 				},
 			}
 		)
+	);
+
+	// 注册功能树视图
+	const functionTreeProvider = new FunctionTreeProvider(context, mcpProvider, ncHomeConfigProvider, openApiProvider, patchExportProvider, precastExportProvider);
+	context.subscriptions.push(
+		vscode.window.registerTreeDataProvider('yonbip-function-tree', functionTreeProvider)
+	);
+
+	// 注册功能导航命令
+	context.subscriptions.push(
+		vscode.commands.registerCommand('yonbip.function.showMcp', () => {
+			functionTreeProvider.createOrShowWebview('yonbip-mcp', 'MCP服务');
+		}),
+		vscode.commands.registerCommand('yonbip.function.showHomeConfig', () => {
+			functionTreeProvider.createOrShowWebview('yonbip-nchome', 'HOME配置');
+		}),
+		vscode.commands.registerCommand('yonbip.function.showOpenApi', () => {
+			functionTreeProvider.createOrShowWebview('yonbip-openapi', 'OpenAPI测试');
+		}),
+		vscode.commands.registerCommand('yonbip.function.showPatchExport', () => {
+			functionTreeProvider.createOrShowWebview('yonbip.patchExportConfig', '补丁导出配置');
+		}),
+		vscode.commands.registerCommand('yonbip.function.showPrecastExport', () => {
+			functionTreeProvider.createOrShowWebview('yonbip.precastExportConfig', '预置脚本导出');
+		}),
+		vscode.commands.registerCommand('yonbip.patchExportConfig.focus', () => {
+			functionTreeProvider.createOrShowWebview('yonbip.patchExportConfig', '补丁导出配置');
+		})
 	);
 
 }

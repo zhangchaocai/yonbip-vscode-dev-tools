@@ -369,6 +369,10 @@ export class McpProvider implements vscode.WebviewViewProvider {
     /**
      * 生成WebView HTML内容
      */
+    public getHtmlForWebview(webview: vscode.Webview): string {
+        return this._getHtmlForWebview(webview);
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview) {
         return `<!DOCTYPE html>
 <html lang="zh-CN">
