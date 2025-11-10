@@ -52,9 +52,10 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                     case 'selectOutputPath':
                         this._handleSelectOutputPath();
                         break;
-                    case 'cancel':
-                        this._handleCancel();
-                        break;
+                    // 取消功能已移除
+                    // case 'cancel':
+                    //     this._handleCancel();
+                    //     break;
                     case 'refreshFiles':
                         this._refreshExportableFiles();
                         break;
@@ -454,12 +455,13 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         return files;
     }
 
-    private _handleCancel() {
-        if (this._resolvePromise) {
-            this._resolvePromise(null);
-            this._resolvePromise = undefined;
-        }
-    }
+    // 取消功能已移除
+    // private _handleCancel() {
+    //     if (this._resolvePromise) {
+    //         this._resolvePromise(null);
+    //         this._resolvePromise = undefined;
+    //     }
+    // }
 
     private async _handleSelectOutputDir() {
         const options: vscode.OpenDialogOptions = {
@@ -1254,7 +1256,6 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         </div>
 
         <div class="button-group">
-            <button class="button button-secondary" onclick="cancel()">取消</button>
             <button class="button button-primary" onclick="exportPatch()">导出补丁</button>
         </div>
     </div>
@@ -1612,11 +1613,12 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             });
         }
 
-        function cancel() {
-            vscode.postMessage({
-                type: 'cancel'
-            });
-        }
+        // 取消功能已移除
+        // function cancel() {
+        //     vscode.postMessage({
+        //         type: 'cancel'
+        //     });
+        // }
 
         // 刷新可导出文件列表
         function refreshFiles() {

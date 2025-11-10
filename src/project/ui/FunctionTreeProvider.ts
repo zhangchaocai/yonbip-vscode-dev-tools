@@ -331,9 +331,10 @@ export class FunctionTreeProvider implements vscode.TreeDataProvider<FunctionTre
                             case 'selectOutputPath':
                                 this.patchExportProvider['_handleSelectOutputPath']();
                                 break;
-                            case 'cancel':
-                                this.patchExportProvider['_handleCancel']();
-                                break;
+                            // 取消功能已移除
+                            // case 'cancel':
+                            //     this.patchExportProvider['_handleCancel']();
+                            //     break;
                             case 'refreshFiles':
                                 this.patchExportProvider['_refreshExportableFiles']();
                                 break;
