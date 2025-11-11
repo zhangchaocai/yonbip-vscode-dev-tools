@@ -2295,6 +2295,47 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 });
             }
             
+            // 数据库类型与默认端口、数据库名、数据源名称映射
+            const dbConfigMap = {
+                'oracle': { port: 1521, database: 'orcl', dataSourceName: 'oracleDS' },
+                'mysql': { port: 3306, database: 'mysql', dataSourceName: 'mysqlDS' },
+                'sqlserver': { port: 1433, database: 'master', dataSourceName: 'sqlserverDS' },
+                'postgresql': { port: 5432, database: 'postgres', dataSourceName: 'postgresqlDS' },
+                'db2': { port: 50000, database: 'sample', dataSourceName: 'db2DS' },
+                'dm': { port: 5236, database: 'DAMENG', dataSourceName: 'dmDS' },
+                'kingbase': { port: 54321, database: 'test', dataSourceName: 'kingbaseDS' }
+            };
+            
+            // 添加数据库类型切换事件监听器
+            const dsTypeSelect = document.getElementById('dsType');
+            const dsPortInput = document.getElementById('dsPort');
+            const dsDatabaseInput = document.getElementById('dsDatabase');
+            const dsNameInput = document.getElementById('dsName'); // 添加数据源名称输入框引用
+            
+            // 先设置默认值，再处理编辑模式的数据填充
+            if (!isEditMode) {
+                // 新增模式下，默认选中Oracle并设置默认端口、数据库名和数据源名称
+                if (dsTypeSelect) dsTypeSelect.value = 'oracle';
+                if (dsPortInput) dsPortInput.value = 1521;
+                if (dsDatabaseInput) dsDatabaseInput.value = 'orcl';
+                if (dsNameInput) dsNameInput.value = 'oracleDS'; // 设置默认数据源名称
+                
+                // 添加数据库类型切换事件监听器
+                if (dsTypeSelect) {
+                    dsTypeSelect.addEventListener('change', function() {
+                        const selectedType = this.value;
+                        if (dbConfigMap[selectedType]) {
+                            if (dsPortInput) dsPortInput.value = dbConfigMap[selectedType].port;
+                            if (dsDatabaseInput) dsDatabaseInput.value = dbConfigMap[selectedType].database;
+                            // 只有在数据源名称为空或为默认值时才设置默认值，避免覆盖用户已输入的内容
+                            if (dsNameInput && (!dsNameInput.value || dsNameInput.value === 'dataSource1')) {
+                                dsNameInput.value = dbConfigMap[selectedType].dataSourceName;
+                            }
+                        }
+                    });
+                }
+            }
+            
             // 如果是编辑模式，填充现有数据
             if (isEditMode) {
                 // 数据库类型需要映射到下拉框的值
@@ -2314,21 +2355,40 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     'KINGBASE': 'kingbase'
                 };
                 const selectValue = databaseTypeMap[dataSource.databaseType.toUpperCase()] || dataSource.databaseType.toLowerCase();
-                document.getElementById('dsType').value = selectValue;
-                document.getElementById('dsHost').value = dataSource.host;
-                document.getElementById('dsPort').value = dataSource.port;
-                document.getElementById('dsDatabase').value = dataSource.databaseName;
-                document.getElementById('dsUsername').value = dataSource.username;
+                if (dsTypeSelect) dsTypeSelect.value = selectValue;
+                if (document.getElementById('dsHost')) document.getElementById('dsHost').value = dataSource.host;
+                if (dsPortInput) dsPortInput.value = dataSource.port;
+                if (dsDatabaseInput) dsDatabaseInput.value = dataSource.databaseName;
+                if (document.getElementById('dsUsername')) document.getElementById('dsUsername').value = dataSource.username;
                 // 填充密码字段（如果存在）
                 if (dataSource.password && dataSource.password !== '[加密密码-需要重新输入]') {
-                    document.getElementById('dsPassword').value = dataSource.password;
+                    if (document.getElementById('dsPassword')) document.getElementById('dsPassword').value = dataSource.password;
                 }
-            } else {
-                // 新增模式下，默认选中Oracle并设置默认端口、数据库名和数据源名称
-                document.getElementById('dsType').value = 'oracle';
-                document.getElementById('dsPort').value = 1521;
-                document.getElementById('dsDatabase').value = 'orcl';
-                // 数据源名称默认值已设置在HTML中
+                
+                // 添加数据库类型切换事件监听器（编辑模式）
+                if (dsTypeSelect) {
+                    dsTypeSelect.addEventListener('change', function() {
+                        const selectedType = this.value;
+                        if (dbConfigMap[selectedType]) {
+                            if (dsPortInput) dsPortInput.value = dbConfigMap[selectedType].port;
+                            if (dsDatabaseInput) dsDatabaseInput.value = dbConfigMap[selectedType].database;
+                            // 只有在数据源名称为空或为默认值时才设置默认值，避免覆盖用户已输入的内容
+                            if (dsNameInput && (!dsNameInput.value || dsNameInput.value === 'dataSource1')) {
+                                dsNameInput.value = dbConfigMap[selectedType].dataSourceName;
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // 确保端口号和数据库名根据当前选择的数据库类型正确设置
+            if (dsTypeSelect && dsPortInput && dsDatabaseInput) {
+                const currentType = dsTypeSelect.value;
+                if (dbConfigMap[currentType]) {
+                    dsPortInput.value = dbConfigMap[currentType].port;
+                    // 数据库名总是更新为对应数据库类型的默认值
+                    dsDatabaseInput.value = dbConfigMap[currentType].database;
+                }
             }
         }
         
