@@ -58,11 +58,26 @@ export class FunctionTreeNode extends vscode.TreeItem {
                 default:
                     // 默认图标
                     this.iconPath = {
-                        light: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'views', 'icon.png'),
-                        dark: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'views', 'icon.png')
+                        light: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'project', 'nccicon.png'),
+                        dark: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'project', 'nccicon.png')
                     };
             }
         }
+    }
+}
+
+/**
+ * TreeView 装饰提供者
+ */
+class FunctionTreeDecorationProvider implements vscode.FileDecorationProvider {
+    private _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
+    public readonly onDidChangeFileDecorations = this._onDidChangeFileDecorations.event;
+
+    // 为不同的节点类型提供装饰
+    provideFileDecoration(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FileDecoration> {
+        // 由于 TreeView 节点不是文件系统 URI，我们需要特殊处理
+        // 这里我们返回 undefined，因为我们将在 TreeItem 中直接设置装饰
+        return undefined;
     }
 }
 
@@ -73,6 +88,7 @@ export class FunctionTreeProvider implements vscode.TreeDataProvider<FunctionTre
     private _onDidChangeTreeData: vscode.EventEmitter<FunctionTreeNode | undefined | void> = new vscode.EventEmitter<FunctionTreeNode | undefined | void>();
     readonly onDidChangeTreeData: vscode.Event<FunctionTreeNode | undefined | void> = this._onDidChangeTreeData.event;
     private webviewPanels: Map<string, WebviewPanel> = new Map();
+    private decorationProvider: FunctionTreeDecorationProvider;
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -81,13 +97,72 @@ export class FunctionTreeProvider implements vscode.TreeDataProvider<FunctionTre
         private openApiProvider?: OpenApiProvider,
         private patchExportProvider?: PatchExportWebviewProvider,
         private precastExportProvider?: PrecastExportWebviewProvider
-    ) {}
+    ) {
+        // 注册装饰提供者
+        this.decorationProvider = new FunctionTreeDecorationProvider();
+        context.subscriptions.push(vscode.window.registerFileDecorationProvider(this.decorationProvider));
+    }
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
     }
 
     getTreeItem(element: FunctionTreeNode): vscode.TreeItem {
+        // 为特定节点添加装饰
+        if (element.viewType) {
+            switch (element.viewType) {
+                case 'yonbip-mcp':
+                    // 为 MCP 服务节点添加装饰
+                    element.description = '服务';
+                    element.iconPath = {
+                        light: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'mcp-icon.svg'),
+                        dark: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'mcp-icon.svg')
+                    };
+                    // 添加上下文值用于菜单和装饰
+                    element.contextValue = 'mcp-service';
+                    break;
+                case 'yonbip-nchome':
+                    // 为 HOME 配置节点添加装饰
+                    element.description = '配置';
+                    element.iconPath = {
+                        light: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'nchome-icon.svg'),
+                        dark: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'nchome-icon.svg')
+                    };
+                    // 添加上下文值用于菜单和装饰
+                    element.contextValue = 'home-config';
+                    break;
+                case 'yonbip-openapi':
+                    // 为 OpenAPI 测试节点添加装饰
+                    element.description = '测试';
+                    element.iconPath = {
+                        light: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'openapi-icon.svg'),
+                        dark: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'openapi-icon.svg')
+                    };
+                    // 添加上下文值用于菜单和装饰
+                    element.contextValue = 'openapi-test';
+                    break;
+                case 'yonbip.patchExportConfig':
+                    // 为补丁导出配置节点添加装饰
+                    element.description = '导出';
+                    element.iconPath = {
+                        light: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'patch-icon.svg'),
+                        dark: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'patch-icon.svg')
+                    };
+                    // 添加上下文值用于菜单和装饰
+                    element.contextValue = 'patch-export';
+                    break;
+                case 'yonbip.precastExportConfig':
+                    // 为预置脚本导出节点添加装饰
+                    element.description = '脚本';
+                    element.iconPath = {
+                        light: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'sql-icon.svg'),
+                        dark: vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icons', 'views', 'sql-icon.svg')
+                    };
+                    // 添加上下文值用于菜单和装饰
+                    element.contextValue = 'precast-export';
+                    break;
+            }
+        }
         return element;
     }
 

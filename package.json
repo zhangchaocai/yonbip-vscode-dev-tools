@@ -17,7 +17,7 @@
     "url": "https://github.com/yonbip/vscode-dev-tools/issues"
   },
   "license": "MIT",
-  "icon": "resources/icons/views/icon.png",
+  "icon": "resources/icons/project/nccicon.png",
   "galleryBanner": {
     "color": "#1e1e1e",
     "theme": "dark"
@@ -45,14 +45,9 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "yonbip-view",
-          "title": "YonBIP高级版开发者工具",
-          "icon": "resources/icons/views/icon.png"
-        },
-        {
           "id": "yonbip-explorer",
           "title": "YonBIP功能导航",
-          "icon": "resources/icons/views/icon.png"
+          "icon": "resources/icons/project/nccicon.png"
         }
       ]
     },
@@ -294,6 +289,33 @@
           "group": "navigation"
         }
       ],
+      "view/item/context": [
+        {
+          "command": "yonbip.function.showMcp",
+          "when": "view == yonbip-function-tree && viewItem == mcp-service",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.function.showHomeConfig",
+          "when": "view == yonbip-function-tree && viewItem == home-config",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.function.showOpenApi",
+          "when": "view == yonbip-function-tree && viewItem == openapi-test",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.function.showPatchExport",
+          "when": "view == yonbip-function-tree && viewItem == patch-export",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.function.showPrecastExport",
+          "when": "view == yonbip-function-tree && viewItem == precast-export",
+          "group": "inline"
+        }
+      ],
       "yonbip.project.submenu": [
         {
           "command": "yonbip.project.initContext",
@@ -389,6 +411,14 @@
         }
       ]
     },
+    "iconThemes": [
+      {
+        "id": "yonbip-icon-theme",
+        "label": "YonBIP Icon Theme",
+        "path": "./resources/icons/yonbip-icon-theme.json",
+        "description": "YonBIP 项目文件图标主题，为 YonBIP 项目文件夹提供专业图标"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "YonBIP高级版开发者工具",

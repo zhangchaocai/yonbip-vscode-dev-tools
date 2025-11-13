@@ -115,13 +115,19 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
     // 检查项目是否已初始化
     private isProjectInitialized(folderPath: string): boolean {
         try {
-            const markerPath = path.join(folderPath, '.project');
-            const buildClassesPath = path.join(folderPath, 'build', 'classes');
+            const projectPath = path.join(folderPath, '.project');
+            const classpathPath = path.join(folderPath, '.classpath');
+            const buildPath = path.join(folderPath, 'build');
             const metaInfPath = path.join(folderPath, 'META-INF');
+            const projectFolder = path.join(folderPath, '.yonbip-project');
             
             // 检查关键文件/目录是否存在
-            return fs.existsSync(markerPath) || 
-                   (fs.existsSync(buildClassesPath) && fs.existsSync(metaInfPath));
+            // YonBIP项目初始化标准：存在.project和.classpath文件，且存在build和META-INF目录，或者存在yonbip-project文件夹
+            return (fs.existsSync(projectPath) && 
+                   fs.existsSync(classpathPath) &&
+                   fs.existsSync(buildPath) && 
+                   fs.existsSync(metaInfPath)) ||
+                   fs.existsSync(projectFolder);
         } catch (error) {
             return false;
         }
@@ -141,7 +147,7 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
         this.invalidateCache(absPath);
         this.savePersistedState();
         
-        // 创建.project标记文件以确保持久性
+        // 创建.project和.classpath标记文件以确保持久性
         try {
             const projectFile = path.join(absPath, '.project');
             if (!fs.existsSync(projectFile)) {
@@ -159,8 +165,25 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
 </projectDescription>`;
                 fs.writeFileSync(projectFile, projectContent, 'utf-8');
             }
+            
+            const classpathFile = path.join(absPath, '.classpath');
+            if (!fs.existsSync(classpathFile)) {
+                const classpathContent = `<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+    <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
+    <classpathentry kind="src" path="src"/>
+    <classpathentry kind="output" path="build/classes"/>
+</classpath>`;
+                fs.writeFileSync(classpathFile, classpathContent, 'utf-8');
+            }
+            
+            // 创建一个特殊的隐藏文件夹来标识初始化的项目
+            const projectFolder = path.join(absPath, '.yonbip-project');
+            if (!fs.existsSync(projectFolder)) {
+                fs.mkdirSync(projectFolder);
+            }
         } catch (error) {
-            console.error('创建.project文件失败:', error);
+            console.error('创建项目标记文件失败:', error);
         }
         
         // 触发装饰更新
@@ -184,6 +207,17 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
         this.initializedFolders.delete(absPath);
         this.invalidateCache(absPath);
         this.savePersistedState();
+        
+        // 删除特殊的隐藏项目文件夹
+        try {
+            const projectFolder = path.join(absPath, '.yonbip-project');
+            if (fs.existsSync(projectFolder)) {
+                fs.rmdirSync(projectFolder);
+            }
+        } catch (error) {
+            console.error('删除项目标记文件夹失败:', error);
+        }
+        
         this._onDidChangeFileDecorations.fire(vscode.Uri.file(absPath));
     }
 
@@ -240,8 +274,8 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
                 }
                 
                 decoration = {
-                    badge: '✓',
-                    tooltip: 'YonBIP 项目已初始化 - 点击查看详情',
+                    badge: '⚙️',  // 使用齿轮图标表示已初始化的YonBIP项目
+                    tooltip: 'YonBIP 项目已初始化 - 包含 .project 和 .classpath 文件、build 目录和 META-INF 目录',
                     color: new vscode.ThemeColor('charts.green'),
                     propagate: false // 不传播，避免子目录也显示
                 };
