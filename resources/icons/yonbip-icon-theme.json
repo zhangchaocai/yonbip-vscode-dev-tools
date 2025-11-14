@@ -11,8 +11,16 @@
     },
     "_yonbip_folder": {
       "iconPath": "./project/folder-icon.png"  // ← 这是你想要的默认文件夹图标
+    },
+    "_yonbip_open_folder": {
+      "iconPath": "./project/open-folder-icon.png"  // ← 这是你想要的默认文件夹图标
+    },
+    "_yonbip_vscode": {
+      "iconPath": "./project/vscode.png"  // ← 这是你想要的默认文件夹图标
     }
   },
+  "folder": "_yonbip_folder",
+  "folderExpanded": "_yonbip_open_folder",
   // ✅ 将所有模块 code 映射为 _yonbip_project
   "folderNames": {
     "ae": "_yonbip_project",
@@ -294,7 +302,7 @@
     "icl": "_yonbip_project",
     // 保留原有的特定映射
     "patches": "_yonbip_patch",
-    ".vscode": "_yonbip_initialized"
+    ".vscode": "_yonbip_vscode"
   },
   "folderNamesExpanded": {
     "ae": "_yonbip_project",
@@ -576,6 +584,6 @@
     "icl": "_yonbip_project",
     // 保留原有的特定映射
     "patches": "_yonbip_patch",
-    ".vscode": "_yonbip_initialized"
+    ".vscode": "_yonbip_vscode"
   }
 }
