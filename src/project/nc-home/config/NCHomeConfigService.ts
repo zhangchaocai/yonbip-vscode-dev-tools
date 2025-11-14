@@ -6,6 +6,7 @@ import { NCHomeConfig, DataSourceMeta, ConnectionTestResult, AutoParseResult, DR
 import { PasswordEncryptor } from '../../../utils/PasswordEncryptor';
 import { PropXmlUpdater } from '../../../utils/PropXmlUpdater';
 import { OracleClientService } from '../OracleClientService';
+import { StatisticsService } from '../../../utils/StatisticsService';
 
 /**
  * NC Home配置服务
@@ -152,6 +153,9 @@ export class NCHomeConfigService {
 
             this.outputChannel.appendLine(`配置已保存: ${this.configFilePath}`);
             vscode.window.showInformationMessage('NC Home配置已保存');
+            
+            // 记录HOME配置统计
+            StatisticsService.incrementCount(StatisticsService.HOME_CONFIG_COUNT);
 
         } catch (error: any) {
             this.outputChannel.appendLine(`保存配置失败: ${error.message}`);

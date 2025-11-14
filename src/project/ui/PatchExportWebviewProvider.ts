@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { PatchInfo } from '../../project/project-management/ProjectService';
 import { NCHomeConfigService } from '../../project/nc-home/config/NCHomeConfigService';
+import { StatisticsService } from '../../utils/StatisticsService';
 
 /**
  * 补丁导出配置Webview提供者
@@ -237,6 +238,9 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 message: `补丁导出成功: ${path.basename(zipPath)}`
             });
             console.log('成功消息已发送到Webview');
+            
+            // 记录补丁导出统计
+            StatisticsService.incrementCount(StatisticsService.PATCH_EXPORT_COUNT);
 
             // 显示系统通知
             vscode.window.showInformationMessage(

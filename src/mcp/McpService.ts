@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { NCHomeConfigService } from '../project/nc-home/config/NCHomeConfigService';
 import { DataSourceMeta } from '../project/nc-home/config/NCHomeConfigTypes';
 import { PasswordEncryptor } from '../utils/PasswordEncryptor';
+import { StatisticsService } from '../utils/StatisticsService';
 
 /**
  * MCP服务配置
@@ -289,6 +290,10 @@ export class McpService {
 
                             // 启动成功后自动切换到MCP服务面板
                             vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
+                            
+                            // 记录MCP启动统计
+                            StatisticsService.incrementCount(StatisticsService.MCP_START_COUNT);
+
                         } else {
                             this.outputChannel.appendLine('❌ 虽然检测到启动成功标识，但服务健康检查失败');
                             this.setStatus(McpStatus.ERROR);

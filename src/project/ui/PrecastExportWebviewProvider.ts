@@ -7,6 +7,7 @@ import { PasswordEncryptor } from '../../utils/PasswordEncryptor';
 import { DataSourceMeta } from '../../project/nc-home/config/NCHomeConfigTypes';
 import { OracleClientService } from '../../project/nc-home/OracleClientService';
 import { TableRuleParser, TableStructure, SubTableStructure } from '../../utils/TableRuleParser';
+import { StatisticsService } from '../../utils/StatisticsService';
 const xml2js = require('xml2js');
 
 /**
@@ -354,6 +355,9 @@ ${inserts.join("\n")}
             const ts = this._formatTimestamp(new Date());
             const filePath = path.join(outputDir, `allsql_${ts}.sql`);
             fs.writeFileSync(filePath, sqlOutput, 'utf-8');
+
+            // 记录预置脚本导出统计
+            StatisticsService.incrementCount(StatisticsService.SCRIPT_EXPORT_COUNT);
 
             this._view?.webview.postMessage({ type: 'progress', percent: 100, text: '导出完成' });
             this._view?.webview.postMessage({ type: 'exportFinished' });

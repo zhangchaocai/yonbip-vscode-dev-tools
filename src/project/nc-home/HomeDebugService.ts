@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { HomeService } from './HomeService';
 import { NCHomeConfigService } from './config/NCHomeConfigService';
+import { StatisticsService } from '../../utils/StatisticsService';
 
 /**
  * HOME调试服务类，模拟IDEA插件中的ServerDebugAction逻辑
@@ -79,6 +80,8 @@ export class HomeDebugService {
      */
     private async startHomeService(selectedPath?: string): Promise<void> {
         await this.homeService.startHomeService(selectedPath);
+        // 记录HOME启动统计
+        StatisticsService.incrementCount(StatisticsService.HOME_START_COUNT);
     }
 
     /**

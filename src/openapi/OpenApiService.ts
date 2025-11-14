@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import axios from 'axios';
 import { createHash } from 'crypto';
 import { OpenApiTokenUtils } from '../utils/OpenApiTokenUtils';
+import { StatisticsService } from '../utils/StatisticsService';
 
 /**
  * OpenAPI配置接口
@@ -270,6 +271,9 @@ export class OpenApiService {
                 statusText: response.statusText,
                 duration: duration
             });
+            
+            // 记录OpenAPI测试统计
+            StatisticsService.incrementCount(StatisticsService.OPENAPI_TEST_COUNT);
             
             return {
                 status: response.status,

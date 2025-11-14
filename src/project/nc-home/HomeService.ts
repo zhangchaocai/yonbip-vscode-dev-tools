@@ -8,6 +8,7 @@ import { OracleClientService } from './OracleClientService';
 import { HomeStatus } from './homeStatus';
 import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
 import { ClasspathUtils } from '../../utils/ClasspathUtils';
+import { StatisticsService } from '../../utils/StatisticsService';
 
 /**
  * NC HOME服务管理类
@@ -445,6 +446,8 @@ export class HomeService {
                     output.includes('Tomcat started on port')) {
                     this.setStatus(HomeStatus.RUNNING);
                     vscode.window.showInformationMessage('YonBIP Premium HOME服务启动成功!');
+                    // 记录HOME启动统计
+                    StatisticsService.incrementCount(StatisticsService.HOME_START_COUNT);
                 }
             });
 
