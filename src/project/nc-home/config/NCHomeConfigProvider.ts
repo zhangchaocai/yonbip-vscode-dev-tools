@@ -2385,7 +2385,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             if (dsTypeSelect && dsPortInput && dsDatabaseInput) {
                 const currentType = dsTypeSelect.value;
                 if (dbConfigMap[currentType]) {
-                    dsPortInput.value = dbConfigMap[currentType].port;
+                    // 只有在端口为空或为默认值时才设置默认端口，避免覆盖用户已输入的内容
+                    if (!dsPortInput.value) {
+                        dsPortInput.value = dbConfigMap[currentType].port;
+                    }
                     // 只有在数据库名为空时才设置默认值
                     if (!dsDatabaseInput.value) {
                         dsDatabaseInput.value = dbConfigMap[currentType].database;
