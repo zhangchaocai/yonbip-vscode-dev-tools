@@ -2381,13 +2381,15 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 }
             }
             
-            // 确保端口号和数据库名根据当前选择的数据库类型正确设置
+            // 确保端口号根据当前选择的数据库类型正确设置，但保留用户输入的数据库名
             if (dsTypeSelect && dsPortInput && dsDatabaseInput) {
                 const currentType = dsTypeSelect.value;
                 if (dbConfigMap[currentType]) {
                     dsPortInput.value = dbConfigMap[currentType].port;
-                    // 数据库名总是更新为对应数据库类型的默认值
-                    dsDatabaseInput.value = dbConfigMap[currentType].database;
+                    // 只有在数据库名为空时才设置默认值
+                    if (!dsDatabaseInput.value) {
+                        dsDatabaseInput.value = dbConfigMap[currentType].database;
+                    }
                 }
             }
         }
