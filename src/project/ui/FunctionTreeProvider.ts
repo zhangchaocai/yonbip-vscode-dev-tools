@@ -288,11 +288,16 @@ export class FunctionTreeProvider implements vscode.TreeDataProvider<FunctionTre
         // 将面板存储到Map中
         this.webviewPanels.set(viewType, newPanel);
 
+        // 设置Webview内容（这里需要根据具体功能设置相应的内容）
+        newPanel.webview.html = this.getWebviewContent(viewType);
+
         // 设置消息监听器
         this.setupMessageListener(newPanel, viewType);
 
-        // 设置Webview内容（这里需要根据具体功能设置相应的内容）
-        newPanel.webview.html = this.getWebviewContent(viewType);
+        // 延迟发送初始化消息，确保Webview已完全加载
+        setTimeout(() => {
+            newPanel.webview.postMessage({ type: 'ready' });
+        }, 1000);
     }
 
     /**

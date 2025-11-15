@@ -186,6 +186,9 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 		vscode.commands.registerCommand('yonbip.patchExportConfig.focus', () => {
 			functionTreeProvider.createOrShowWebview('yonbip.patchExportConfig', '补丁导出配置');
+		}),
+		vscode.commands.registerCommand('yonbip.precastExportConfig.focus', () => {
+			functionTreeProvider.createOrShowWebview('yonbip.precastExportConfig', '预置脚本导出');
 		})
 	);
 	

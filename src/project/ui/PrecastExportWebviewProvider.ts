@@ -141,6 +141,15 @@ export class PrecastExportWebviewProvider implements vscode.WebviewViewProvider 
                 type: 'setCurrentXml',
                 path: currentXml
             });
+            
+            // 如果找到了XML文件，确保警告被隐藏
+            if (!showWarning && this._view) {
+                this._view.webview.postMessage({ 
+                    type: 'showMessage', 
+                    level: 'info', 
+                    message: `已选择XML文件: ${path.basename(currentXml)}` 
+                });
+            }
         } catch (error) {
             // Ignore errors in checking XML selection
         }
