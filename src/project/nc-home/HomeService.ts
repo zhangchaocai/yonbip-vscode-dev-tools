@@ -656,45 +656,54 @@ export class HomeService {
             path.join(config.homePath, 'lib'),
             path.join(config.homePath, 'external', 'lib'),
             path.join(config.homePath, 'ierp', 'bin'),
+            path.join(config.homePath, 'ant', 'lib'),
             path.join(config.homePath, 'license'), // 添加许可证目录
-            path.join(config.homePath, 'modules'), // 添加modules目录
-            //path.join(config.homePath, 'webapps'), // 添加webapps目录
-            // path.join(config.homePath, 'webapps', 'nccloud', 'WEB-INF', 'lib'), // 添加nccloud webapp lib目录
-            // path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'lib'), // 添加uapws webapp lib目录
-            // path.join(config.homePath, 'webapps', 'console', 'WEB-INF', 'lib'), // 添加console webapp lib目录
-            // path.join(config.homePath, 'webapps', 'fs', 'WEB-INF', 'lib'), // 添加fs webapp lib目录
-            // path.join(config.homePath, 'webapps', 'ncchr', 'WEB-INF', 'lib'), // 添加ncchr webapp lib目录
-            // path.join(config.homePath, 'webapps', 'portal', 'WEB-INF', 'lib'), // 添加portal webapp lib目录
-            // path.join(config.homePath, 'webapps', 'mobile', 'WEB-INF', 'lib'), // 添加mobile webapp lib目录
-            // path.join(config.homePath, 'webapps', 'hrhi', 'WEB-INF', 'lib'), // 添加hrhi webapp lib目录
-            // path.join(config.homePath, 'webapps', 'einvoice', 'WEB-INF', 'lib'), // 添加einvoice webapp lib目录
-            // path.join(config.homePath, 'webapps', 'cm', 'WEB-INF', 'lib'), // 添加cm webapp lib目录
-            // path.join(config.homePath, 'webapps', 'fin', 'WEB-INF', 'lib'), // 添加fin webapp lib目录
-            // path.join(config.homePath, 'webapps', 'fip', 'WEB-INF', 'lib'), // 添加fip webapp lib目录
-            // path.join(config.homePath, 'webapps', 'pm', 'WEB-INF', 'lib'), // 添加pm webapp lib目录
-            // path.join(config.homePath, 'webapps', 'sm', 'WEB-INF', 'lib'), // 添加sm webapp lib目录
-            // path.join(config.homePath, 'webapps', 'edm', 'WEB-INF', 'lib'), // 添加edm webapp lib目录
-            // path.join(config.homePath, 'webapps', 'bcm', 'WEB-INF', 'lib'), // 添加bcm webapp lib目录
-            // path.join(config.homePath, 'webapps', 'pub', 'WEB-INF', 'lib'), // 添加pub webapp lib目录
-            //path.join(config.homePath, 'adapter'), // 添加 adapter 目录
-            //path.join(config.homePath, 'platform'), // 添加platform目录
+            path.join(config.homePath, 'webapps'), // 添加webapps目录
+            path.join(config.homePath, 'webapps', 'nccloud', 'WEB-INF', 'lib'), // 添加nccloud webapp lib目录
+            path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'lib'), // 添加uapws webapp lib目录
+            path.join(config.homePath, 'webapps', 'console', 'WEB-INF', 'lib'), // 添加console webapp lib目录
+            path.join(config.homePath, 'webapps', 'fs', 'WEB-INF', 'lib'), // 添加fs webapp lib目录
+            path.join(config.homePath, 'webapps', 'ncchr', 'WEB-INF', 'lib'), // 添加ncchr webapp lib目录
+            path.join(config.homePath, 'webapps', 'portal', 'WEB-INF', 'lib'), // 添加portal webapp lib目录
+            path.join(config.homePath, 'webapps', 'mobile', 'WEB-INF', 'lib'), // 添加mobile webapp lib目录
+            path.join(config.homePath, 'webapps', 'hrhi', 'WEB-INF', 'lib'), // 添加hrhi webapp lib目录
+            path.join(config.homePath, 'webapps', 'einvoice', 'WEB-INF', 'lib'), // 添加einvoice webapp lib目录
+            path.join(config.homePath, 'webapps', 'cm', 'WEB-INF', 'lib'), // 添加cm webapp lib目录
+            path.join(config.homePath, 'webapps', 'fin', 'WEB-INF', 'lib'), // 添加fin webapp lib目录
+            path.join(config.homePath, 'webapps', 'fip', 'WEB-INF', 'lib'), // 添加fip webapp lib目录
+            path.join(config.homePath, 'webapps', 'pm', 'WEB-INF', 'lib'), // 添加pm webapp lib目录
+            path.join(config.homePath, 'webapps', 'sm', 'WEB-INF', 'lib'), // 添加sm webapp lib目录
+            path.join(config.homePath, 'webapps', 'edm', 'WEB-INF', 'lib'), // 添加edm webapp lib目录
+            path.join(config.homePath, 'webapps', 'bcm', 'WEB-INF', 'lib'), // 添加bcm webapp lib目录
+            path.join(config.homePath, 'webapps', 'pub', 'WEB-INF', 'lib'), // 添加pub webapp lib目录
+         
             path.join(config.homePath, 'langlib'), // 添加langlib目录
             path.join(config.homePath, 'middleware', 'lib'), // 添加middleware/lib目录
             path.join(config.homePath, 'framework'), // 添加framework目录
             // 特别添加可能包含ws相关类的目录
-            // path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'classes'),
-            // path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'lib'),
-            // path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'classes')
+            path.join(config.homePath, 'webapps', 'uapws', 'WEB-INF', 'classes'),
+            path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'lib'),
+            path.join(config.homePath, 'webapps', 'webservice', 'WEB-INF', 'classes')
         ];
 
         this.outputChannel.appendLine('开始构建类路径...');
 
         // 使用工具类获取所有启用模块的classes路径和lib路径
+        // 特别处理uapbs模块，确保其类路径优先加载
         const moduleClassesPaths = ClasspathUtils.getAllModuleClassesPaths(config.homePath, this.context);
-        classpathEntries.push(...moduleClassesPaths);
-        
         const moduleLibPaths = ClasspathUtils.getAllModuleLibPaths(config.homePath, this.context);
-        classpathEntries.push(...moduleLibPaths);
+        
+        // 将uapbs模块的路径移到最前面
+        const uapbsClassesPaths = moduleClassesPaths.filter(path => path.includes('/modules/uapbs/') || path.includes('\\modules\\uapbs\\'));
+        const otherClassesPaths = moduleClassesPaths.filter(path => !path.includes('/modules/uapbs/') && !path.includes('\\modules\\uapbs\\'));
+        const uapbsLibPaths = moduleLibPaths.filter(path => path.includes('/modules/uapbs/') || path.includes('\\modules\\uapbs\\'));
+        const otherLibPaths = moduleLibPaths.filter(path => !path.includes('/modules/uapbs/') && !path.includes('\\modules\\uapbs\\'));
+        
+        // 先添加uapbs模块路径，再添加其他模块路径
+        classpathEntries.push(...uapbsClassesPaths);
+        classpathEntries.push(...otherClassesPaths);
+        classpathEntries.push(...uapbsLibPaths);
+        classpathEntries.push(...otherLibPaths);
                 
         // 遍历所有目录，使用通配符形式添加jar包到类路径
         for (const dir of libDirs) {

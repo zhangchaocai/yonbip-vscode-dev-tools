@@ -35,6 +35,12 @@ export class ClasspathUtils {
         
         // 查找模块下的各种classes路径
         const potentialClassesPaths = [
+            // META-INF目录下的classes
+            path.join(modulePath, 'META-INF', 'classes'),
+            // META-INF/extension目录下的classes
+            path.join(modulePath, 'META-INF', 'extension', 'classes'),
+            // META-INF/hyext目录下的classes
+            path.join(modulePath, 'META-INF', 'hyext', 'classes'),
             // 主模块classes目录
             path.join(modulePath, 'classes'),
             // extension目录下的classes
@@ -46,13 +52,7 @@ export class ClasspathUtils {
             // client/extension目录下的classes
             path.join(modulePath, 'client', 'extension', 'classes'),
             // client/hyext目录下的classes
-            path.join(modulePath, 'client', 'hyext', 'classes'),
-            // META-INF目录下的classes
-            path.join(modulePath, 'META-INF', 'classes'),
-            // META-INF/extension目录下的classes
-            path.join(modulePath, 'META-INF', 'extension', 'classes'),
-            // META-INF/hyext目录下的classes
-            path.join(modulePath, 'META-INF', 'hyext', 'classes')
+            path.join(modulePath, 'client', 'hyext', 'classes')
         ];
 
         // 检查每个潜在的classes路径是否存在且不为空
@@ -73,22 +73,44 @@ export class ClasspathUtils {
     public static getModuleLibPaths(modulePath: string): string[] {
         const libPaths: string[] = [];
         
-        // 检查模块lib目录
-        const moduleLibDir = path.join(modulePath, 'lib');
-        if (fs.existsSync(moduleLibDir)) {
+      
+        // uapbs模块需要确保lib目录优先于META-INF/lib目录
+        // 因为IMetaDataManagerService接口在lib目录中，而实现类在META-INF/lib目录中
+        const libDir = path.join(modulePath, 'lib');
+        const metaInfLibDir = path.join(modulePath, 'META-INF', 'lib');
+        
+        // 先添加lib目录
+        if (fs.existsSync(libDir)) {
             try {
-                // 检查模块lib目录中是否有jar文件
-                const files = fs.readdirSync(moduleLibDir);
+                // 检查lib目录中是否有jar文件
+                const files = fs.readdirSync(libDir);
                 const hasJars = files.some(file => file.endsWith('.jar'));
                 
                 // 如果有jar文件，使用通配符形式添加整个目录
                 if (hasJars) {
-                    libPaths.push(path.join(moduleLibDir, '*'));
+                    libPaths.push(path.join(libDir, '*'));
                 }
             } catch (error) {
                 // 忽略读取错误
             }
         }
+        
+        // 后添加META-INF/lib目录
+        if (fs.existsSync(metaInfLibDir)) {
+            try {
+                // 检查META-INF/lib目录中是否有jar文件
+                const files = fs.readdirSync(metaInfLibDir);
+                const hasJars = files.some(file => file.endsWith('.jar'));
+                
+                // 如果有jar文件，使用通配符形式添加整个目录
+                if (hasJars) {
+                    libPaths.push(path.join(metaInfLibDir, '*'));
+                }
+            } catch (error) {
+                // 忽略读取错误
+            }
+        }
+  
 
         return libPaths;
     }
@@ -126,6 +148,14 @@ export class ClasspathUtils {
                     console.warn('获取模块配置失败，将加载所有模块:', error);
                     enabledModules = moduleDirs;
                 }
+            }
+
+            // 特别处理uapbs模块，确保其优先加载
+            const uapbsIndex = enabledModules.indexOf('uapbs');
+            if (uapbsIndex !== -1) {
+                // 将uapbs模块移到数组开头
+                const uapbsModule = enabledModules.splice(uapbsIndex, 1)[0];
+                enabledModules.unshift(uapbsModule);
             }
 
             // 遍历每个启用的模块目录，查找classes路径
@@ -174,6 +204,14 @@ export class ClasspathUtils {
                     console.warn('获取模块配置失败，将加载所有模块:', error);
                     enabledModules = moduleDirs;
                 }
+            }
+
+            // 特别处理uapbs模块，确保其优先加载
+            const uapbsIndex = enabledModules.indexOf('uapbs');
+            if (uapbsIndex !== -1) {
+                // 将uapbs模块移到数组开头
+                const uapbsModule = enabledModules.splice(uapbsIndex, 1)[0];
+                enabledModules.unshift(uapbsModule);
             }
 
             // 遍历每个启用的模块目录，查找lib路径
