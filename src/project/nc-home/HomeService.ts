@@ -688,6 +688,21 @@ export class HomeService {
 
         this.outputChannel.appendLine('开始构建类路径...');
 
+        // 特别处理driver目录下的jar文件，确保它们被正确添加到类路径中
+        const driverLibDir = path.join(config.homePath, 'driver');
+        if (fs.existsSync(driverLibDir)) {
+            try {
+                // 递归扫描driver目录下的所有jar文件
+                const driverJars = this.scanDriverJars(driverLibDir);
+                for (const jarPath of driverJars) {
+                    classpathEntries.push(jarPath);
+                    //this.outputChannel.appendLine(`🚗 添加数据库驱动: ${path.basename(jarPath)}`);
+                }
+            } catch (err: any) {
+                this.outputChannel.appendLine(`⚠️ 扫描driver目录下的jar文件失败: ${err}`);
+            }
+        }
+
         // 使用工具类获取所有启用模块的classes路径和lib路径
         // 特别处理uapbs模块，确保其类路径优先加载
         const moduleClassesPaths = ClasspathUtils.getAllModuleClassesPaths(config.homePath, this.context);
@@ -729,38 +744,6 @@ export class HomeService {
             }
         }
 
-        // 特别处理modules目录，扫描每个子目录下的lib目录和classes目录
-        // 注意：这部分逻辑已经通过ClasspathUtils.getAllModuleLibPaths()和getAllModuleClassesPaths()处理
-        // 并且已经应用了模块过滤，所以这里可以移除重复的处理逻辑
-        /*
-        const modulesDir = path.join(config.homePath, 'modules');
-        if (fs.existsSync(modulesDir)) {
-            try {
-    
-                // 保持原有的lib目录处理逻辑
-                const moduleDirs = fs.readdirSync(modulesDir);
-                //this.outputChannel.appendLine(`📁 发现modules目录: ${modulesDir}，包含 ${moduleDirs.length} 个模块`);
-
-                for (const moduleDir of moduleDirs) {
-                    const moduleLibDir = path.join(modulesDir, moduleDir, 'lib');
-                    if (fs.existsSync(moduleLibDir)) {
-                        // 检查模块lib目录中是否有jar文件
-                        const files = fs.readdirSync(moduleLibDir);
-                        const hasJars = files.some(file => file.endsWith('.jar'));
-                        
-                        // 如果有jar文件，使用通配符形式添加整个目录
-                        if (hasJars) {
-                            classpathEntries.push(path.join(moduleLibDir, '*'));
-                            //this.outputChannel.appendLine(`📁 添加模块lib目录(通配符形式): ${moduleLibDir}`);
-                        }
-                    }
-                }
-            } catch (err: any) {
-                this.outputChannel.appendLine(`⚠️ 读取modules目录失败: ${err}`);
-            }
-        }
-        */
-
         // 特别检查并添加与web服务相关的jar包
         // 注意：这里仍然添加特定的jar包，因为需要确保ws相关类能被正确加载
         this.checkAndAddWSJars(config.homePath, classpathEntries);
@@ -789,12 +772,9 @@ export class HomeService {
         // 特别检查resources和conf目录是否被正确添加
         const resourcesEntries = uniqueClasspathEntries.filter(entry => entry.includes('resources'));
         if (resourcesEntries.length > 0) {
-            this.outputChannel.appendLine(`✅ 类路径中包含resources相关目录 ${resourcesEntries.length} 个:`);
-            resourcesEntries.forEach(entry => {
-                this.outputChannel.appendLine(`   - ${entry}`);
-            });
+            this.outputChannel.appendLine(`✅ resources目录已添加: ${resourcesEntries.join(', ')}`);
         } else {
-            this.outputChannel.appendLine(`❌ 警告: 类路径中未找到resources目录！`);
+            this.outputChannel.appendLine('⚠️ resources目录未被添加到类路径中');
         }
 
         // 确保所有类路径条目都是有效的文件系统路径，而不是URI
@@ -817,7 +797,37 @@ export class HomeService {
             }
         });
 
+        this.outputChannel.appendLine(`类路径构建完成，共包含 ${validatedClasspathEntries.length} 个条目`);
         return validatedClasspathEntries.join(path.delimiter);
+    }
+
+    /**
+     * 递归扫描driver目录下的所有jar文件
+     * @param dirPath 要扫描的目录路径
+     * @returns jar文件路径数组
+     */
+    private scanDriverJars(dirPath: string): string[] {
+        const jarPaths: string[] = [];
+        
+        try {
+            const items = fs.readdirSync(dirPath);
+            for (const item of items) {
+                const itemPath = path.join(dirPath, item);
+                const stat = fs.statSync(itemPath);
+                
+                if (stat.isDirectory()) {
+                    // 递归扫描子目录
+                    jarPaths.push(...this.scanDriverJars(itemPath));
+                } else if (item.endsWith('.jar')) {
+                    // 添加jar文件
+                    jarPaths.push(itemPath);
+                }
+            }
+        } catch (error) {
+            this.outputChannel.appendLine(`⚠️ 扫描目录失败: ${dirPath}, 错误: ${error}`);
+        }
+        
+        return jarPaths;
     }
 
     /**
