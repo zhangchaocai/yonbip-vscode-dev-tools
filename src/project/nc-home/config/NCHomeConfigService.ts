@@ -1211,6 +1211,19 @@ export class NCHomeConfigService {
         // 保存原始数据源名称
         const originalDataSourceName = dataSourceName;
 
+        // 检查是否已经存在design数据源
+        const existingDesignIndex = dataSources.findIndex(ds => ds.name === 'design');
+        let existingDesignDataSource: DataSourceMeta | null = null;
+        
+        if (existingDesignIndex !== -1) {
+            // 保存现有的design数据源信息
+            existingDesignDataSource = { ...dataSources[existingDesignIndex] };
+            // 移除原有的design标识，将其重命名为原始名称
+            const originalName = existingDesignDataSource.name;
+            // 如果原始名称已经是design，则添加时间戳后缀
+            existingDesignDataSource.name = originalName === 'design' ? `design_${Date.now()}` : originalName;
+        }
+
         // 将数据源名称改为"design"
         const dataSource = dataSources[dataSourceIndex];
         const originalDataSource = { ...dataSource }; // 保存原始数据源信息
@@ -1225,15 +1238,36 @@ export class NCHomeConfigService {
         // 同时更新prop.xml文件中的数据源名称
         if (this.config.homePath) {
             try {
-                // 先删除原来的数据源
+                // 如果存在原有的design数据源，先将其移除design标识
+                if (existingDesignDataSource) {
+                    PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, 'design');
+                    // 只有当重命名后的名称不等于原始名称时才添加回去
+                    if (existingDesignDataSource.name !== 'design') {
+                        PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, existingDesignDataSource, false);
+                        this.outputChannel.appendLine(`已将原有design数据源重命名为 "${existingDesignDataSource.name}" 并保留`);
+                    } else {
+                        this.outputChannel.appendLine('已移除原有design数据源的design标识');
+                    }
+                }
+                
+                // 删除原来的数据源
                 PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, originalDataSourceName);
-                // 再添加更新后的数据源
+                // 添加更新后的数据源（新的design数据源）
                 PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
-                this.outputChannel.appendLine(`已将数据源 "${originalDataSourceName}" 重命名为 "design" 并写入prop.xml文件`);
+                
+                this.outputChannel.appendLine(`已将数据源 "${originalDataSourceName}" 设置为design并写入prop.xml文件`);
             } catch (error: any) {
                 // 如果更新失败，恢复原始数据源
                 try {
                     PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, 'design');
+                    // 恢复原有的design数据源（如果存在）
+                    if (existingDesignDataSource) {
+                        const shouldRestore = existingDesignDataSource.name !== 'design';
+                        if (shouldRestore) {
+                            existingDesignDataSource.name = 'design'; // 恢复原名
+                            PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, existingDesignDataSource, false);
+                        }
+                    }
                     PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, originalDataSource, false);
                 } catch (restoreError: any) {
                     this.outputChannel.appendLine(`恢复原始数据源失败: ${restoreError.message}`);
@@ -1243,8 +1277,8 @@ export class NCHomeConfigService {
             }
         }
 
-        this.outputChannel.appendLine(`设置开发库: ${originalDataSourceName} 已重命名为 design`);
-        vscode.window.showInformationMessage(`已将 "${originalDataSourceName}" 设置为开发库并重命名为 "design"`);
+        this.outputChannel.appendLine(`设置开发库: ${originalDataSourceName} 已设置为design`);
+        vscode.window.showInformationMessage(`已将 "${originalDataSourceName}" 设置为开发库`);
     }
 
     /**

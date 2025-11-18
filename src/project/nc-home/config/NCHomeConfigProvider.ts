@@ -2607,13 +2607,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return 0;
             });
             
-            // 如果没有任何数据源被标记为design，检查数据源名称是否包含"design"关键字
+            // 如果没有任何数据源被标记为design，将design数据源放在第一位
             if (!currentConfig.selectedDataSource) {
                 sortedDataSources.sort((a, b) => {
-                    const aHasDesign = a.name.toLowerCase().includes('design');
-                    const bHasDesign = b.name.toLowerCase().includes('design');
-                    if (aHasDesign && !bHasDesign) return -1;
-                    if (!aHasDesign && bHasDesign) return 1;
+                    const isADesign = a.name === 'design';
+                    const isBDesign = b.name === 'design';
+                    if (isADesign && !isBDesign) return -1;
+                    if (!isADesign && isBDesign) return 1;
                     return 0;
                 });
             }
@@ -2621,7 +2621,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             let html = '<div style="margin-top: 10px;">';
             sortedDataSources.forEach((ds, index) => {
                 // 检查是否为当前选中的design数据源
-                const isDesignDatabase = currentConfig.selectedDataSource === ds.name || ds.name.toLowerCase().includes('design');
+                const isDesignDatabase = currentConfig.selectedDataSource === ds.name;
                 const isBaseDatabase = currentConfig.baseDatabase === ds.name;
                 
                 // 转义特殊字符以避免HTML注入
