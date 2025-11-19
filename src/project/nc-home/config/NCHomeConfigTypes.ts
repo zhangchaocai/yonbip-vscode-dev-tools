@@ -17,6 +17,7 @@ export interface DriverInfo {
  */
 export interface DataSourceMeta {
     name: string;
+    alias?: string;  // 别名属性，非必填，仅用于.nc-home-config.json中区分数据源
     databaseType: string;
     driverClassName: string;
     host: string;

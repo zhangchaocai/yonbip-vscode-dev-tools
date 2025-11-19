@@ -5,6 +5,7 @@ import * as os from 'os';
 import { NCHomeConfigService } from '../nc-home/config/NCHomeConfigService';
 import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
 import { ClasspathUtils } from '../../utils/ClasspathUtils';
+import { spawnSync } from 'child_process';
 
 /**
  * Jar包信息VO
@@ -1139,6 +1140,31 @@ export class LibraryService {
                 // 获取JDK运行时配置
                 const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
 
+                // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+                let jdk21OrHigherPath = "";
+                try {
+                    const detectedJdkPath = await this.detectJdk21OrHigher();
+                    if (detectedJdkPath) {
+                        jdk21OrHigherPath = detectedJdkPath;
+                        this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
+                    } else {
+                        // 如果未找到JDK 21+，提醒用户安装
+                        this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
+                        this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
+                        this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
+                        vscode.window.showWarningMessage(
+                            '未找到JDK 21或更高版本。请安装JDK 21+以获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                            '了解更多'
+                        ).then(selection => {
+                            if (selection === '了解更多') {
+                                vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
+                            }
+                        });
+                    }
+                } catch (error) {
+                    this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
+                }
+
                 // 要添加的配置内容
                 const newSettings = {
                     "java.saveActions.organizeImports": true,
@@ -1152,7 +1178,9 @@ export class LibraryService {
                     },
                     "[typescript]": {
                         "files.encoding": "utf8"
-                    }
+                    },
+                    //此处配置JDK21或以上版本
+                    "java.jdt.ls.java.home": jdk21OrHigherPath
                 };
 
                 // 如果工作区配置中还没有settings部分，则创建
@@ -1206,6 +1234,31 @@ export class LibraryService {
                 // 获取JDK运行时配置
                 const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
 
+                // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+                let jdk21OrHigherPath = "";
+                try {
+                    const detectedJdkPath = await this.detectJdk21OrHigher();
+                    if (detectedJdkPath) {
+                        jdk21OrHigherPath = detectedJdkPath;
+                        this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
+                    } else {
+                        // 如果未找到JDK 21+，提醒用户安装
+                        this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
+                        this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
+                        this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
+                        vscode.window.showWarningMessage(
+                            '未找到JDK 21或更高版本。请安装JDK 21+以获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                            '了解更多'
+                        ).then(selection => {
+                            if (selection === '了解更多') {
+                                vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
+                            }
+                        });
+                    }
+                } catch (error) {
+                    this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
+                }
+
                 // 要添加的配置内容
                 const newSettings = {
                     "java.saveActions.organizeImports": true,
@@ -1219,7 +1272,9 @@ export class LibraryService {
                     },
                     "[typescript]": {
                         "files.encoding": "utf8"
-                    }
+                    },
+                    //此处配置JDK21或以上版本
+                    "java.jdt.ls.java.home": jdk21OrHigherPath
                 };
 
                 // 合并现有配置和新配置
@@ -1277,6 +1332,31 @@ export class LibraryService {
             // 获取JDK运行时配置
             const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
 
+            // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+            let jdk21OrHigherPath = "";
+            try {
+                const detectedJdkPath = await this.detectJdk21OrHigher();
+                if (detectedJdkPath) {
+                    jdk21OrHigherPath = detectedJdkPath;
+                    this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
+                } else {
+                    // 如果未找到JDK 21+，提醒用户安装
+                    this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
+                    this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
+                    this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
+                    vscode.window.showWarningMessage(
+                        '未找到JDK 21或更高版本。请安装JDK 21+以获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                        '了解更多'
+                    ).then(selection => {
+                        if (selection === '了解更多') {
+                            vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
+                        }
+                    });
+                }
+            } catch (error) {
+                this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
+            }
+
             // 要添加的配置内容
             const newSettings = {
                 "java.saveActions.organizeImports": true,
@@ -1290,7 +1370,9 @@ export class LibraryService {
                 },
                 "[typescript]": {
                     "files.encoding": "utf8"
-                }
+                },
+                //此处配置JDK21或以上版本
+                "java.jdt.ls.java.home": jdk21OrHigherPath
             };
 
             // 合并现有配置和新配置
@@ -1305,6 +1387,179 @@ export class LibraryService {
             this.outputChannel.appendLine(`回退到用户设置失败: ${error instanceof Error ? error.message : String(error)}`);
             vscode.window.showErrorMessage(`回退到用户设置失败: ${error instanceof Error ? error.message : String(error)}`);
         }
+    }
+
+    /**
+     * 检测JDK 21或更高版本
+     * @returns JDK 21+的路径，如果未找到则返回null
+     */
+    private async detectJdk21OrHigher(): Promise<string | null> {
+        try {
+            // 1. 首先检查环境变量
+            const javaHome = process.env.JAVA_HOME || process.env.JDK_HOME;
+            if (javaHome) {
+                const javaExecutable = path.join(javaHome, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+                if (fs.existsSync(javaExecutable)) {
+                    const version = await this.getJavaVersionFromExecutable(javaExecutable);
+                    if (version >= 21) {
+                        this.outputChannel.appendLine(`✅ 从环境变量找到JDK ${version}: ${javaHome}`);
+                        return javaHome;
+                    }
+                }
+            }
+
+            // 2. 在macOS上使用/usr/libexec/java_home命令查找JDK 21+
+            if (process.platform === 'darwin') {
+                try {
+                    const { execSync } = require('child_process');
+                    // 尝试查找JDK 21
+                    let jdk21Path = '';
+                    try {
+                        jdk21Path = execSync('/usr/libexec/java_home -F -v 21', { encoding: 'utf-8' }).trim();
+                    } catch (error) {
+                        // 如果找不到JDK 21，尝试查找更高版本
+                        try {
+                            jdk21Path = execSync('/usr/libexec/java_home -F -v 17+', { encoding: 'utf-8' }).trim();
+                        } catch (error) {
+                            // 继续尝试其他方法
+                        }
+                    }
+
+                    if (jdk21Path && fs.existsSync(jdk21Path)) {
+                        const javaExecutable = path.join(jdk21Path, 'bin', 'java');
+                        if (fs.existsSync(javaExecutable)) {
+                            const version = await this.getJavaVersionFromExecutable(javaExecutable);
+                            if (version >= 21) {
+                                this.outputChannel.appendLine(`✅ 从/usr/libexec/java_home找到JDK ${version}: ${jdk21Path}`);
+                                return jdk21Path;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    // 继续尝试其他方法
+                }
+            }
+
+            // 3. 检查常见的JDK安装路径
+            const commonJdkPaths = [
+                // macOS路径
+                '/Library/Java/JavaVirtualMachines/openjdk-21.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/openjdk-22.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/jdk-22.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/openjdk-23.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/jdk-23.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/openjdk-24.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/jdk-24.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/openjdk-25.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/jdk-25.jdk/Contents/Home',
+                // Windows路径
+                'C:\\Program Files\\Java\\jdk-21',
+                'C:\\Program Files\\Java\\openjdk-21',
+                'C:\\Program Files\\Java\\jdk-22',
+                'C:\\Program Files\\Java\\openjdk-22',
+                'C:\\Program Files\\Java\\jdk-23',
+                'C:\\Program Files\\Java\\openjdk-23',
+                'C:\\Program Files\\Java\\jdk-24',
+                'C:\\Program Files\\Java\\openjdk-24',
+                'C:\\Program Files\\Java\\jdk-25',
+                'C:\\Program Files\\Java\\openjdk-25',
+                // Linux路径
+                '/usr/lib/jvm/java-21-openjdk',
+                '/usr/lib/jvm/java-21-oracle',
+                '/usr/lib/jvm/java-22-openjdk',
+                '/usr/lib/jvm/java-22-oracle',
+                '/usr/lib/jvm/java-23-openjdk',
+                '/usr/lib/jvm/java-23-oracle',
+                '/usr/lib/jvm/java-24-openjdk',
+                '/usr/lib/jvm/java-24-oracle',
+                '/usr/lib/jvm/java-25-openjdk',
+                '/usr/lib/jvm/java-25-oracle'
+            ];
+
+            for (const jdkPath of commonJdkPaths) {
+                if (fs.existsSync(jdkPath)) {
+                    const javaExecutable = path.join(jdkPath, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+                    if (fs.existsSync(javaExecutable)) {
+                        const version = await this.getJavaVersionFromExecutable(javaExecutable);
+                        if (version >= 21) {
+                            this.outputChannel.appendLine(`✅ 从常见路径找到JDK ${version}: ${jdkPath}`);
+                            return jdkPath;
+                        }
+                    }
+                }
+            }
+
+            // 4. 尝试使用which/where命令查找java可执行文件
+            try {
+                const { execSync } = require('child_process');
+                const whichCommand = process.platform === 'win32' ? 'where java' : 'which java';
+                const javaPathsOutput = execSync(whichCommand, { encoding: 'utf-8' });
+                
+                if (javaPathsOutput) {
+                    const javaPaths = javaPathsOutput.trim().split('\n');
+                    for (const javaPath of javaPaths) {
+                        const trimmedPath = javaPath.trim();
+                        if (trimmedPath && fs.existsSync(trimmedPath)) {
+                            // 从可执行文件路径推断JDK路径
+                            const jdkPath = process.platform === 'win32' 
+                                ? path.dirname(path.dirname(trimmedPath)) 
+                                : path.dirname(path.dirname(trimmedPath));
+                            
+                            const version = await this.getJavaVersionFromExecutable(trimmedPath);
+                            if (version >= 21) {
+                                this.outputChannel.appendLine(`✅ 从系统路径找到JDK ${version}: ${jdkPath}`);
+                                return jdkPath;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                // 继续执行
+            }
+
+            this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本');
+            return null;
+        } catch (error) {
+            this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
+            return null;
+        }
+    }
+
+    /**
+     * 从Java可执行文件获取版本号
+     * @param javaExecutable Java可执行文件路径
+     * @returns Java版本号
+     */
+    private async getJavaVersionFromExecutable(javaExecutable: string): Promise<number> {
+        try {
+            const result = spawnSync(`"${javaExecutable}"`, ['-version'], {
+                encoding: 'utf8',
+                timeout: 10000
+            });
+
+            if (result.status === 0) {
+                const versionOutput = result.stderr || result.stdout;
+                // 解析Java版本，例如 "java version \"21.0.1\"" 或 "openjdk version \"21.0.1\""
+                const versionMatch = versionOutput.match(/version\s+["']([^"']+)["']/i);
+                if (versionMatch && versionMatch[1]) {
+                    const versionStr = versionMatch[1];
+                    // 提取主版本号
+                    let version: number;
+                    if (versionStr.startsWith('1.')) {
+                        // Java 8及以下版本格式 "1.8.0_261"
+                        version = parseInt(versionStr.split('.')[1]);
+                    } else {
+                        // Java 9及以上版本格式 "11.0.8" 或 "21.0.1"
+                        version = parseInt(versionStr.split('.')[0]);
+                    }
+                    return version;
+                }
+            }
+        } catch (error) {
+            this.outputChannel.appendLine(`获取Java版本时出错: ${error}`);
+        }
+        return 0;
     }
 
     /**

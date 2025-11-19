@@ -2240,6 +2240,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         \${nameField}
                     </div>
                     <div class="form-group">
+                        <label for="dsAlias">别名 (用于区分数据源，仅在界面显示):</label>
+                        <input type="text" id="dsAlias" placeholder="可选，支持中文">
+                    </div>
+                    <div class="form-group">
                         <label for="dsType">数据库类型<span style="color: red;"> *</span>:</label>
                         <select id="dsType">
                             <option value="oracle">Oracle</option>
@@ -2354,7 +2358,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 if (dsTypeSelect) dsTypeSelect.value = 'oracle';
                 if (dsPortInput) dsPortInput.value = 1521;
                 if (dsDatabaseInput) dsDatabaseInput.value = 'orcl';
-                if (dsNameInput) dsNameInput.value = 'oracle1'; // 设置默认数据源名称
+                // 修复：在初始化时生成唯一的数据源名称，而不是直接使用固定的名称
+                if (dsNameInput) {
+                    // 获取当前已存在的数据源名称（从全局配置中）
+                    const existingNames = currentConfig.dataSources ? currentConfig.dataSources.map(ds => ds.name) : [];
+                    // 生成唯一的Oracle数据源名称
+                    const uniqueName = generateUniqueDataSourceName('oracle', existingNames);
+                    dsNameInput.value = uniqueName;
+                }
                 
                 // 添加数据库类型切换事件监听器
                 if (dsTypeSelect) {
@@ -2367,6 +2378,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             if (dsNameInput) {
                                 const prefix = dbPrefixMap[selectedType] || selectedType;
                                 // 获取当前已存在的数据源名称（从全局配置中）
+                                // 确保排除.nc-home-config.json中已有的数据源名称
                                 const existingNames = currentConfig.dataSources ? currentConfig.dataSources.map(ds => ds.name) : [];
                                 dsNameInput.value = generateUniqueDataSourceName(prefix, existingNames);
                             }
@@ -2403,6 +2415,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 if (dataSource.password && dataSource.password !== '[加密密码-需要重新输入]') {
                     if (document.getElementById('dsPassword')) document.getElementById('dsPassword').value = dataSource.password;
                 }
+                // 填充别名字段（如果存在）
+                if (dataSource.alias) {
+                    if (document.getElementById('dsAlias')) document.getElementById('dsAlias').value = dataSource.alias;
+                }
                 
                 // 添加数据库类型切换事件监听器（编辑模式）
                 if (dsTypeSelect) {
@@ -2415,6 +2431,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             if (dsNameInput) {
                                 const prefix = dbPrefixMap[selectedType] || selectedType;
                                 // 获取当前已存在的数据源名称（从全局配置中）
+                                // 确保排除.nc-home-config.json中已有的数据源名称
                                 const existingNames = currentConfig.dataSources ? currentConfig.dataSources.map(ds => ds.name) : [];
                                 dsNameInput.value = generateUniqueDataSourceName(prefix, existingNames);
                             }
@@ -2465,14 +2482,27 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 driverClassName: '' // 这将在后端处理
             };
             
+            // 添加别名字段（如果填写了）
+            const aliasValue = document.getElementById('dsAlias').value;
+            if (aliasValue && aliasValue.trim() !== '') {
+                dataSource.alias = aliasValue.trim();
+            }
+            
             // 完整验证 - 检查所有字段是否已填写
             if (!dataSource.name || dataSource.name.trim() === '') {
                 showMessage('请填写数据源名称', 'error');
                 return;
             }
             
+            // 数据源名称格式校验 - 不能包含中文字符
+            if (/[\u4e00-\u9fa5]/.test(dataSource.name)) {
+                showMessage('数据源名称不能包含中文字符', 'error');
+                return;
+            }
+            
             // 数据源名称格式校验 - 只能包含英文、数字、下划线和短横线
             const nameRegex = /^[a-zA-Z0-9_-]+$/;
+
             if (!nameRegex.test(dataSource.name)) {
                 showMessage('数据源名称只能包含英文、数字、下划线(_)和短横线(-)', 'error');
                 return;
@@ -2680,7 +2710,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         background-color: var(--vscode-input-background);
                     ">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="font-weight: bold; color: var(--vscode-textLink-foreground);">\${ds.name}</div>
+                            <div style="font-weight: bold; color: var(--vscode-textLink-foreground);">
+                                \${ds.name}
+                                \${ds.alias ? '<span style="background-color: var(--vscode-terminal-ansiBlue); color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 8px;">' + ds.alias + '</span>' : ''}
+                            </div>
                             <div>
                                 \${isDesignDatabase ? '<span style="background: linear-gradient(135deg, var(--vscode-terminal-ansiGreen) 0%, #27ae60 100%); color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px;">DESIGN</span>' : ''}
                                 \${isBaseDatabase ? '<span style="background-color: var(--vscode-terminal-ansiBlue); color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px;">BASE</span>' : ''}

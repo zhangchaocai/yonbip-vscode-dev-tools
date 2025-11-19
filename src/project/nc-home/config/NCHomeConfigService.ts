@@ -997,7 +997,10 @@ export class NCHomeConfigService {
             throw new Error('数据源名称不能为空');
         }
 
-        // 数据源名称格式校验 - 只能包含英文、数字、下划线和短横线
+        // 数据源名称格式校验 - 不能包含中文字符，只能包含英文、数字、下划线和短横线
+        if (/[\u4e00-\u9fa5]/.test(dataSource.name)) {
+            throw new Error('数据源名称不能包含中文字符');
+        }
         const nameRegex = /^[a-zA-Z0-9_-]+$/;
         if (!nameRegex.test(dataSource.name)) {
             throw new Error('数据源名称只能包含英文、数字、下划线(_)和短横线(-)');
@@ -1043,10 +1046,13 @@ export class NCHomeConfigService {
         this.config.dataSources.push(dataSource);
         await this.saveConfig(this.config);
 
-        // 直接更新prop.xml文件
+        // 直接更新prop.xml文件（排除别名属性）
         if (this.config.homePath) {
             try {
-                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
+                // 创建一个不包含别名属性的数据源对象用于更新prop.xml
+                const dataSourceForPropXml = { ...dataSource };
+                delete dataSourceForPropXml.alias;
+                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSourceForPropXml, false);
                 this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 写入prop.xml文件`);
             } catch (error: any) {
                 // 如果更新prop.xml失败，回滚内存中的更改
@@ -1072,7 +1078,10 @@ export class NCHomeConfigService {
             throw new Error('数据源名称不能为空');
         }
 
-        // 数据源名称格式校验 - 只能包含英文、数字、下划线和短横线
+        // 数据源名称格式校验 - 不能包含中文字符，只能包含英文、数字、下划线和短横线
+        if (/[\u4e00-\u9fa5]/.test(dataSource.name)) {
+            throw new Error('数据源名称不能包含中文字符');
+        }
         const nameRegex = /^[a-zA-Z0-9_-]+$/;
         if (!nameRegex.test(dataSource.name)) {
             throw new Error('数据源名称只能包含英文、数字、下划线(_)和短横线(-)');
@@ -1121,10 +1130,13 @@ export class NCHomeConfigService {
         }
         await this.saveConfig(this.config);
 
-        // 直接更新prop.xml文件
+        // 直接更新prop.xml文件（排除别名属性）
         if (this.config.homePath) {
             try {
-                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, true);
+                // 创建一个不包含别名属性的数据源对象用于更新prop.xml
+                const dataSourceForPropXml = { ...dataSource };
+                delete dataSourceForPropXml.alias;
+                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSourceForPropXml, true);
                 this.outputChannel.appendLine(`已将数据源 "${dataSource.name}" 更新到prop.xml文件`);
             } catch (error: any) {
                 // 如果更新prop.xml失败，回滚内存中的更改
@@ -1222,12 +1234,28 @@ export class NCHomeConfigService {
             const originalName = existingDesignDataSource.name;
             // 如果原始名称已经是design，则添加时间戳后缀
             existingDesignDataSource.name = originalName === 'design' ? `design_${Date.now()}` : originalName;
+            // 确保保留别名属性
+            if (this.config.dataSources) {
+                const configExistingDesign = this.config.dataSources.find(ds => ds.name === 'design');
+                if (configExistingDesign && configExistingDesign.alias) {
+                    existingDesignDataSource.alias = configExistingDesign.alias;
+                }
+            }
         }
 
         // 将数据源名称改为"design"
         const dataSource = dataSources[dataSourceIndex];
         const originalDataSource = { ...dataSource }; // 保存原始数据源信息
         dataSource.name = 'design';
+        
+        // 保存新design数据源的别名（如果有的话）
+        let newDesignAlias: string | undefined = undefined;
+        if (this.config.dataSources) {
+            const originalDS = this.config.dataSources.find(ds => ds.name === originalDataSourceName);
+            if (originalDS && originalDS.alias) {
+                newDesignAlias = originalDS.alias;
+            }
+        }
 
         // 更新config中的selectedDataSource为"design"
         this.config.selectedDataSource = 'design';
@@ -1237,10 +1265,29 @@ export class NCHomeConfigService {
             this.config.dataSources = [];
         }
         
+        // 保存当前数据源的别名信息，包括新design数据源的别名
+        const dataSourceAliases = new Map<string, string>();
+        for (const ds of this.config.dataSources) {
+            if (ds.alias) {
+                dataSourceAliases.set(ds.name, ds.alias);
+            }
+        }
+        // 保存新design数据源的别名（如果有的话）
+        if (newDesignAlias) {
+            dataSourceAliases.set('design', newDesignAlias);
+        }
+        
         // 从prop.xml中获取最新的数据源列表
         const updatedDataSources = this.getPortFromPropXml().dataSources;
         this.config.dataSources = updatedDataSources;
-
+        
+        // 恢复所有别名信息
+        for (const ds of this.config.dataSources) {
+            if (dataSourceAliases.has(ds.name)) {
+                ds.alias = dataSourceAliases.get(ds.name);
+            }
+        }
+        
         // 保存配置（保存selectedDataSource和更新后的数据源列表）
         await this.saveConfig(this.config);
 
@@ -1312,9 +1359,24 @@ export class NCHomeConfigService {
             this.config.dataSources = [];
         }
         
+        // 保存当前数据源的别名信息
+        const dataSourceAliases = new Map<string, string>();
+        for (const ds of this.config.dataSources) {
+            if (ds.alias) {
+                dataSourceAliases.set(ds.name, ds.alias);
+            }
+        }
+        
         // 从prop.xml中获取最新的数据源列表
         const updatedDataSources = this.getPortFromPropXml().dataSources;
         this.config.dataSources = updatedDataSources;
+        
+        // 恢复别名信息
+        for (const ds of this.config.dataSources) {
+            if (dataSourceAliases.has(ds.name)) {
+                ds.alias = dataSourceAliases.get(ds.name);
+            }
+        }
 
         await this.saveConfig(this.config);
 
@@ -1405,8 +1467,27 @@ export class NCHomeConfigService {
             
             // 更新数据源信息
             if (portsAndDataSourcesFromProp.dataSources.length > 0) {
+                // 保存当前数据源的别名信息
+                const dataSourceAliases = new Map<string, string>();
+                if (this.config.dataSources) {
+                    for (const ds of this.config.dataSources) {
+                        if (ds.alias) {
+                            dataSourceAliases.set(ds.name, ds.alias);
+                        }
+                    }
+                }
+                
                 this.config.dataSources = portsAndDataSourcesFromProp.dataSources;
                 this.outputChannel.appendLine(`已同步${portsAndDataSourcesFromProp.dataSources.length}个数据源`);
+                
+                // 恢复别名信息
+                if (this.config.dataSources) {
+                    for (const ds of this.config.dataSources) {
+                        if (dataSourceAliases.has(ds.name)) {
+                            ds.alias = dataSourceAliases.get(ds.name);
+                        }
+                    }
+                }
                 
                 // 如果有design数据源，设置为选中的数据源
                 const designDataSource = portsAndDataSourcesFromProp.dataSources.find(ds => ds.name === 'design');
@@ -1630,6 +1711,14 @@ export class NCHomeConfigService {
                                 username: username,
                                 password: decryptedPassword
                             };
+
+                            // 保留.nc-home-config.json中已有的别名属性
+                            if (this.config.dataSources) {
+                                const existingDataSource = this.config.dataSources.find(ds => ds.name === dataSourceName);
+                                if (existingDataSource && existingDataSource.alias) {
+                                    dataSource.alias = existingDataSource.alias;
+                                }
+                            }
 
                             dataSources.push(dataSource);
                             this.outputChannel.appendLine(`从prop.xml中读取到数据源: ${dataSourceName}`);
