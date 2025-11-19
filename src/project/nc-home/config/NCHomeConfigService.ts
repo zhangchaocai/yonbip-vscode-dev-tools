@@ -1231,8 +1231,17 @@ export class NCHomeConfigService {
 
         // 更新config中的selectedDataSource为"design"
         this.config.selectedDataSource = 'design';
+        
+        // 同时更新内存中的config.dataSources，确保数据源名称已更新为design
+        if (!this.config.dataSources) {
+            this.config.dataSources = [];
+        }
+        
+        // 从prop.xml中获取最新的数据源列表
+        const updatedDataSources = this.getPortFromPropXml().dataSources;
+        this.config.dataSources = updatedDataSources;
 
-        // 保存配置（只保存selectedDataSource，不保存数据源列表）
+        // 保存配置（保存selectedDataSource和更新后的数据源列表）
         await this.saveConfig(this.config);
 
         // 同时更新prop.xml文件中的数据源名称
@@ -1297,6 +1306,16 @@ export class NCHomeConfigService {
         }
 
         this.config.baseDatabase = dataSourceName;
+        
+        // 同时更新内存中的config.dataSources，确保数据是最新的
+        if (!this.config.dataSources) {
+            this.config.dataSources = [];
+        }
+        
+        // 从prop.xml中获取最新的数据源列表
+        const updatedDataSources = this.getPortFromPropXml().dataSources;
+        this.config.dataSources = updatedDataSources;
+
         await this.saveConfig(this.config);
 
         this.outputChannel.appendLine(`设置基准库: ${dataSourceName}`);

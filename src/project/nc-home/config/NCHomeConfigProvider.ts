@@ -2295,15 +2295,26 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 });
             }
             
-            // 数据库类型与默认端口、数据库名、数据源名称映射
+            // 数据库类型与默认端口、数据库名映射
             const dbConfigMap = {
-                'oracle': { port: 1521, database: 'orcl', dataSourceName: 'oracleDS' },
-                'mysql': { port: 3306, database: 'mysql', dataSourceName: 'mysqlDS' },
-                'sqlserver': { port: 1433, database: 'master', dataSourceName: 'sqlserverDS' },
-                'postgresql': { port: 5432, database: 'postgres', dataSourceName: 'postgresqlDS' },
-                'db2': { port: 50000, database: 'sample', dataSourceName: 'db2DS' },
-                'dm': { port: 5236, database: 'DAMENG', dataSourceName: 'dmDS' },
-                'kingbase': { port: 54321, database: 'test', dataSourceName: 'kingbaseDS' }
+                'oracle': { port: 1521, database: 'orcl' },
+                'mysql': { port: 3306, database: 'mysql' },
+                'sqlserver': { port: 1433, database: 'master' },
+                'postgresql': { port: 5432, database: 'postgres' },
+                'db2': { port: 50000, database: 'sample' },
+                'dm': { port: 5236, database: 'DAMENG' },
+                'kingbase': { port: 54321, database: 'test' }
+            };
+            
+            // 数据库类型对应的默认前缀
+            const dbPrefixMap = {
+                'oracle': 'oracle',
+                'mysql': 'mysql',
+                'sqlserver': 'sqlserver',
+                'postgresql': 'postgresql',
+                'db2': 'db2',
+                'dm': 'dm',
+                'kingbase': 'kingbase'
             };
             
             // 添加数据库类型切换事件监听器
@@ -2312,13 +2323,38 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             const dsDatabaseInput = document.getElementById('dsDatabase');
             const dsNameInput = document.getElementById('dsName'); // 添加数据源名称输入框引用
             
+            // 生成唯一数据源名称的函数
+            function generateUniqueDataSourceName(prefix, existingNames) {
+                // 如果没有现有的数据源名称，则直接返回前缀
+                if (!existingNames || existingNames.length === 0) {
+                    return prefix + '1';
+                }
+                
+                // 查找具有相同前缀的名称
+                const regex = new RegExp('^' + prefix + '(\\\\d+)$');
+                let maxNumber = 0;
+                
+                for (const name of existingNames) {
+                    const match = name.match(regex);
+                    if (match) {
+                        const num = parseInt(match[1]);
+                        if (num > maxNumber) {
+                            maxNumber = num;
+                        }
+                    }
+                }
+                
+                // 返回下一个唯一的名称
+                return prefix + (maxNumber + 1);
+            }
+            
             // 先设置默认值，再处理编辑模式的数据填充
             if (!isEditMode) {
                 // 新增模式下，默认选中Oracle并设置默认端口、数据库名和数据源名称
                 if (dsTypeSelect) dsTypeSelect.value = 'oracle';
                 if (dsPortInput) dsPortInput.value = 1521;
                 if (dsDatabaseInput) dsDatabaseInput.value = 'orcl';
-                if (dsNameInput) dsNameInput.value = 'oracleDS'; // 设置默认数据源名称
+                if (dsNameInput) dsNameInput.value = 'oracle1'; // 设置默认数据源名称
                 
                 // 添加数据库类型切换事件监听器
                 if (dsTypeSelect) {
@@ -2327,9 +2363,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         if (dbConfigMap[selectedType]) {
                             if (dsPortInput) dsPortInput.value = dbConfigMap[selectedType].port;
                             if (dsDatabaseInput) dsDatabaseInput.value = dbConfigMap[selectedType].database;
-                            // 只有在数据源名称为空或为默认值时才设置默认值，避免覆盖用户已输入的内容
-                            if (dsNameInput && (!dsNameInput.value || dsNameInput.value === 'dataSource1')) {
-                                dsNameInput.value = dbConfigMap[selectedType].dataSourceName;
+                            // 动态生成唯一数据源名称
+                            if (dsNameInput) {
+                                const prefix = dbPrefixMap[selectedType] || selectedType;
+                                // 获取当前已存在的数据源名称（从全局配置中）
+                                const existingNames = currentConfig.dataSources ? currentConfig.dataSources.map(ds => ds.name) : [];
+                                dsNameInput.value = generateUniqueDataSourceName(prefix, existingNames);
                             }
                         }
                     });
@@ -2372,9 +2411,12 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         if (dbConfigMap[selectedType]) {
                             if (dsPortInput) dsPortInput.value = dbConfigMap[selectedType].port;
                             if (dsDatabaseInput) dsDatabaseInput.value = dbConfigMap[selectedType].database;
-                            // 只有在数据源名称为空或为默认值时才设置默认值，避免覆盖用户已输入的内容
-                            if (dsNameInput && (!dsNameInput.value || dsNameInput.value === 'dataSource1')) {
-                                dsNameInput.value = dbConfigMap[selectedType].dataSourceName;
+                            // 动态生成唯一数据源名称
+                            if (dsNameInput) {
+                                const prefix = dbPrefixMap[selectedType] || selectedType;
+                                // 获取当前已存在的数据源名称（从全局配置中）
+                                const existingNames = currentConfig.dataSources ? currentConfig.dataSources.map(ds => ds.name) : [];
+                                dsNameInput.value = generateUniqueDataSourceName(prefix, existingNames);
                             }
                         }
                     });
