@@ -2789,7 +2789,21 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         }
         
         // 设置为Design数据源
+        let isSettingDesign = false; // 防止快速多次点击
         function setAsDesignDatabase(dataSourceName) {
+            if (isSettingDesign) {
+                console.log('正在设置Design数据源，请稍候...');
+                return;
+            }
+            
+            isSettingDesign = true;
+            
+            // 禁用所有设为Design按钮
+            document.querySelectorAll('[data-action="setDesign"]').forEach(button => {
+                button.disabled = true;
+                button.textContent = '设置中...';
+            });
+            
             vscode.postMessage({
                 type: 'setDesignDatabase',
                 dataSourceName: dataSourceName
@@ -3147,6 +3161,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     break; // 添加缺失的break语句
                     
                 case 'designDatabaseSet':
+                    // 重置设置Design状态
+                    isSettingDesign = false;
+                    // 重新启用所有设为Design按钮
+                    document.querySelectorAll('[data-action="setDesign"]').forEach(button => {
+                        button.disabled = false;
+                        button.textContent = '设为Design';
+                    });
+                    
                     if (message.success) {
                         showMessage('已设置为开发库', 'success');
                         // 重新加载配置以获取最新的数据源信息
