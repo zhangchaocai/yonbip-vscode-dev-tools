@@ -67,10 +67,13 @@ export class ConfigurationUtils {
             
             // 构建更新后的XML
             const builder = new xml2js.Builder({
-                headless: true,
+                headless: false,
                 renderOpts: {
-                    pretty: false
-                }
+                    pretty: true,
+                    indent: '  ',
+                    newline: '\n'
+                },
+                xmldec: { version: '1.0', encoding: 'UTF-8' }
             });
             const updatedXml = builder.buildObject(result);
             

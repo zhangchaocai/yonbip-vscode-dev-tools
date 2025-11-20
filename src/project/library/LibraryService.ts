@@ -1153,7 +1153,7 @@ export class LibraryService {
                         this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
                         this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
                         vscode.window.showWarningMessage(
-                            '未找到JDK 21或更高版本。请安装JDK 21+以获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                            '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
                             '了解更多'
                         ).then(selection => {
                             if (selection === '了解更多') {
@@ -1247,7 +1247,7 @@ export class LibraryService {
                         this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
                         this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
                         vscode.window.showWarningMessage(
-                            '未找到JDK 21或更高版本。请安装JDK 21+以获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                            '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
                             '了解更多'
                         ).then(selection => {
                             if (selection === '了解更多') {
@@ -1345,7 +1345,7 @@ export class LibraryService {
                     this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
                     this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
                     vscode.window.showWarningMessage(
-                        '未找到JDK 21或更高版本。请安装JDK 21+以获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                        '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
                         '了解更多'
                     ).then(selection => {
                         if (selection === '了解更多') {
