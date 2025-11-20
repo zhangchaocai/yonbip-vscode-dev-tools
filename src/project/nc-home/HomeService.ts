@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { spawn, spawnSync, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as iconv from 'iconv-lite';
 import { NCHomeConfigService } from './config/NCHomeConfigService';
 import { OracleClientService } from './OracleClientService';
@@ -340,7 +341,8 @@ export class HomeService {
             }
 
             // 构建类路径
-            const classpath = this.buildClasspath(config, coreJarPath, workspaceFolder);
+            const classpathResult = this.buildClasspath(config, coreJarPath, workspaceFolder);
+            const classpath = classpathResult.classpath;
 
             // 检查必要的配置文件
             const propDir = path.join(config.homePath, 'ierp', 'bin');
@@ -398,7 +400,20 @@ export class HomeService {
             this.outputChannel.appendLine('✅ 准备启动NC HOME服务...');
             this.outputChannel.appendLine(`☕ Java可执行文件: ${javaExecutable}`);
             this.outputChannel.appendLine(`🖥️  主类: ${mainClass}`);
-            this.outputChannel.appendLine(`📦 类路径包含 ${classpath.split(path.delimiter).length} 个条目`);
+            // 如果类路径是文件引用格式，则需要从文件中读取来计算条目数
+            let classpathEntryCount = 0;
+            if (classpath.startsWith('@')) {
+                try {
+                    const classpathFileContent = fs.readFileSync(classpath.substring(1), 'utf8');
+                    classpathEntryCount = classpathFileContent.split(path.delimiter).length;
+                } catch (e) {
+                    // 如果无法读取文件，使用估计值
+                    classpathEntryCount = 100; // 估计值
+                }
+            } else {
+                classpathEntryCount = classpath.split(path.delimiter).length;
+            }
+            this.outputChannel.appendLine(`📦 类路径包含 ${classpathEntryCount} 个条目`);
             this.outputChannel.appendLine(`🏠 HOME路径: ${config.homePath}`);
             this.outputChannel.appendLine(`⚙️  JVM参数: ${vmParameters.join(' ')}`);
 
@@ -425,62 +440,66 @@ export class HomeService {
             
 
             // 监听标准输出
-            this.process.stdout?.on('data', (data: Buffer) => {
-                let output = data.toString();
-                // 检测并处理可能的编码问题
-                if (this.containsGarbledCharacters(output)) {
-                    output = this.decodeDataWithMultipleEncodings(data);
-                }
-                // 移除ANSI转义序列
-                output = output.replace(/\u001b\[.*?m/g, '');
-                // 移除其他控制字符
-                output = output.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+            if (this.process) {
+                this.process.stdout?.on('data', (data: Buffer) => {
+                    let output = data.toString();
+                    // 检测并处理可能的编码问题
+                    if (this.containsGarbledCharacters(output)) {
+                        output = this.decodeDataWithMultipleEncodings(data);
+                    }
+                    // 移除ANSI转义序列
+                    output = output.replace(/\u001b\[.*?m/g, '');
+                    // 移除其他控制字符
+                    output = output.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
 
-                if (!output.includes('[Fatal Error]')) {
-                    this.outputChannel.appendLine(`[STDOUT] ${output}`);
-                }
-                // 检查是否启动成功
-                if (output.includes('Server startup in') ||
-                    output.includes('服务启动成功') ||
-                    output.includes('Started ServerConnector') ||
-                    output.includes('Tomcat started on port')) {
-                    this.setStatus(HomeStatus.RUNNING);
-                    vscode.window.showInformationMessage('YonBIP Premium HOME服务启动成功!');
-                    // 记录HOME启动统计
-                    StatisticsService.incrementCount(StatisticsService.HOME_START_COUNT);
-                }
-            });
+                    if (!output.includes('[Fatal Error]')) {
+                        this.outputChannel.appendLine(`[STDOUT] ${output}`);
+                    }
+                    // 检查是否启动成功
+                    if (output.includes('Server startup in') ||
+                        output.includes('服务启动成功') ||
+                        output.includes('Started ServerConnector') ||
+                        output.includes('Tomcat started on port')) {
+                        this.setStatus(HomeStatus.RUNNING);
+                        vscode.window.showInformationMessage('YonBIP Premium HOME服务启动成功!');
+                        // 记录HOME启动统计
+                        StatisticsService.incrementCount(StatisticsService.HOME_START_COUNT);
+                    }
+                });
+            }
 
             // 监听标准错误输出
-            this.process.stderr?.on('data', (data: Buffer) => {
-                let stderrOutput = data.toString();
-                // 检测并处理可能的编码问题
-                if (this.containsGarbledCharacters(stderrOutput)) {
-                    stderrOutput = this.decodeDataWithMultipleEncodings(data);
-                }
-                // 移除ANSI转义序列
-                stderrOutput = stderrOutput.replace(/\u001b\[.*?m/g, '');
-                // 移除其他控制字符
-                stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
-                this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
+            if (this.process) {
+                this.process.stderr?.on('data', (data: Buffer) => {
+                    let stderrOutput = data.toString();
+                    // 检测并处理可能的编码问题
+                    if (this.containsGarbledCharacters(stderrOutput)) {
+                        stderrOutput = this.decodeDataWithMultipleEncodings(data);
+                    }
+                    // 移除ANSI转义序列
+                    stderrOutput = stderrOutput.replace(/\u001b\[.*?m/g, '');
+                    // 移除其他控制字符
+                    stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+                    this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
 
-                // 检查错误信息
-                // 移除其他控制字符
-                stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
-                this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
+                    // 检查错误信息
+                    // 移除其他控制字符
+                    stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+                    this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
 
-                // 检查错误信息
-                if (stderrOutput.includes('ERROR') || stderrOutput.includes('Exception')) {
-                    this.outputChannel.appendLine('❌ 检测到错误信息');
-                }
+                    // 检查错误信息
+                    if (stderrOutput.includes('ERROR') || stderrOutput.includes('Exception')) {
+                        this.outputChannel.appendLine('❌ 检测到错误信息');
+                    }
 
-                // 即使没有明显的错误标识，也要提醒用户关注stderr信息
-                if (!stderrOutput.includes('Exception') &&
-                    !stderrOutput.includes('Error') &&
-                    !stderrOutput.includes('Caused by')) {
-                    this.outputChannel.appendLine('⚠️ 请特别关注以上STDERR输出，它可能包含导致启动失败的重要信息');
-                }
-            });
+                    // 即使没有明显的错误标识，也要提醒用户关注stderr信息
+                    if (!stderrOutput.includes('Exception') &&
+                        !stderrOutput.includes('Error') &&
+                        !stderrOutput.includes('Caused by')) {
+                        this.outputChannel.appendLine('⚠️ 请特别关注以上STDERR输出，它可能包含导致启动失败的重要信息');
+                    }
+                });
+            }
 
             // 监听进程退出事件
             this.process.on('exit', (code: any, signal: any) => {
@@ -504,6 +523,16 @@ export class HomeService {
                     this.isManualStop = false;
                 } else {
                     this.outputChannel.appendLine('✅ 服务已正常退出');
+                }
+
+                // 清理类路径文件（如果存在）
+                if (classpathResult.classpathFile && fs.existsSync(classpathResult.classpathFile)) {
+                    try {
+                        fs.unlinkSync(classpathResult.classpathFile);
+                        this.outputChannel.appendLine(`🧹 已清理类路径文件: ${classpathResult.classpathFile}`);
+                    } catch (e) {
+                        this.outputChannel.appendLine(`⚠️ 清理类路径文件失败: ${e}`);
+                    }
                 }
 
                 this.process = null;
@@ -537,6 +566,16 @@ export class HomeService {
                     // 退出码143表示进程被SIGTERM信号终止，这是正常停止的结果
                     // 或者是手动停止的情况
                     this.outputChannel.appendLine('✅ 服务已正常停止（进程被终止信号关闭）');
+                }
+
+                // 清理类路径文件（如果存在）
+                if (classpathResult.classpathFile && fs.existsSync(classpathResult.classpathFile)) {
+                    try {
+                        fs.unlinkSync(classpathResult.classpathFile);
+                        this.outputChannel.appendLine(`🧹 已清理类路径文件: ${classpathResult.classpathFile}`);
+                    } catch (e) {
+                        this.outputChannel.appendLine(`⚠️ 清理类路径文件失败: ${e}`);
+                    }
                 }
 
                 this.process = null;
@@ -604,8 +643,9 @@ export class HomeService {
 
     /**
      * 构建完整的类路径 (解决ClassNotFoundException问题)
+     * 优化版本：使用类路径文件避免命令行过长问题
      */
-    private buildClasspath(config: any, coreJarPath: string, workspaceFolder: string): string {
+    private buildClasspath(config: any, coreJarPath: string, workspaceFolder: string): { classpath: string, classpathFile?: string } {
         const classpathEntries: string[] = [coreJarPath];
 
         // 特别添加可能包含ws相关类的目录
@@ -642,7 +682,6 @@ export class HomeService {
         // 使用通配符形式添加external/lib目录
         if (fs.existsSync(externalLibDir)) {
             classpathEntries.push(path.join(externalLibDir, '*'));
-            //this.outputChannel.appendLine(`📁 添加预处理后的external/lib目录(通配符形式)`);
         }
 
         if (fs.existsSync(externalClassesDir)) {
@@ -696,7 +735,6 @@ export class HomeService {
                 const driverJars = this.scanDriverJars(driverLibDir);
                 for (const jarPath of driverJars) {
                     classpathEntries.push(jarPath);
-                    //this.outputChannel.appendLine(`🚗 添加数据库驱动: ${path.basename(jarPath)}`);
                 }
             } catch (err: any) {
                 this.outputChannel.appendLine(`⚠️ 扫描driver目录下的jar文件失败: ${err}`);
@@ -731,7 +769,6 @@ export class HomeService {
                     // 如果有jar文件，使用通配符形式添加整个目录
                     if (hasJars) {
                         classpathEntries.push(path.join(dir, '*'));
-                        //this.outputChannel.appendLine(`📁 添加目录(通配符形式): ${dir}`);
                     }
                 } catch (err: any) {
                     this.outputChannel.appendLine(`⚠️ 读取目录失败: ${dir}, 错误: ${err}`);
@@ -798,7 +835,18 @@ export class HomeService {
         });
 
         this.outputChannel.appendLine(`类路径构建完成，共包含 ${validatedClasspathEntries.length} 个条目`);
-        return validatedClasspathEntries.join(path.delimiter);
+
+        // 如果类路径过长，创建类路径文件
+        const classpathString = validatedClasspathEntries.join(path.delimiter);
+        if (classpathString.length > 7000) { // 当类路径超过一定长度时使用文件
+            const tempDir = os.tmpdir();
+            const classpathFile = path.join(tempDir, `classpath_${Date.now()}.txt`);
+            fs.writeFileSync(classpathFile, classpathString, 'utf8');
+            this.outputChannel.appendLine(`.createClasspathFile 创建类路径文件: ${classpathFile}`);
+            return { classpath: `@${classpathFile}`, classpathFile };
+        }
+
+        return { classpath: classpathString };
     }
 
     /**
