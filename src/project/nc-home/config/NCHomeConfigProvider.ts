@@ -2222,7 +2222,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             const isEditMode = mode === 'edit';
             const title = isEditMode ? '编辑数据源' : '添加数据源';
             const nameField = isEditMode ? 
-                '<input type="text" id="dsName" value="' + dataSource.name + '" required readonly>' :
+                '<input type="text" id="dsName" value="' + dataSource.name + '" required readonly style="background-color: var(--vscode-disabledBackground); color: var(--vscode-disabledForeground); border-color: var(--vscode-widget-border); opacity: 0.8; cursor: not-allowed; width: 100%;">' :
                 '<input type="text" id="dsName" value="dataSource1" required>';
             
             modal.innerHTML = \`
@@ -2245,15 +2245,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div class="form-group">
                         <label for="dsType">数据库类型<span style="color: red;"> *</span>:</label>
-                        <select id="dsType">
-                            <option value="oracle">Oracle</option>
-                            <option value="mysql">MySQL</option>
-                            <option value="sqlserver">SQL Server</option>
-                            <option value="postgresql">PostgreSQL</option>
-                            <option value="db2">DB2</option>
-                            <option value="dm">达梦数据库</option>
-                            <option value="kingbase">人大金仓</option>
-                        </select>
+                        \${isEditMode ? 
+                            '<select id="dsType" disabled style="background-color: var(--vscode-disabledBackground); color: var(--vscode-disabledForeground); border-color: var(--vscode-widget-border); opacity: 0.8; cursor: not-allowed; width: 100%;"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>' :
+                            '<select id="dsType"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>'
+                        }
                     </div>
                     <div class="form-group">
                         <label for="dsHost">主机地址<span style="color: red;"> *</span>:</label>
