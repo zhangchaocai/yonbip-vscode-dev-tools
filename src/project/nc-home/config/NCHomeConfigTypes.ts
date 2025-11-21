@@ -82,6 +82,9 @@ export interface NCHomeConfig {
     dataSources?: DataSourceMeta[];
     selectedDataSource?: string;
     baseDatabase?: string;
+    
+    // 存储被替换的design数据源原始名称，用于恢复使用
+    replacedDesignDataSourceName?: string;
 }
 
 /**

@@ -1215,126 +1215,176 @@ export class NCHomeConfigService {
             dataSources = portsAndDataSourcesFromProp.dataSources;
         }
 
+        // 检查指定的数据源是否存在
         const dataSourceIndex = dataSources.findIndex(ds => ds.name === dataSourceName);
         if (dataSourceIndex === -1) {
             throw new Error(`数据源 "${dataSourceName}" 不存在`);
         }
 
-        // 保存原始数据源名称
-        const originalDataSourceName = dataSourceName;
+        // 保存原始数据源信息，用于可能的回滚
+        const originalDataSource = { ...dataSources[dataSourceIndex] };
+        
+        // 保存所有数据源的别名信息，确保别名不丢失
+        const allDataSourceAliases = new Map<string, string>();
+        if (this.config.dataSources) {
+            for (const ds of this.config.dataSources) {
+                if (ds.alias) {
+                    allDataSourceAliases.set(ds.name, ds.alias);
+                }
+            }
+        }
 
         // 检查是否已经存在design数据源
         const existingDesignIndex = dataSources.findIndex(ds => ds.name === 'design');
-        let existingDesignDataSource: DataSourceMeta | null = null;
+        let replacedDataSource: DataSourceMeta | null = null;
         
+        // 如果已存在design数据源，需要将其恢复为原始名称
         if (existingDesignIndex !== -1) {
-            // 保存现有的design数据源信息
-            existingDesignDataSource = { ...dataSources[existingDesignIndex] };
-            // 移除原有的design标识，将其重命名为原始名称
-            const originalName = existingDesignDataSource.name;
-            // 如果原始名称已经是design，则添加时间戳后缀
-            existingDesignDataSource.name = originalName === 'design' ? `design_${Date.now()}` : originalName;
-            // 确保保留别名属性
-            if (this.config.dataSources) {
-                const configExistingDesign = this.config.dataSources.find(ds => ds.name === 'design');
-                if (configExistingDesign && configExistingDesign.alias) {
-                    existingDesignDataSource.alias = configExistingDesign.alias;
+            replacedDataSource = { ...dataSources[existingDesignIndex] };
+            
+            // 使用保存的replacedDesignDataSourceName来恢复原始名称
+            // 如果没有保存的原始名称，则使用带时间戳的名称
+            const restoredName = this.config.replacedDesignDataSourceName || `design_${Date.now()}`;
+            
+            // 更新被替换数据源的名称
+            replacedDataSource.name = restoredName;
+            
+            // 确保保留被替换数据源的别名
+            if (allDataSourceAliases.has('design')) {
+                replacedDataSource.alias = allDataSourceAliases.get('design');
+            }
+        }
+
+        // 准备新的design数据源
+        const newDesignDataSource = { ...originalDataSource };
+        newDesignDataSource.name = 'design';
+        
+        // 确保新的design数据源保留原始数据源的别名
+        if (allDataSourceAliases.has(originalDataSource.name)) {
+            newDesignDataSource.alias = allDataSourceAliases.get(originalDataSource.name);
+        }
+
+        // 构建完整的操作计划，确保事务一致性
+        const rollbackPlan = {
+            originalDataSource,
+            replacedDataSource: replacedDataSource ? { ...replacedDataSource } : null,
+            originalConfig: { ...this.config },
+            existingDesignIndex
+        };
+
+        try {
+            // 更新配置信息
+            this.config.selectedDataSource = 'design';
+            this.config.replacedDesignDataSourceName = originalDataSource.name;
+            
+            // 同时更新prop.xml文件中的数据源名称
+            if (this.config.homePath) {
+                // 1. 如果存在原有的design数据源，先移除它
+                if (existingDesignIndex !== -1) {
+                    PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, 'design');
+                    
+                    // 2. 将被替换的design数据源重新添加回去（使用恢复的名称）
+                    PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, replacedDataSource!, false);
+                    this.outputChannel.appendLine(`已将原有design数据源恢复为 "${replacedDataSource!.name}"`);
+                }
+                
+                // 3. 移除要设置为design的原始数据源
+                PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, originalDataSource.name);
+                
+                // 4. 添加新的design数据源
+                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, newDesignDataSource, false);
+                this.outputChannel.appendLine(`已将数据源 "${originalDataSource.name}" 设置为design并写入prop.xml文件`);
+            }
+            
+            // 从prop.xml重新加载最新的数据源列表
+            const updatedDataSources = this.getPortFromPropXml().dataSources;
+            
+            // 更新内存中的config.dataSources
+            if (!this.config.dataSources) {
+                this.config.dataSources = [];
+            }
+            this.config.dataSources = updatedDataSources;
+            
+            // 恢复所有别名信息
+            for (const ds of this.config.dataSources) {
+                // 对于design数据源，使用原始数据源的别名
+                if (ds.name === 'design' && allDataSourceAliases.has(originalDataSource.name)) {
+                    ds.alias = allDataSourceAliases.get(originalDataSource.name);
+                }
+                // 对于被替换的数据源，如果有保存的别名则恢复
+                else if (replacedDataSource && ds.name === replacedDataSource.name && allDataSourceAliases.has('design')) {
+                    ds.alias = allDataSourceAliases.get('design');
+                }
+                // 对于其他数据源，恢复原来的别名
+                else if (allDataSourceAliases.has(ds.name)) {
+                    ds.alias = allDataSourceAliases.get(ds.name);
                 }
             }
-        }
+            
+            // 保存配置到config.json
+            await this.saveConfig(this.config);
 
-        // 将数据源名称改为"design"
-        const dataSource = dataSources[dataSourceIndex];
-        const originalDataSource = { ...dataSource }; // 保存原始数据源信息
-        dataSource.name = 'design';
-        
-        // 保存新design数据源的别名（如果有的话）
-        let newDesignAlias: string | undefined = undefined;
-        if (this.config.dataSources) {
-            const originalDS = this.config.dataSources.find(ds => ds.name === originalDataSourceName);
-            if (originalDS && originalDS.alias) {
-                newDesignAlias = originalDS.alias;
+            this.outputChannel.appendLine(`设置开发库: ${originalDataSource.name} 已设置为design`);
+            vscode.window.showInformationMessage(`已将 "${originalDataSource.name}" 设置为开发库`);
+        } catch (error: any) {
+            // 发生错误时执行回滚
+            this.outputChannel.appendLine(`设置开发库失败: ${error.message}，正在回滚...`);
+            await this.rollbackDesignDatabaseChange(rollbackPlan);
+            throw new Error(`设置开发库失败: ${error.message}`);
+        }
+    }
+    
+    /**
+     * 回滚design数据源更改
+     * 确保在操作失败时能够完全恢复到原始状态
+     */
+    private async rollbackDesignDatabaseChange(rollbackPlan: {
+        originalDataSource: DataSourceMeta;
+        replacedDataSource: DataSourceMeta | null;
+        originalConfig: Partial<NCHomeConfig>;
+        existingDesignIndex: number;
+    }): Promise<void> {
+        try {
+            if (this.config.homePath) {
+                // 1. 移除可能创建的design数据源
+                PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, 'design');
+                
+                // 2. 如果之前有design数据源，恢复它
+                if (rollbackPlan.replacedDataSource && rollbackPlan.existingDesignIndex !== -1) {
+                    // 移除可能添加的被替换数据源
+                    PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, rollbackPlan.replacedDataSource.name);
+                    // 恢复为design名称
+                    const restoredDesign = { ...rollbackPlan.replacedDataSource };
+                    restoredDesign.name = 'design';
+                    PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, restoredDesign, false);
+                }
+                
+                // 3. 确保原始数据源存在
+                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, rollbackPlan.originalDataSource, false);
             }
-        }
-
-        // 更新config中的selectedDataSource为"design"
-        this.config.selectedDataSource = 'design';
-        
-        // 同时更新内存中的config.dataSources，确保数据源名称已更新为design
-        if (!this.config.dataSources) {
-            this.config.dataSources = [];
-        }
-        
-        // 保存当前数据源的别名信息，包括新design数据源的别名
-        const dataSourceAliases = new Map<string, string>();
-        for (const ds of this.config.dataSources) {
-            if (ds.alias) {
-                dataSourceAliases.set(ds.name, ds.alias);
-            }
-        }
-        // 保存新design数据源的别名（如果有的话）
-        if (newDesignAlias) {
-            dataSourceAliases.set('design', newDesignAlias);
-        }
-        
-        // 从prop.xml中获取最新的数据源列表
-        const updatedDataSources = this.getPortFromPropXml().dataSources;
-        this.config.dataSources = updatedDataSources;
-        
-        // 恢复所有别名信息
-        for (const ds of this.config.dataSources) {
-            if (dataSourceAliases.has(ds.name)) {
-                ds.alias = dataSourceAliases.get(ds.name);
-            }
-        }
-        
-        // 保存配置（保存selectedDataSource和更新后的数据源列表）
-        await this.saveConfig(this.config);
-
-        // 同时更新prop.xml文件中的数据源名称
-        if (this.config.homePath) {
+            
+            // 4. 恢复配置
+            this.config = { ...this.config, ...rollbackPlan.originalConfig } as NCHomeConfig;
+            
+            // 5. 重新从prop.xml加载数据源以确保一致性
+            const updatedDataSources = this.getPortFromPropXml().dataSources;
+            this.config.dataSources = updatedDataSources;
+            
+            // 6. 保存恢复后的配置
+            await this.saveConfig(this.config);
+            
+            this.outputChannel.appendLine(`已成功回滚设计库更改`);
+        } catch (rollbackError: any) {
+            this.outputChannel.appendLine(`回滚失败: ${rollbackError.message}`);
+            // 即使回滚失败，也尝试最终保存原始配置到config.json
             try {
-                // 如果存在原有的design数据源，先将其移除design标识
-                if (existingDesignDataSource) {
-                    PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, 'design');
-                    // 只有当重命名后的名称不等于原始名称时才添加回去
-                    if (existingDesignDataSource.name !== 'design') {
-                        PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, existingDesignDataSource, false);
-                        this.outputChannel.appendLine(`已将原有design数据源重命名为 "${existingDesignDataSource.name}" 并保留`);
-                    } else {
-                        this.outputChannel.appendLine('已移除原有design数据源的design标识');
-                    }
-                }
-                
-                // 删除原来的数据源
-                PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, originalDataSourceName);
-                // 添加更新后的数据源（新的design数据源）
-                PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, dataSource, false);
-                
-                this.outputChannel.appendLine(`已将数据源 "${originalDataSourceName}" 设置为design并写入prop.xml文件`);
-            } catch (error: any) {
-                // 如果更新失败，恢复原始数据源
-                try {
-                    PropXmlUpdater.removeDataSourceFromPropXml(this.config.homePath, 'design');
-                    // 恢复原有的design数据源（如果存在）
-                    if (existingDesignDataSource) {
-                        const shouldRestore = existingDesignDataSource.name !== 'design';
-                        if (shouldRestore) {
-                            existingDesignDataSource.name = 'design'; // 恢复原名
-                            PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, existingDesignDataSource, false);
-                        }
-                    }
-                    PropXmlUpdater.updateDataSourceInPropXml(this.config.homePath, originalDataSource, false);
-                } catch (restoreError: any) {
-                    this.outputChannel.appendLine(`恢复原始数据源失败: ${restoreError.message}`);
-                }
-                this.outputChannel.appendLine(`更新prop.xml文件失败: ${error.message}`);
-                throw new Error(`数据源已设置为开发库，但更新prop.xml文件失败: ${error.message}`);
+                await this.saveConfig({ ...this.config, ...rollbackPlan.originalConfig } as NCHomeConfig);
+                this.outputChannel.appendLine('已尝试保存原始配置到config.json');
+            } catch (finalError: any) {
+                this.outputChannel.appendLine(`最终配置保存失败: ${finalError.message}`);
+                vscode.window.showErrorMessage(`回滚操作失败，配置可能已损坏。请检查prop.xml和config.json文件。`);
             }
         }
-
-        this.outputChannel.appendLine(`设置开发库: ${originalDataSourceName} 已设置为design`);
-        vscode.window.showInformationMessage(`已将 "${originalDataSourceName}" 设置为开发库`);
     }
 
     /**
@@ -1442,8 +1492,9 @@ export class NCHomeConfigService {
      */
     public syncConfigFromPropXml(): void {
         try {
-            // 保存当前的homeVersion，避免被覆盖
+            // 保存当前重要的配置信息，避免被覆盖
             const currentHomeVersion = this.config.homeVersion;
+            const currentReplacedDesignDataSourceName = this.config.replacedDesignDataSourceName;
             
             const portsAndDataSourcesFromProp = this.getPortFromPropXml();
             
@@ -1505,13 +1556,17 @@ export class NCHomeConfigService {
                 this.config.dataSources = [];
                 this.config.selectedDataSource = undefined;
                 this.config.baseDatabase = undefined;
+                // 保持replacedDesignDataSourceName不变，用于后续可能的恢复操作
+                this.config.replacedDesignDataSourceName = currentReplacedDesignDataSourceName;
                 this.outputChannel.appendLine('未找到数据源配置，已清空数据源信息');
             }
             
-            // 恢复homeVersion（如果之前有设置）
+            // 恢复重要配置信息（如果之前有设置）
             if (currentHomeVersion) {
                 this.config.homeVersion = currentHomeVersion;
             }
+            // 恢复被替换的design数据源名称
+            this.config.replacedDesignDataSourceName = currentReplacedDesignDataSourceName;
             
             // 使配置缓存失效，确保下次获取最新配置
             this.invalidateConfigCache();
