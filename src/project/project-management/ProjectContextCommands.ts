@@ -274,7 +274,7 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
                 }
                 
                 decoration = {
-                    badge: '⚙️',  // 使用齿轮图标表示已初始化的YonBIP项目
+                    badge: '✅',  // 使用齿轮图标表示已初始化的YonBIP项目
                     tooltip: 'YonBIP 项目已初始化 - 包含 .project 和 .classpath 文件、build 目录和 META-INF 目录',
                     color: new vscode.ThemeColor('charts.green'),
                     propagate: false // 不传播，避免子目录也显示
