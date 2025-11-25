@@ -265,26 +265,26 @@
       }
     ],
     "menus": {
-      "explorer/context": [
-        {
-          "submenu": "yonbip.project.submenu",
-          "when": "explorerResourceIsFolder",
-          "group": "navigation"
-        },
-        {
-          "submenu": "yonbip.project.file.submenu",
-          "when": "!explorerResourceIsFolder",
-          "group": "navigation"
-        }
-      ],
-      "view/title": [
+      "editor/title": [
         {
           "command": "yonbip.home.startFromToolbar",
           "group": "navigation@1"
         },
         {
           "command": "yonbip.home.stopFromToolbar",
-          "group": "navigation"
+          "group": "navigation@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "yonbip.home.startFromToolbar",
+          "group": "navigation@1",
+          "when": "view == terminal"
+        },
+        {
+          "command": "yonbip.home.stopFromToolbar",
+          "group": "navigation@2",
+          "when": "view == terminal"
         }
       ],
       "view/item/context": [
