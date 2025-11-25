@@ -138,15 +138,15 @@ export class NCHomeConfigService {
             await this.saveToWorkspaceConfig();
 
             // 如果配置了JVM参数并且homePath存在，更新prop.xml文件
-            if (this.config.vmParameters !== undefined && this.config.homePath) {
-                try {
-                    PropXmlUpdater.updateVmParametersInPropXml(this.config.homePath, this.config.vmParameters);
-                    this.outputChannel.appendLine(`JVM参数已更新到prop.xml文件: ${this.config.vmParameters}`);
-                } catch (error: any) {
-                    this.outputChannel.appendLine(`更新JVM参数到prop.xml文件失败: ${error.message}`);
-                    // 不抛出错误，因为这不应该阻止配置保存
-                }
-            }
+            // if (this.config.vmParameters !== undefined && this.config.homePath) {
+            //     try {
+            //         PropXmlUpdater.updateVmParametersInPropXml(this.config.homePath, this.config.vmParameters);
+            //         this.outputChannel.appendLine(`JVM参数已更新到prop.xml文件: ${this.config.vmParameters}`);
+            //     } catch (error: any) {
+            //         this.outputChannel.appendLine(`更新JVM参数到prop.xml文件失败: ${error.message}`);
+            //         // 不抛出错误，因为这不应该阻止配置保存
+            //     }
+            // }
 
             // 使配置缓存失效，确保下次获取最新配置
             this.invalidateConfigCache();
