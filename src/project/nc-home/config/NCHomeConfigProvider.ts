@@ -946,6 +946,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             margin-bottom: 0;
             z-index: 100;
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 16px;
         }
         
         /* 滚动条样式优化 */
@@ -1343,6 +1344,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         .tab-content {
             display: none;
             animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-top: 16px;
         }
         
         @keyframes slideInUp {
