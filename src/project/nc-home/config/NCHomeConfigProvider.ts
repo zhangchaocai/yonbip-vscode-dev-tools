@@ -2222,60 +2222,65 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             const isEditMode = mode === 'edit';
             const title = isEditMode ? '编辑数据源' : '添加数据源';
             const nameField = isEditMode ? 
-                '<input type="text" id="dsName" value="' + dataSource.name + '" required readonly style="background-color: var(--vscode-disabledBackground); color: var(--vscode-disabledForeground); border-color: var(--vscode-widget-border); opacity: 0.8; cursor: not-allowed; width: 100%;">' :
-                '<input type="text" id="dsName" value="dataSource1" required>';
+                '<input type="text" id="dsName" value="' + dataSource.name + '" required readonly style="background-color: var(--vscode-disabledBackground); color: var(--vscode-disabledForeground); border-color: var(--vscode-widget-border); opacity: 0.8; cursor: not-allowed; width: 100%; padding: 8px 10px;">' :
+                '<input type="text" id="dsName" value="dataSource1" required style="padding: 8px 10px;">';
             
             modal.innerHTML = \`
                 <div style="
                     background: var(--vscode-editor-background);
                     border: 1px solid var(--vscode-widget-border);
                     border-radius: 6px;
-                    padding: 20px;
-                    width: 500px;
+                    padding: 15px;
+                    width: 400px;
                     max-width: 90%;
+                    max-height: 90vh;
+                    overflow-y: auto;
                 ">
-                    <h3 style="margin-top: 0; color: var(--vscode-foreground);">\${title}</h3>
-                    <div class="form-group">
-                        <label for="dsName">数据源名称<span style="color: red;"> *</span>:</label>
+                    <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--vscode-foreground); font-size: 18px;">\${title}</h3>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="dsName" style="display: block; margin-bottom: 5px; font-size: 13px;">数据源名称<span style="color: red;"> *</span>:</label>
                         \${nameField}
                     </div>
-                    <div class="form-group">
-                        <label for="dsAlias">别名 (用于区分数据源，仅在界面显示):</label>
-                        <input type="text" id="dsAlias" placeholder="可选，支持中文">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="dsAlias" style="display: block; margin-bottom: 5px; font-size: 13px;">别名 (用于区分数据源，仅在界面显示):</label>
+                        <input type="text" id="dsAlias" placeholder="可选，支持中文" style="padding: 8px 10px;">
                     </div>
-                    <div class="form-group">
-                        <label for="dsType">数据库类型<span style="color: red;"> *</span>:</label>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="dsType" style="display: block; margin-bottom: 5px; font-size: 13px;">数据库类型<span style="color: red;"> *</span>:</label>
                         \${isEditMode ? 
-                            '<select id="dsType" disabled style="background-color: var(--vscode-disabledBackground); color: var(--vscode-disabledForeground); border-color: var(--vscode-widget-border); opacity: 0.8; cursor: not-allowed; width: 100%;"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>' :
-                            '<select id="dsType"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>'
+                            '<select id="dsType" disabled style="background-color: var(--vscode-disabledBackground); color: var(--vscode-disabledForeground); border-color: var(--vscode-widget-border); opacity: 0.8; cursor: not-allowed; width: 100%; padding: 8px 10px;"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>' :
+                            '<select id="dsType" style="padding: 8px 10px;"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>'
                         }
                     </div>
-                    <div class="form-group">
-                        <label for="dsHost">主机地址<span style="color: red;"> *</span>:</label>
-                        <input type="text" id="dsHost" value="localhost">
-                    </div>
-                    <div class="form-group">
-                        <label for="dsPort">端口号<span style="color: red;"> *</span>:</label>
-                        <input type="number" id="dsPort" value="1521">
-                    </div>
-                    <div class="form-group">
-                        <label for="dsDatabase">数据库名<span style="color: red;"> *</span>:</label>
-                        <input type="text" id="dsDatabase">
-                    </div>
-                    <div class="form-group">
-                        <label for="dsUsername">用户名<span style="color: red;"> *</span>:</label>
-                        <input type="text" id="dsUsername">
-                    </div>
-                    <div class="form-group">
-                        <label for="dsPassword">密码<span style="color: red;"> *</span>:</label>
-                        <div style="position: relative;">
-                            <input type="password" id="dsPassword" style="padding-right: 30px;">
-                            <button type="button" id="togglePassword" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--vscode-foreground);" title="显示/隐藏密码">👁️</button>
+                    <!-- 将主机地址和端口号放在同一行 -->
+                    <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label for="dsHost" style="display: block; margin-bottom: 5px; font-size: 13px;">主机地址<span style="color: red;"> *</span>:</label>
+                            <input type="text" id="dsHost" value="localhost" style="padding: 8px 10px; width: 100%;">
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label for="dsPort" style="display: block; margin-bottom: 5px; font-size: 13px;">端口号<span style="color: red;"> *</span>:</label>
+                            <input type="number" id="dsPort" value="1521" style="padding: 8px 10px; width: 100%;">
                         </div>
                     </div>
-                    <div style="text-align: right; margin-top: 20px;">
-                        <button class="secondary" onclick="closeModal()">取消</button>
-                        <button onclick="saveDataSource('\${mode}')">\${isEditMode ? '更新' : '保存'}</button>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="dsDatabase" style="display: block; margin-bottom: 5px; font-size: 13px;">数据库名<span style="color: red;"> *</span>:</label>
+                        <input type="text" id="dsDatabase" style="padding: 8px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="dsUsername" style="display: block; margin-bottom: 5px; font-size: 13px;">用户名<span style="color: red;"> *</span>:</label>
+                        <input type="text" id="dsUsername" style="padding: 8px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label for="dsPassword" style="display: block; margin-bottom: 5px; font-size: 13px;">密码<span style="color: red;"> *</span>:</label>
+                        <div style="position: relative;">
+                            <input type="password" id="dsPassword" style="padding: 8px 30px 8px 10px; width: 100%;">
+                            <button type="button" id="togglePassword" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--vscode-foreground); font-size: 14px;" title="显示/隐藏密码">👁️</button>
+                        </div>
+                    </div>
+                    <div style="text-align: right; margin-top: 10px;">
+                        <button class="secondary" onclick="closeModal()" style="padding: 8px 16px; margin-right: 8px; min-height: 32px;">取消</button>
+                        <button onclick="saveDataSource('\${mode}')" style="padding: 8px 16px; min-height: 32px;">\${isEditMode ? '更新' : '保存'}</button>
                     </div>
                 </div>
             \`;
