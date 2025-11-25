@@ -2245,12 +2245,21 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                         <label for="dsAlias" style="display: block; margin-bottom: 5px; font-size: 13px;">别名 (用于区分数据源，仅在界面显示):</label>
                         <input type="text" id="dsAlias" placeholder="可选，支持中文" style="padding: 8px 10px;">
                     </div>
-                    <div class="form-group" style="margin-bottom: 12px;">
-                        <label for="dsType" style="display: block; margin-bottom: 5px; font-size: 13px;">数据库类型<span style="color: red;"> *</span>:</label>
-                        \${isEditMode ? 
-                            '<select id="dsType" disabled style="background-color: var(--vscode-disabledBackground); color: var(--vscode-disabledForeground); border-color: var(--vscode-widget-border); opacity: 0.8; cursor: not-allowed; width: 100%; padding: 8px 10px;"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>' :
-                            '<select id="dsType" style="padding: 8px 10px;"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>'
-                        }
+                    <!-- 数据库类型和版本选择放在同一行 -->
+                    <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label for="dsType" style="display: block; margin-bottom: 5px; font-size: 13px;">数据库类型<span style="color: red;"> *</span>:</label>
+                            \${isEditMode ? 
+                                '<select id="dsType" disabled style="background-color: var(--vscode-disabledBackground); color: var(--vscode-disabledForeground); border-color: var(--vscode-widget-border); opacity: 0.8; cursor: not-allowed; width: 100%; padding: 8px 10px;"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>' :
+                                '<select id="dsType" style="padding: 8px 10px; width: 100%;"><option value="oracle">Oracle</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="postgresql">PostgreSQL</option><option value="db2">DB2</option><option value="dm">达梦数据库</option><option value="kingbase">人大金仓</option></select>'
+                            }
+                        </div>
+                        <div class="form-group" id="dsVersionGroup" style="flex: 1; margin-bottom: 0; display: none;">
+                            <label for="dsVersion" style="display: block; margin-bottom: 5px; font-size: 13px;">版本<span style="color: red;"> *</span>:</label>
+                            <select id="dsVersion" style="padding: 8px 10px; width: 100%;">
+                                <!-- 版本选项将通过JavaScript动态填充 -->
+                            </select>
+                        </div>
                     </div>
                     <!-- 将主机地址和端口号放在同一行 -->
                     <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 12px;">
@@ -2310,6 +2319,38 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 'kingbase': { port: 54321, database: 'test' }
             };
             
+            // 数据库版本配置
+            const dbVersionMap = {
+                'oracle': [
+                    { value: 'oracle11g', label: 'Oracle 11g(默认)' },
+                    { value: 'oracle12c', label: 'Oracle 12c' },
+                    { value: 'oracle19c', label: 'Oracle 19c' }
+                ],
+                'sqlserver': [
+                    { value: 'sqlserver2016', label: 'SQL Server 2016(默认)' },
+                    { value: 'sqlserver2017', label: 'SQL Server 2017' },
+                    { value: 'sqlserver2019', label: 'SQL Server 2019' }
+                ]
+            };
+            
+            // 数据库版本映射（用于编辑模式下识别已有的版本）
+            const databaseVersionMap = {
+                'ORACLE': 'oracle',
+                'ORACLE11G': 'oracle11g',
+                'ORACLE12C': 'oracle12c',
+                'ORACLE19C': 'oracle19c',
+                'SQLSERVER': 'sqlserver',
+                'SQLSERVER2016': 'sqlserver2016',
+                'SQLSERVER2017': 'sqlserver2017',
+                'SQLSERVER2019': 'sqlserver2019'
+            };
+            
+            // 数据库类型到版本前缀的映射
+            const dbTypeToVersionPrefix = {
+                'oracle': 'oracle',
+                'sqlserver': 'sqlserver'
+            };
+            
             // 数据库类型对应的默认前缀
             const dbPrefixMap = {
                 'oracle': 'oracle',
@@ -2367,6 +2408,27 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     dsNameInput.value = uniqueName;
                 }
                 
+                // 初始化时显示Oracle版本选择
+                const dsVersionGroup = document.getElementById('dsVersionGroup');
+                const dsVersionSelect = document.getElementById('dsVersion');
+                if (dsVersionGroup && dsVersionSelect && dbVersionMap['oracle']) {
+                    // 显示版本选择
+                    dsVersionGroup.style.display = 'block';
+                    // 清空现有选项
+                    dsVersionSelect.innerHTML = '';
+                    // 添加版本选项
+                    dbVersionMap['oracle'].forEach(version => {
+                        const option = document.createElement('option');
+                        option.value = version.value;
+                        option.textContent = version.label;
+                        dsVersionSelect.appendChild(option);
+                    });
+                    // 默认选择第一个选项
+                    if (dsVersionSelect.options.length > 0) {
+                        dsVersionSelect.selectedIndex = 0;
+                    }
+                }
+                
                 // 添加数据库类型切换事件监听器
                 if (dsTypeSelect) {
                     dsTypeSelect.addEventListener('change', function() {
@@ -2382,6 +2444,79 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                                 const existingNames = currentConfig.dataSources ? currentConfig.dataSources.map(ds => ds.name) : [];
                                 dsNameInput.value = generateUniqueDataSourceName(prefix, existingNames);
                             }
+                        }
+                        
+                        // 处理数据库版本选择显示
+                        const dsVersionGroup = document.getElementById('dsVersionGroup');
+                        const dsVersionSelect = document.getElementById('dsVersion');
+                        if (dsVersionGroup && dsVersionSelect && dbVersionMap[selectedType]) {
+                            // 显示版本选择
+                            dsVersionGroup.style.display = 'block';
+                            // 清空现有选项
+                            dsVersionSelect.innerHTML = '';
+                            // 添加版本选项
+                            dbVersionMap[selectedType].forEach(version => {
+                                const option = document.createElement('option');
+                                option.value = version.value;
+                                option.textContent = version.label;
+                                dsVersionSelect.appendChild(option);
+                            });
+                            // 默认选择第一个选项
+                            if (dsVersionSelect.options.length > 0) {
+                                dsVersionSelect.selectedIndex = 0;
+                            }
+                        } else if (dsVersionGroup) {
+                            // 隐藏版本选择
+                            dsVersionGroup.style.display = 'none';
+                        }
+                    });
+                }
+            } else {
+                // 编辑模式下，填充数据源信息
+                if (dsTypeSelect) dsTypeSelect.value = dataSource.type;
+                if (dsPortInput) dsPortInput.value = dataSource.port;
+                if (dsDatabaseInput) dsDatabaseInput.value = dataSource.database;
+                if (dsNameInput) dsNameInput.value = dataSource.name;
+                
+                // 添加数据库类型切换事件监听器（编辑模式）
+                if (dsTypeSelect) {
+                    dsTypeSelect.addEventListener('change', function() {
+                        const selectedType = this.value;
+                        if (dbConfigMap[selectedType]) {
+                            if (dsPortInput) dsPortInput.value = dbConfigMap[selectedType].port;
+                            if (dsDatabaseInput) dsDatabaseInput.value = dbConfigMap[selectedType].database;
+                            // 动态生成唯一数据源名称
+                            if (dsNameInput) {
+                                const prefix = dbPrefixMap[selectedType] || selectedType;
+                                // 获取当前已存在的数据源名称（从全局配置中）
+                                // 确保排除.nc-home-config.json中已有的数据源名称
+                                const existingNames = currentConfig.dataSources ? currentConfig.dataSources.map(ds => ds.name) : [];
+                                dsNameInput.value = generateUniqueDataSourceName(prefix, existingNames);
+                            }
+                        }
+                        
+                        // 处理数据库版本选择显示
+                        const dsVersionGroup = document.getElementById('dsVersionGroup');
+                        const dsVersionSelect = document.getElementById('dsVersion');
+                        if (dsVersionGroup && dsVersionSelect && dbVersionMap[selectedType]) {
+                            // 显示版本选择
+                            dsVersionGroup.style.display = 'block';
+                            // 清空现有选项
+                            dsVersionSelect.innerHTML = '';
+                            // 添加版本选项
+                            dbVersionMap[selectedType].forEach(version => {
+                                const option = document.createElement('option');
+                                option.value = version.value;
+                                option.textContent = version.label;
+                                dsVersionSelect.appendChild(option);
+                            });
+                            // 默认选择第一个选项
+                            if (dsVersionSelect.options.length > 0) {
+                                dsVersionSelect.selectedIndex = 0;
+                            }
+                        } else if (dsVersionGroup) {
+                            // 隐藏版本选择
+                            dsVersionGroup.style.display = 'none';
                         }
                     });
                 }
@@ -2420,6 +2555,31 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     if (document.getElementById('dsAlias')) document.getElementById('dsAlias').value = dataSource.alias;
                 }
                 
+                // 处理编辑模式下的数据库版本选择
+                const dsVersionGroup = document.getElementById('dsVersionGroup');
+                const dsVersionSelect = document.getElementById('dsVersion');
+                if (dsVersionGroup && dsVersionSelect) {
+                    // 显示版本选择
+                    dsVersionGroup.style.display = 'block';
+                    // 清空现有选项
+                    dsVersionSelect.innerHTML = '';
+                    
+                    // 根据数据库类型添加版本选项
+                    const dbType = databaseTypeMap[dataSource.databaseType.toUpperCase()] || dataSource.databaseType.toLowerCase();
+                    if (dbVersionMap[dbType]) {
+                        dbVersionMap[dbType].forEach(version => {
+                            const option = document.createElement('option');
+                            option.value = version.value;
+                            option.textContent = version.label;
+                            // 检查是否匹配当前数据源的数据库类型
+                            if (dataSource.databaseType.toUpperCase() === version.value.toUpperCase()) {
+                                option.selected = true;
+                            }
+                            dsVersionSelect.appendChild(option);
+                        });
+                    }
+                }
+                
                 // 添加数据库类型切换事件监听器（编辑模式）
                 if (dsTypeSelect) {
                     dsTypeSelect.addEventListener('change', function() {
@@ -2435,6 +2595,30 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                                 const existingNames = currentConfig.dataSources ? currentConfig.dataSources.map(ds => ds.name) : [];
                                 dsNameInput.value = generateUniqueDataSourceName(prefix, existingNames);
                             }
+                        }
+                        
+                        // 处理数据库版本选择显示
+                        const dsVersionGroup = document.getElementById('dsVersionGroup');
+                        const dsVersionSelect = document.getElementById('dsVersion');
+                        if (dsVersionGroup && dsVersionSelect && dbVersionMap[selectedType]) {
+                            // 显示版本选择
+                            dsVersionGroup.style.display = 'block';
+                            // 清空现有选项
+                            dsVersionSelect.innerHTML = '';
+                            // 添加版本选项
+                            dbVersionMap[selectedType].forEach(version => {
+                                const option = document.createElement('option');
+                                option.value = version.value;
+                                option.textContent = version.label;
+                                dsVersionSelect.appendChild(option);
+                            });
+                            // 默认选择第一个选项
+                            if (dsVersionSelect.options.length > 0) {
+                                dsVersionSelect.selectedIndex = 0;
+                            }
+                        } else if (dsVersionGroup) {
+                            // 隐藏版本选择
+                            dsVersionGroup.style.display = 'none';
                         }
                     });
                 }
@@ -2471,9 +2655,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             if (saveButton.disabled) return;
             
             const portValue = document.getElementById('dsPort').value;
+            const dsTypeValue = document.getElementById('dsType').value;
+            // 获取数据库版本值（如果存在）
+            const dsVersionSelect = document.getElementById('dsVersion');
+            const dsVersionValue = dsVersionSelect ? dsVersionSelect.value : dsTypeValue;
+            
             const dataSource = {
                 name: document.getElementById('dsName').value,
-                databaseType: document.getElementById('dsType').value,
+                databaseType: dsVersionValue || dsTypeValue, // 使用版本值如果存在，否则使用类型值
                 host: document.getElementById('dsHost').value,
                 port: portValue ? parseInt(portValue) : 3306,
                 databaseName: document.getElementById('dsDatabase').value,
