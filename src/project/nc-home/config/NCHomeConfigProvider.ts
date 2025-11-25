@@ -1946,7 +1946,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             </div>
                         </div>
                     </div>
-                    <div class="help-text">选择YonBIP Premium的安装目录，通常包含bin、lib、modules等文件夹</div>
+                    <div class="help-text">请指定 YonBIP Premium 的安装路径，该路径下应包含 bin、lib、modules 等标准子目录。特别说明：此工具仅限于开发阶段配置使用，禁止在生产环境或测试环境中设置 HOME 目录，以规避潜在风险。</div>
                 </div>
                 
                 <div class="form-group">
