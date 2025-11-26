@@ -661,19 +661,7 @@ export class NCHomeConfigService {
                         if (!initialized) {
                             return {
                                 success: false,
-                                message: `❌ Oracle客户端库未找到\n\n` +
-                                    `错误详情: ${initError.message}\n\n` +
-                                    `解决方法:\n` +
-                                    `1. 从 https://www.oracle.com/database/technologies/instant-client.html 下载Oracle Instant Client\n` +
-                                    `2. 将Instant Client解压到目录（如: /opt/oracle/instantclient_21_8）\n` +
-                                    `3. 在macOS上创建符号链接:\n` +
-                                    `   cd /opt/oracle/instantclient_21_8\n` +
-                                    `   ln -s libclntsh.dylib.* libclntsh.dylib\n` +
-                                    `4. 设置环境变量:\n` +
-                                    `   export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_8:$LD_LIBRARY_PATH\n` +
-                                    `   (Linux) 或 export DYLD_LIBRARY_PATH=/opt/oracle/instantclient_21_8:$DYLD_LIBRARY_PATH (macOS)\n\n` +
-                                    `或者在代码中指定libDir路径:\n` +
-                                    `oracledb.initOracleClient({libDir: '/path/to/instantclient'});`
+                                message: this.getOracleClientInstallationGuide(initError.message)
                             };
                         }
                     } else {
@@ -1877,5 +1865,61 @@ export class NCHomeConfigService {
             NCHomeConfigService.outputChannelInstance.dispose();
             NCHomeConfigService.outputChannelInstance = null;
         }
+    }
+
+    /**
+     * 根据不同操作系统生成Oracle客户端安装指南
+     * @param errorMessage 错误信息
+     * @returns 安装指南字符串
+     */
+    private getOracleClientInstallationGuide(errorMessage: string): string {
+        const platform = process.platform;
+        let guide = `❌ Oracle客户端库未找到
+
+错误详情: ${errorMessage}
+
+解决方法:
+`;
+        
+        if (platform === 'win32') {
+            // Windows系统
+            guide += `1. 从 https://www.oracle.com/database/technologies/instant-client.html 下载Oracle Instant Client\n`;
+            guide += `2. 选择Windows平台的Instant Client Basic包（如: instantclient-basic-windows.x64-21.8.0.0.0dbru.zip）\n`;
+            guide += `3. 将Instant Client解压到目录（如: C:\\oracle\\instantclient_21_8）\n`;
+            guide += `4. 将解压目录添加到系统PATH环境变量中\n`;
+            guide += `5. 重启VS Code以使环境变量生效\n\n`;
+            guide += `或者在代码中指定libDir路径:\n`;
+            guide += `oracledb.initOracleClient({libDir: 'C:\\\\path\\\\to\\\\instantclient'});`;
+        } else if (platform === 'darwin') {
+            // macOS系统
+            guide += `1. 从 https://www.oracle.com/database/technologies/instant-client.html 下载Oracle Instant Client\n`;
+            guide += `2. 选择macOS平台的Instant Client Basic包（如: instantclient-basic-macos.x64-21.8.0.0.0dbru.zip）\n`;
+            guide += `3. 将Instant Client解压到目录（如: /opt/oracle/instantclient_21_8）\n`;
+            guide += `4. 在macOS上创建符号链接:\n`;
+            guide += `   cd /opt/oracle/instantclient_21_8\n`;
+            guide += `   ln -s libclntsh.dylib.* libclntsh.dylib\n`;
+            guide += `5. 设置环境变量:\n`;
+            guide += `   export DYLD_LIBRARY_PATH=/opt/oracle/instantclient_21_8:$DYLD_LIBRARY_PATH\n\n`;
+            guide += `或者在代码中指定libDir路径:\n`;
+            guide += `oracledb.initOracleClient({libDir: '/path/to/instantclient'});`;
+        } else if (platform === 'linux') {
+            // Linux系统
+            guide += `1. 从 https://www.oracle.com/database/technologies/instant-client.html 下载Oracle Instant Client\n`;
+            guide += `2. 选择Linux平台的Instant Client Basic包（如: instantclient-basic-linux.x64-21.8.0.0.0dbru.zip）\n`;
+            guide += `3. 将Instant Client解压到目录（如: /opt/oracle/instantclient_21_8）\n`;
+            guide += `4. 设置环境变量:\n`;
+            guide += `   export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_8:$LD_LIBRARY_PATH\n\n`;
+            guide += `或者在代码中指定libDir路径:\n`;
+            guide += `oracledb.initOracleClient({libDir: '/path/to/instantclient'});`;
+        } else {
+            // 其他系统
+            guide += `1. 从 https://www.oracle.com/database/technologies/instant-client.html 下载适用于您系统的Oracle Instant Client\n`;
+            guide += `2. 将Instant Client解压到目录\n`;
+            guide += `3. 根据您系统的文档设置相应的环境变量\n\n`;
+            guide += `或者在代码中指定libDir路径:\n`;
+            guide += `oracledb.initOracleClient({libDir: '/path/to/instantclient'});`;
+        }
+        
+        return guide;
     }
 }
