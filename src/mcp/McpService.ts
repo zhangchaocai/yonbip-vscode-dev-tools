@@ -939,7 +939,10 @@ export class McpService {
                     let decryptedPassword = designDataSource.password || '';
                     if (decryptedPassword) {
                         try {
-                            decryptedPassword = PasswordEncryptor.getSecurePassword(config.homePath, decryptedPassword);
+                            // 只有在密码是密文的情况下才进行解密
+                            if (PasswordEncryptor.isEncrypted(config.homePath, decryptedPassword)) {
+                                decryptedPassword = PasswordEncryptor.getSecurePassword(config.homePath, decryptedPassword);
+                            }
                         } catch (decryptError: any) {
                             this.outputChannel.appendLine(`⚠️ 密码解密失败: ${decryptError.message}`);
                         }

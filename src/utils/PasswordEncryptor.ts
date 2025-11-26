@@ -142,12 +142,34 @@ export class PasswordEncryptor {
             
             // 查找isEncode标签
             const isEncodeMatch = content.match(/<isEncode>([^<]*)<\/isEncode>/);
+            let isEncodeEnabled = false;
             if (isEncodeMatch && isEncodeMatch[1]) {
-                // 如果isEncode为true，则密码是加密的
-                return isEncodeMatch[1].trim().toLowerCase() === 'true';
+                // 如果isEncode为true，则启用加密功能
+                isEncodeEnabled = isEncodeMatch[1].trim().toLowerCase() === 'true';
             }
             
-            // 如果找不到isEncode标签，默认认为密码未加密
+            // 如果加密功能未启用，直接返回false
+            if (!isEncodeEnabled) {
+                return false;
+            }
+            
+            // 查找design数据源的密码
+            const dataSourceMatches = content.match(/<dataSource>([\s\S]*?)<\/dataSource>/g);
+            if (dataSourceMatches) {
+                for (const dataSourceMatch of dataSourceMatches) {
+                    const dataSourceNameMatch = dataSourceMatch.match(/<dataSourceName>(.*?)<\/dataSourceName>/);
+                    const passwordMatch = dataSourceMatch.match(/<password>(.*?)<\/password>/);
+                    
+                    // 找到design数据源并且有密码字段
+                    if (dataSourceNameMatch && dataSourceNameMatch[1] === 'design' && passwordMatch) {
+                        const designPassword = passwordMatch[1];
+                        // 如果传入的密码与prop.xml中design数据源的密码一致，则认为是加密的
+                        return password === designPassword;
+                    }
+                }
+            }
+            
+            // 如果找不到design数据源或密码不匹配，默认认为密码未加密
             return false;
         } catch (error) {
             // 如果读取文件出错，默认认为密码未加密

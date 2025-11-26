@@ -32,6 +32,9 @@
   "engines": {
     "vscode": "^1.75.0"
   },
+  "extensionDependencies": [
+    "vscjava.vscode-java-pack"
+  ],
   "categories": [
     "Other"
   ],
