@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Tools",
   "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -61,6 +61,17 @@
       ]
     },
     "commands": [
+      {
+        "command": "yonbip.terminal.menu",
+        "title": "YonBIP终端操作",
+        "category": "YonBIP/终端"
+      },
+      {
+        "command": "yonbip.terminal.selectServiceDirectory",
+        "title": "选择YonBIP Premium 服务目录",
+        "category": "YonBIP/终端",
+        "icon": "$(chevron-down)"
+      },
       {
         "command": "yonbip.mcp.start",
         "title": "启动MCP服务",
@@ -262,19 +273,13 @@
       {
         "id": "yonbip.project.file.submenu",
         "label": "YonBIP文件操作"
+      },
+      {
+        "id": "yonbip.terminal.submenu",
+        "label": "YonBIP终端操作"
       }
     ],
     "menus": {
-      "editor/title": [
-        {
-          "command": "yonbip.home.startFromToolbar",
-          "group": "navigation@1"
-        },
-        {
-          "command": "yonbip.home.stopFromToolbar",
-          "group": "navigation@2"
-        }
-      ],
       "view/title": [
         {
           "command": "yonbip.home.startFromToolbar",
@@ -284,6 +289,11 @@
         {
           "command": "yonbip.home.stopFromToolbar",
           "group": "navigation@2",
+          "when": "view == terminal"
+        },
+        {
+          "command": "yonbip.terminal.selectServiceDirectory",
+          "group": "navigation@3",
           "when": "view == terminal"
         }
       ],
@@ -312,6 +322,17 @@
           "command": "yonbip.function.showPrecastExport",
           "when": "view == yonbip-function-tree && viewItem == precast-export",
           "group": "inline"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "yonbip.project.submenu",
+          "group": "navigation@1"
+        },
+        {
+          "submenu": "yonbip.project.file.submenu",
+          "group": "navigation@2",
+          "when": "explorerResourceIsFile"
         }
       ],
       "yonbip.project.submenu": [
@@ -407,6 +428,34 @@
           "command": "yonbip.project.copyResourcesToHome",
           "group": "2_utils@1"
         }
+      ],
+      "yonbip.terminal.submenu": [
+        {
+          "command": "yonbip.home.startFromToolbar",
+          "group": "1_home@1"
+        },
+        {
+          "command": "yonbip.home.stopFromToolbar",
+          "group": "1_home@2"
+        },
+        {
+          "command": "yonbip.mcp.start",
+          "group": "2_mcp@1"
+        },
+        {
+          "command": "yonbip.mcp.stop",
+          "group": "2_mcp@2"
+        },
+        {
+          "command": "yonbip.mcp.status",
+          "group": "2_mcp@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "yonbip.terminal.menu",
+          "when": "false"
+        }
       ]
     },
     "iconThemes": [
@@ -470,6 +519,11 @@
           "type": "string",
           "default": "./patches",
           "description": "补丁文件输出目录"
+        },
+        "yonbip.selectedServiceDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "用户选择的服务目录路径"
         }
       }
     },

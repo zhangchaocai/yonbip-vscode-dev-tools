@@ -25,6 +25,9 @@ import { MacHomeConversionService } from './project/mac/MacHomeConversionService
 import { PasswordEncryptor } from './utils/PasswordEncryptor';
 // 导入功能树提供者
 import { FunctionTreeProvider } from './project/ui/FunctionTreeProvider';
+// 导入服务目录扫描类
+import { ServiceDirectoryScanner } from './utils/ServiceDirectoryScanner';
+import { ServiceStateManager } from './utils/ServiceStateManager';
 
 // 全局变量用于在deactivate时释放资源
 let ncHomeConfigService: NCHomeConfigService | undefined;
@@ -189,6 +192,46 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 		vscode.commands.registerCommand('yonbip.precastExportConfig.focus', () => {
 			functionTreeProvider.createOrShowWebview('yonbip.precastExportConfig', '预置脚本导出');
+		}),
+		// 注册终端菜单命令
+		vscode.commands.registerCommand('yonbip.terminal.menu', () => {
+			// 这个命令只是菜单入口，不需要实际实现
+		}),
+		// 注册服务目录选择命令
+		vscode.commands.registerCommand('yonbip.terminal.selectServiceDirectory', async () => {
+			try {
+				// 扫描服务目录
+				const serviceDirectories = await ServiceDirectoryScanner.scanServiceDirectories();
+				
+				if (serviceDirectories.length === 0) {
+					vscode.window.showInformationMessage('未找到可启动的服务目录。请确保工作区中包含带有.project和.classpath文件的YonBIP项目目录。');
+					return;
+				}
+				
+				// 创建QuickPick选项
+				const quickPickItems = serviceDirectories.map(dir => ({
+					label: ServiceDirectoryScanner.getDirectoryDisplayName(dir),
+					description: dir,
+					detail: '包含.project和.classpath文件的服务目录',
+					dirPath: dir
+				}));
+				
+				// 显示QuickPick下拉面板
+				const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
+					placeHolder: '选择要启动的服务目录',
+					canPickMany: false
+				});
+				
+				if (selectedItem) {
+					// 保存选择的服务目录
+					await ServiceStateManager.saveSelectedServiceDirectory(selectedItem.dirPath);
+					vscode.window.showInformationMessage(`已选择服务目录: ${selectedItem.label}`);
+					// 可以在这里执行启动服务的命令
+				}
+			} catch (error: any) {
+				console.error('选择服务目录时出错:', error);
+				vscode.window.showErrorMessage(`选择服务目录时出错: ${error.message || '未知错误'}`);
+			}
 		})
 	);
 	

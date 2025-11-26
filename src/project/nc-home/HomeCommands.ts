@@ -4,6 +4,7 @@ import * as path from 'path';
 import { HomeService } from './HomeService';
 import { HomeDebugService } from './HomeDebugService';
 import { NCHomeConfigService } from './config/NCHomeConfigService';
+import { ServiceStateManager } from '../../utils/ServiceStateManager';
 
 /**
  * HOME服务命令类
@@ -103,6 +104,16 @@ export class HomeCommands {
                 return;
             }
             
+            // 如果提供了selectedPath，则保存为服务目录
+            if (selectedPath) {
+                try {
+                    await ServiceStateManager.saveSelectedServiceDirectory(selectedPath);
+                } catch (saveError: any) {
+                    vscode.window.showErrorMessage(`保存服务目录失败: ${saveError.message || '未知错误'}`);
+                    return;
+                }
+            }
+            
             await this.homeService.startHomeService(selectedPath);
         } catch (error: any) {
             vscode.window.showErrorMessage(`启动HOME服务失败: ${error.message}`);
@@ -130,6 +141,14 @@ export class HomeCommands {
                 selectedPath = result[0].fsPath;
             } else {
                 selectedPath = uri.fsPath;
+            }
+
+            // 保存选择的服务目录
+            try {
+                await ServiceStateManager.saveSelectedServiceDirectory(selectedPath);
+            } catch (saveError: any) {
+                vscode.window.showErrorMessage(`保存服务目录失败: ${saveError.message || '未知错误'}`);
+                return;
             }
 
             // 检查目录是否包含.project标记文件
@@ -170,19 +189,49 @@ export class HomeCommands {
                     projectDir = uri.fsPath;
                 }
             } else {
-                // 自动查找第一个.project文件的父级目录
-                const workspaceFolders = vscode.workspace.workspaceFolders;
-                if (!workspaceFolders) {
-                    vscode.window.showWarningMessage('请先打开一个工作区文件夹');
-                    return;
-                }
+                // 首先尝试使用保存的服务目录
+                const savedServiceDirectory = ServiceStateManager.getSelectedServiceDirectory();
+                if (savedServiceDirectory && fs.existsSync(savedServiceDirectory)) {
+                    // 验证保存的目录是否仍然有效（包含.project文件）
+                    const markerFilePath = path.join(savedServiceDirectory, '.project');
+                    if (fs.existsSync(markerFilePath)) {
+                        projectDir = savedServiceDirectory;
+                    } else {
+                        // 保存的目录无效，清除它并查找新的目录
+                        try {
+                            await ServiceStateManager.clearSelectedServiceDirectory();
+                        } catch (clearError: any) {
+                            vscode.window.showErrorMessage(`清除服务目录失败: ${clearError.message || '未知错误'}`);
+                        }
+                        // 自动查找第一个.project文件的父级目录
+                        const workspaceFolders = vscode.workspace.workspaceFolders;
+                        if (!workspaceFolders) {
+                            vscode.window.showWarningMessage('请先打开一个工作区文件夹');
+                            return;
+                        }
 
-                const foundProjectDir = this.findFirstProjectDirectory(workspaceFolders[0].uri.fsPath);
-                if (!foundProjectDir) {
-                    vscode.window.showErrorMessage('未找到.project文件，请先初始化YonBIP项目');
-                    return;
+                        const foundProjectDir = this.findFirstProjectDirectory(workspaceFolders[0].uri.fsPath);
+                        if (!foundProjectDir) {
+                            vscode.window.showErrorMessage('未找到.project文件，请先初始化YonBIP项目');
+                            return;
+                        }
+                        projectDir = foundProjectDir;
+                    }
+                } else {
+                    // 没有保存的有效目录，自动查找第一个.project文件的父级目录
+                    const workspaceFolders = vscode.workspace.workspaceFolders;
+                    if (!workspaceFolders) {
+                        vscode.window.showWarningMessage('请先打开一个工作区文件夹');
+                        return;
+                    }
+
+                    const foundProjectDir = this.findFirstProjectDirectory(workspaceFolders[0].uri.fsPath);
+                    if (!foundProjectDir) {
+                        vscode.window.showErrorMessage('未找到.project文件，请先初始化YonBIP项目');
+                        return;
+                    }
+                    projectDir = foundProjectDir;
                 }
-                projectDir = foundProjectDir;
             }
 
             // 检查目录是否包含.project标记文件
@@ -256,6 +305,16 @@ export class HomeCommands {
             if (!config.homePath) {
                 vscode.window.showWarningMessage('请先配置NC Home路径');
                 return;
+            }
+            
+            // 如果提供了selectedPath，则保存为服务目录
+            if (selectedPath) {
+                try {
+                    await ServiceStateManager.saveSelectedServiceDirectory(selectedPath);
+                } catch (saveError: any) {
+                    vscode.window.showErrorMessage(`保存服务目录失败: ${saveError.message || '未知错误'}`);
+                    return;
+                }
             }
             
             await this.homeDebugService.debugHomeService(selectedPath);
