@@ -68,9 +68,9 @@
       },
       {
         "command": "yonbip.terminal.selectServiceDirectory",
-        "title": "选择YonBIP Premium 服务目录",
+        "title": "📂 选择YonBIP Premium 服务启动目录",
         "category": "YonBIP/终端",
-        "icon": "$(chevron-down)"
+        "icon": "$(folder-active)"
       },
       {
         "command": "yonbip.mcp.start",
@@ -209,7 +209,7 @@
       },
       {
         "command": "yonbip.home.startFromToolbar",
-        "title": "🖥️ 启动YonBIP Premium中间件 \n 1️⃣ 递归到的第一个.project文件的上级目录作为启动目录",
+        "title": "🖥️ 启动YonBIP Premium中间件",
         "category": "YonBIP/HOME",
         "icon": "$(debug-alt)"
       },
@@ -280,20 +280,34 @@
       }
     ],
     "menus": {
-      "view/title": [
+      "editor/title": [
+        {
+          "command": "yonbip.terminal.selectServiceDirectory",
+          "group": "navigation@1"
+        },
         {
           "command": "yonbip.home.startFromToolbar",
+          "group": "navigation@1.1"
+        },
+        {
+          "command": "yonbip.home.stopFromToolbar",
+          "group": "navigation@1.2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "yonbip.terminal.selectServiceDirectory",
           "group": "navigation@1",
           "when": "view == terminal"
         },
         {
-          "command": "yonbip.home.stopFromToolbar",
-          "group": "navigation@2",
+          "command": "yonbip.home.startFromToolbar",
+          "group": "navigation@1.1",
           "when": "view == terminal"
         },
         {
-          "command": "yonbip.terminal.selectServiceDirectory",
-          "group": "navigation@3",
+          "command": "yonbip.home.stopFromToolbar",
+          "group": "navigation@1.2",
           "when": "view == terminal"
         }
       ],
