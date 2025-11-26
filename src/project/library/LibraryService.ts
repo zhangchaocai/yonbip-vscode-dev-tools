@@ -1533,7 +1533,7 @@ export class LibraryService {
      */
     private async getJavaVersionFromExecutable(javaExecutable: string): Promise<number> {
         try {
-            const result = spawnSync(`"${javaExecutable}"`, ['-version'], {
+            const result = spawnSync(javaExecutable, ['-version'], {
                 encoding: 'utf8',
                 timeout: 10000
             });
