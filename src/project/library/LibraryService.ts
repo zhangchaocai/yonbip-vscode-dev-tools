@@ -1140,29 +1140,36 @@ export class LibraryService {
                 // 获取JDK运行时配置
                 const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
 
-                // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+                // 检查工作区配置中是否已存在java.jdt.ls.java.home配置
                 let jdk21OrHigherPath = "";
-                try {
-                    const detectedJdkPath = await this.detectJdk21OrHigher();
-                    if (detectedJdkPath) {
-                        jdk21OrHigherPath = detectedJdkPath;
-                        this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
-                    } else {
-                        // 如果未找到JDK 21+，提醒用户安装
-                        this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
-                        this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
-                        this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
-                        vscode.window.showWarningMessage(
-                            '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
-                            '了解更多'
-                        ).then(selection => {
-                            if (selection === '了解更多') {
-                                vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
-                            }
-                        });
+                if (workspaceConfig.settings && workspaceConfig.settings['java.jdt.ls.java.home']) {
+                    // 如果已存在配置，使用现有的值
+                    jdk21OrHigherPath = workspaceConfig.settings['java.jdt.ls.java.home'];
+                    this.outputChannel.appendLine(`✅ 使用已存在的java.jdt.ls.java.home配置: ${jdk21OrHigherPath}`);
+                } else {
+                    // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+                    try {
+                        const detectedJdkPath = await this.detectJdk21OrHigher();
+                        if (detectedJdkPath) {
+                            jdk21OrHigherPath = detectedJdkPath;
+                            this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
+                        } else {
+                            // 如果未找到JDK 21+，提醒用户安装
+                            this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
+                            this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
+                            this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
+                            vscode.window.showWarningMessage(
+                                '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                                '了解更多'
+                            ).then(selection => {
+                                if (selection === '了解更多') {
+                                    vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
                     }
-                } catch (error) {
-                    this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
                 }
 
                 // 要添加的配置内容
@@ -1221,7 +1228,7 @@ export class LibraryService {
                 const settingsPath = path.join(editorConfigPath, '.vscode','settings.json');
 
                 // 读取现有配置（如果存在）
-                let existingSettings = {};
+                let existingSettings: any = {};
                 if (fs.existsSync(settingsPath)) {
                     try {
                         const content = fs.readFileSync(settingsPath, 'utf-8');
@@ -1234,29 +1241,36 @@ export class LibraryService {
                 // 获取JDK运行时配置
                 const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
 
-                // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+                // 检查是否已存在java.jdt.ls.java.home配置
                 let jdk21OrHigherPath = "";
-                try {
-                    const detectedJdkPath = await this.detectJdk21OrHigher();
-                    if (detectedJdkPath) {
-                        jdk21OrHigherPath = detectedJdkPath;
-                        this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
-                    } else {
-                        // 如果未找到JDK 21+，提醒用户安装
-                        this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
-                        this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
-                        this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
-                        vscode.window.showWarningMessage(
-                            '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
-                            '了解更多'
-                        ).then(selection => {
-                            if (selection === '了解更多') {
-                                vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
-                            }
-                        });
+                if (existingSettings && existingSettings['java.jdt.ls.java.home']) {
+                    // 如果已存在配置，使用现有的值
+                    jdk21OrHigherPath = existingSettings['java.jdt.ls.java.home'];
+                    this.outputChannel.appendLine(`✅ 使用已存在的java.jdt.ls.java.home配置: ${jdk21OrHigherPath}`);
+                } else {
+                    // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+                    try {
+                        const detectedJdkPath = await this.detectJdk21OrHigher();
+                        if (detectedJdkPath) {
+                            jdk21OrHigherPath = detectedJdkPath;
+                            this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
+                        } else {
+                            // 如果未找到JDK 21+，提醒用户安装
+                            this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
+                            this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
+                            this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
+                            vscode.window.showWarningMessage(
+                                '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                                '了解更多'
+                            ).then(selection => {
+                                if (selection === '了解更多') {
+                                    vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
                     }
-                } catch (error) {
-                    this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
                 }
 
                 // 要添加的配置内容
@@ -1319,7 +1333,7 @@ export class LibraryService {
             const settingsPath = path.join(editorConfigPath, 'settings.json');
 
             // 读取现有配置（如果存在）
-            let existingSettings = {};
+            let existingSettings: any = {};
             if (fs.existsSync(settingsPath)) {
                 try {
                     const content = fs.readFileSync(settingsPath, 'utf-8');
@@ -1332,29 +1346,36 @@ export class LibraryService {
             // 获取JDK运行时配置
             const javaRuntimeConfig = await this.getJavaRuntimeConfig(homePath);
 
-            // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+            // 检查是否已存在java.jdt.ls.java.home配置
             let jdk21OrHigherPath = "";
-            try {
-                const detectedJdkPath = await this.detectJdk21OrHigher();
-                if (detectedJdkPath) {
-                    jdk21OrHigherPath = detectedJdkPath;
-                    this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
-                } else {
-                    // 如果未找到JDK 21+，提醒用户安装
-                    this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
-                    this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
-                    this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
-                    vscode.window.showWarningMessage(
-                        '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
-                        '了解更多'
-                    ).then(selection => {
-                        if (selection === '了解更多') {
-                            vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
-                        }
-                    });
+            if (existingSettings && existingSettings['java.jdt.ls.java.home']) {
+                // 如果已存在配置，使用现有的值
+                jdk21OrHigherPath = existingSettings['java.jdt.ls.java.home'];
+                this.outputChannel.appendLine(`✅ 使用已存在的java.jdt.ls.java.home配置: ${jdk21OrHigherPath}`);
+            } else {
+                // 检测JDK 21或更高版本用于java.jdt.ls.java.home
+                try {
+                    const detectedJdkPath = await this.detectJdk21OrHigher();
+                    if (detectedJdkPath) {
+                        jdk21OrHigherPath = detectedJdkPath;
+                        this.outputChannel.appendLine(`✅ 自动配置java.jdt.ls.java.home为: ${jdk21OrHigherPath}`);
+                    } else {
+                        // 如果未找到JDK 21+，提醒用户安装
+                        this.outputChannel.appendLine('⚠️ 未找到JDK 21或更高版本，java.jdt.ls.java.home将保持为空');
+                        this.outputChannel.appendLine('💡 请安装JDK 21或更高版本以获得最佳开发体验');
+                        this.outputChannel.appendLine('💡 推荐下载地址: https://adoptium.net/');
+                        vscode.window.showWarningMessage(
+                            '未找到JDK 21或更高版本。请安装JDK 21+,配置setting.json中的java.jdt.ls.java.home才能正确构建项目,获得最佳开发体验。推荐下载地址: https://adoptium.net/',
+                            '了解更多'
+                        ).then(selection => {
+                            if (selection === '了解更多') {
+                                vscode.env.openExternal(vscode.Uri.parse('https://adoptium.net/'));
+                            }
+                        });
+                    }
+                } catch (error) {
+                    this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
                 }
-            } catch (error) {
-                this.outputChannel.appendLine(`检测JDK 21+时出错: ${error}`);
             }
 
             // 要添加的配置内容
