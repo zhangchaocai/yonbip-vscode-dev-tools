@@ -1715,6 +1715,33 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
              z-index: 100;
          }
          
+         /* Oracle安装方案按钮样式 */
+         .oracle-guide-btn {
+             margin: 0;
+             height: 36px;
+             padding: 8px 16px;
+             font-size: 14px;
+             min-height: auto;
+             position: relative;
+             z-index: 100;
+             background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+             border-color: #f57c00;
+         }
+         
+         .oracle-guide-btn:hover {
+             background: linear-gradient(135deg, #ffb74d 0%, #ff9800 100%);
+             border-color: #ff9800;
+             transform: translateY(-1px);
+             box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+         }
+         
+         /* 按钮组样式 */
+         .section-header .button-group {
+             display: flex;
+             gap: 10px;
+             align-items: center;
+         }
+         
          /* 数据源卡片增强样式 */
          .datasource-card {
              background: linear-gradient(135deg, var(--vscode-input-background) 0%, rgba(0, 122, 204, 0.03) 100%);
@@ -1978,9 +2005,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                     <div class="section-title-text">
                         <span>数据源管理</span>
                     </div>
-                    <button onclick="showAddDataSourceForm()" class="add-datasource-btn">
-                        <span style="margin-right: 6px;">➕</span> 添加数据源
-                    </button>
+                    <div class="button-group">
+                        <button onclick="showOracleInstallationGuide()" class="oracle-guide-btn">
+                            <span style="margin-right: 6px;">📋</span> 查看oracle客户端安装方案
+                        </button>
+                        <button onclick="showAddDataSourceForm()" class="add-datasource-btn">
+                            <span style="margin-right: 6px;">➕</span> 添加数据源
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="datasourceList">
@@ -2196,6 +2228,136 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         // 显示添加数据源表单
         function showAddDataSourceForm() {
             showDataSourceForm('add', null);
+        }
+        
+        // 显示Oracle客户端安装方案
+        function showOracleInstallationGuide() {
+            const modal = document.createElement('div');
+            modal.id = 'oracleGuideModal';
+            modal.style.cssText = 
+                'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1001; display: flex; justify-content: center; align-items: center; font-family: var(--vscode-font-family);';
+            
+            // 检测操作系统
+            const userAgent = navigator.userAgent.toLowerCase();
+            let osName = 'Unknown';
+            let osIcon = '💻';
+            let systemSpecificInstructions = '';
+            
+            if (userAgent.indexOf('win') > -1) {
+                osName = 'Windows';
+                osIcon = '🪟';
+                systemSpecificInstructions = 
+                    '<h4 style="color: var(--vscode-textLink-foreground); margin: 12px 0 6px 0; font-size: 14px;">🪟 Windows系统步骤：</h4>' +
+                    '<ol style="margin: 0 0 8px 20px; color: var(--vscode-foreground); font-size: 13px;">' +
+                        '<li>下载 Oracle Instant Client 19c/21c（Windows x64版本）</li>' +
+                        '<li>解压到目录，如：<code>C:\\oracle\\instantclient_19_18</code></li>' +
+                        '<li>在系统环境变量中添加：' +
+                            '<ul style="margin: 4px 0; padding-left: 16px;">' +
+                                '<li>PATH: <code>%PATH%;C:\\oracle\\instantclient_19_18</code></li>' +
+                                '<li>ORACLE_HOME: <code>C:\\oracle\\instantclient_19_18</code></li>' +
+                            '</ul>' +
+                        '</li>' +
+                        '<li>创建网络配置文件目录：<code>C:\\oracle\\instantclient_19_18\\network\\admin</code></li>' +
+                    '</ol>';
+            } else if (userAgent.indexOf('mac') > -1) {
+                osName = 'macOS';
+                osIcon = '🍎';
+                systemSpecificInstructions = 
+                    '<h4 style="color: var(--vscode-textLink-foreground); margin: 12px 0 6px 0; font-size: 14px;">🍎 macOS系统步骤：</h4>' +
+                    '<ol style="margin: 0 0 8px 20px; color: var(--vscode-foreground); font-size: 13px;">' +
+                        '<li>下载 Oracle Instant Client 19c/21c（macOS x64/ARM64版本）</li>' +
+                        '<li>创建安装目录：<code>sudo mkdir -p /opt/oracle</code></li>' +
+                        '<li>解压到系统目录：<code>sudo unzip instantclient-basic-macos.x64-21.8.0.0.0dbru.zip -d /opt/oracle</code></li>' +
+                        '<li>进入目录并创建符号链接：' +
+                            '<ul style="margin: 4px 0; padding-left: 16px;">' +
+                                '<li><code>cd /opt/oracle/instantclient_21_8</code></li>' +
+                                '<li><code>sudo ln -s libclntsh.dylib.* libclntsh.dylib</code></li>' +
+                            '</ul>' +
+                        '</li>' +
+                        '<li>添加环境变量到 <code>~/.zshrc</code> 或 <code>~/.zshenv</code>：' +
+                            '<ul style="margin: 4px 0; padding-left: 16px;">' +
+                                '<li><code>export DYLD_LIBRARY_PATH=/opt/oracle/instantclient_21_8:$DYLD_LIBRARY_PATH</code></li>' +
+                                '<li><code>export ORACLE_HOME=/opt/oracle/instantclient_21_8</code></li>' +
+                            '</ul>' +
+                        '</li>' +
+                    '</ol>';
+            } else {
+                osName = 'Linux';
+                osIcon = '🐧';
+                systemSpecificInstructions = 
+                    '<h4 style="color: var(--vscode-textLink-foreground); margin: 12px 0 6px 0; font-size: 14px;">🐧 Linux系统步骤：</h4>' +
+                    '<ol style="margin: 0 0 8px 20px; color: var(--vscode-foreground); font-size: 13px;">' +
+                        '<li>下载 Oracle Instant Client 19c/21c（Linux x64版本）</li>' +
+                        '<li>解压到系统目录，如：<code>/opt/oracle/instantclient_19_18</code></li>' +
+                        '<li>创建软链接：<code>sudo ln -s /opt/oracle/instantclient_19_18/libclntsh.so.* /opt/oracle/instantclient_19_18/libclntsh.so</code></li>' +
+                        '<li>在 <code>/etc/profile.d/oracle.sh</code> 中添加环境变量：' +
+                            '<ul style="margin: 4px 0; padding-left: 16px;">' +
+                                '<li><code>export LD_LIBRARY_PATH="/opt/oracle/instantclient_19_18:$LD_LIBRARY_PATH"</code></li>' +
+                                '<li><code>export ORACLE_HOME="/opt/oracle/instantclient_19_18"</code></li>' +
+                            '</ul>' +
+                        '</li>' +
+                        '<li>执行：<code>sudo source /etc/profile.d/oracle.sh</code></li>' +
+                    '</ol>';
+            }
+            
+            const htmlContent = 
+                '<div style="' +
+                    'background: var(--vscode-editor-background); ' +
+                    'border: 1px solid var(--vscode-widget-border); ' +
+                    'border-radius: 8px; ' +
+                    'padding: 20px; ' +
+                    'width: 600px; ' +
+                    'max-width: 90%; ' +
+                    'max-height: 80vh; ' +
+                    'overflow-y: auto; ' +
+                    'box-shadow: 0 8px 32px rgba(0,0,0,0.3);' +
+                '">' +
+                    '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">' +
+                        '<h2 style="margin: 0; color: var(--vscode-foreground); font-size: 20px; display: flex; align-items: center; gap: 8px;">' +
+                            '📋 Oracle客户端安装方案 ' + osIcon +
+                        '</h2>' +
+                        '<button onclick="closeOracleGuideModal()" style="' +
+                            'background: none; border: none; color: var(--vscode-foreground); font-size: 20px; cursor: pointer; padding: 4px; border-radius: 4px;">✕</button>' +
+                    '</div>' +
+                    
+                    '<div style="color: var(--vscode-foreground); line-height: 1.6;">' +
+                        '<div style="background: var(--vscode-badge-background); padding: 12px; border-radius: 6px; margin-bottom: 16px; border-left: 4px solid #ff9800;">' +
+                            '<strong style="color: var(--vscode-textLink-foreground);">💡 检测到系统：</strong> ' +
+                            '<span style="color: var(--vscode-foreground);">' + osName + '</span> ' +
+                            '<span style="color: var(--vscode-foreground);">，以下是针对开发环境的快速安装方案。</span>' +
+                        '</div>' +
+                        
+                        '<h3 style="color: var(--vscode-textLink-foreground); margin: 16px 0 8px 0; font-size: 16px;">🚀 开发环境快速安装</h3>' +
+                        '<div style="background: var(--vscode-input-background); padding: 12px; border-radius: 6px; margin-bottom: 12px;">' +
+                            '<p style="margin: 0 0 8px 0;"><strong>适用场景：</strong>开发测试、学习使用</p>' +
+                            '<p style="margin: 0 0 8px 0; color: var(--vscode-foreground); font-size: 13px;">以下是针对 <strong>' + osName + '</strong> 系统的具体安装步骤：</p>' +
+                            systemSpecificInstructions +
+                        '</div>' +
+                        
+                        '<div style="margin-top: 16px; padding: 12px; background: var(--vscode-notificationsInfoIcon-foreground); border-radius: 6px; color: white;">' +
+                            '<strong>💡 温馨提示：</strong>' +
+                            '<ul style="margin: 4px 0 0 16px; font-size: 13px;">' +
+                                '<li>安装完成后，请重启VSCode以确保环境变量生效</li>' +
+                            '</ul>' +
+                        '</div>' +
+                    '</div>' +
+                    
+                    '<div style="text-align: right; margin-top: 20px;">' +
+                        '<button onclick="closeOracleGuideModal()" style="' +
+                            'padding: 8px 20px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: 1px solid var(--vscode-button-border); border-radius: 4px; cursor: pointer; font-size: 14px;">关闭</button>' +
+                    '</div>' +
+                '</div>';
+            
+            modal.innerHTML = htmlContent;
+            document.body.appendChild(modal);
+        }
+        
+        // 关闭Oracle安装方案模态框
+        function closeOracleGuideModal() {
+            const modal = document.getElementById('oracleGuideModal');
+            if (modal) {
+                modal.remove();
+            }
         }
         
         // 显示编辑数据源表单
