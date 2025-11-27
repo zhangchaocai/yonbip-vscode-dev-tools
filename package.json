@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Tools",
   "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.1.8",
+  "version": "2.1.10",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -349,7 +349,7 @@
         {
           "submenu": "yonbip.project.file.submenu",
           "group": "navigation@2",
-          "when": "explorerResourceIsFile"
+          "when": "resourceExtname"
         }
       ],
       "yonbip.project.submenu": [
@@ -427,23 +427,28 @@
       "yonbip.project.file.submenu": [
         {
           "command": "yonbip.project.exportPatch",
-          "group": "1_patch@1"
+          "group": "1_patch@1",
+          "when": "resourceExtname"
         },
         {
           "command": "yonbip.project.exportPrecastScript",
-          "group": "1_patch@4"
+          "group": "1_patch@4",
+          "when": "resourceExtname"
         },
         {
           "command": "yonbip.patch.applyToHome",
-          "group": "1_patch@2"
+          "group": "1_patch@2",
+          "when": "resourceExtname"
         },
         {
           "command": "yonbip.patch.removeFromHome",
-          "group": "1_patch@3"
+          "group": "1_patch@3",
+          "when": "resourceExtname"
         },
         {
           "command": "yonbip.project.copyResourcesToHome",
-          "group": "2_utils@1"
+          "group": "2_utils@1",
+          "when": "resourceExtname"
         }
       ],
       "yonbip.terminal.submenu": [

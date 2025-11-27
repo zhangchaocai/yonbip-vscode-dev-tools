@@ -28,6 +28,8 @@ import { FunctionTreeProvider } from './project/ui/FunctionTreeProvider';
 // 导入服务目录扫描类
 import { ServiceDirectoryScanner } from './utils/ServiceDirectoryScanner';
 import { ServiceStateManager } from './utils/ServiceStateManager';
+// 导入扩展版本服务
+import { ExtensionVersionService } from './utils/ExtensionVersionService';
 
 // 全局变量用于在deactivate时释放资源
 let ncHomeConfigService: NCHomeConfigService | undefined;
@@ -48,6 +50,24 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.env.openExternal(vscode.Uri.parse('https://community.yonyou.com/article/detail/10786'));
 			}
 		});
+
+	// 初始化版本检测服务
+	ExtensionVersionService.initialize(context);
+
+	// 检查更新（延迟执行以避免影响插件启动速度）
+	setTimeout(async () => {
+		try {
+			const updateInfo = await ExtensionVersionService.checkForUpdates();
+			if (updateInfo) {
+				await ExtensionVersionService.showUpdateNotification(updateInfo.latestVersion, updateInfo.releaseNotes);
+			}
+			
+			// 检查是否存在旧版本插件
+			await ExtensionVersionService.suggestUninstallOldVersions();
+		} catch (error) {
+			console.error('检查更新失败:', error);
+		}
+	}, 5000); // 延迟5秒执行
 
 	// 设置PasswordEncryptor的扩展路径
 	PasswordEncryptor.setExtensionPath(context.extensionPath);
