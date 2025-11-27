@@ -181,7 +181,7 @@ export class HomeCommands {
         try {
             let projectDir: string;
             
-            if (uri) {
+            if (uri && uri.scheme != 'webview-panel') {
                 // 如果传入了URI，检查是否为.project文件
                 if (path.basename(uri.fsPath) === '.project') {
                     projectDir = path.dirname(uri.fsPath);

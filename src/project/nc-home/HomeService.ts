@@ -10,6 +10,7 @@ import { HomeStatus } from './homeStatus';
 import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
 import { ClasspathUtils } from '../../utils/ClasspathUtils';
 import { StatisticsService } from '../../utils/StatisticsService';
+import { ServiceStateManager } from '../../utils/ServiceStateManager';
 
 /**
  * NC HOME服务管理类
@@ -24,6 +25,8 @@ export class HomeService {
     private isManualStop: boolean = false;
     private startupCheckTimer: NodeJS.Timeout | null = null;
     private oracleClientService: OracleClientService;
+    private statusBarItem: vscode.StatusBarItem | null = null;
+    private currentModuleInfo: { moduleName: string; modulePath: string } | null = null;
 
     constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService) {
         this.context = context;
@@ -34,6 +37,13 @@ export class HomeService {
             HomeService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP NC HOME服务');
         }
         this.outputChannel = HomeService.outputChannelInstance;
+        
+        // 创建状态栏项
+        this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+        this.statusBarItem.text = "YonBIP HOME服务";
+        this.statusBarItem.tooltip = "YonBIP HOME服务状态";
+        // 确保状态栏项可见
+        this.statusBarItem.show();
     }
 
     /**
@@ -302,7 +312,29 @@ export class HomeService {
         try {
             this.setStatus(HomeStatus.STARTING);
             this.outputChannel.clear();
-            this.outputChannel.appendLine('正在启动NC HOME服务...');
+            
+            // 在输出面板顶部固定显示模块信息
+            const selectedServiceDirectory = ServiceStateManager.getSelectedServiceDirectory();
+            if (selectedServiceDirectory) {
+                const moduleName = path.basename(selectedServiceDirectory);
+                
+                // 用分隔线包围模块信息，让它在顶部固定显示
+                this.outputChannel.appendLine('='.repeat(60));
+                this.outputChannel.appendLine(`🚀 正在启动模块: ${moduleName}`);
+                this.outputChannel.appendLine(`📁 模块路径: ${selectedServiceDirectory}`);
+                this.outputChannel.appendLine('='.repeat(60));
+                this.outputChannel.appendLine(''); // 空行分隔
+                
+                // 更新状态栏显示
+                this.updateStatusBarModuleInfo(moduleName, selectedServiceDirectory);
+                
+                // 保存当前模块信息
+                this.currentModuleInfo = { moduleName, modulePath: selectedServiceDirectory };
+            } else {
+                this.outputChannel.appendLine('🚀 正在启动NC HOME服务...');
+                this.updateStatusBarDisplay('NC HOME服务');
+            }
+            
             // 自动切换到YonBIP NC HOME服务任务栏
             this.outputChannel.show();
 
@@ -338,6 +370,7 @@ export class HomeService {
             if (this.containsWJClasses(coreJarPath)) {
                 mainClass = 'ufmiddle.start.wj.StartDirectServer';
                 this.outputChannel.appendLine('🔧 检测到WJ相关类，使用WJ启动类');
+
             }
 
             // 构建类路径
@@ -347,6 +380,7 @@ export class HomeService {
             // 检查必要的配置文件
             const propDir = path.join(config.homePath, 'ierp', 'bin');
             const propFile = path.join(propDir, 'prop.xml');
+
 
             if (!fs.existsSync(propFile)) {
                 this.outputChannel.appendLine(`❌ 严重错误: 系统配置文件不存在: ${propFile}`);
@@ -1484,6 +1518,56 @@ export class HomeService {
      */
     private setStatus(status: HomeStatus): void {
         this.status = status;
+        
+        // 更新状态栏显示
+        if (this.statusBarItem) {
+            const selectedServiceDirectory = ServiceStateManager.getSelectedServiceDirectory();
+            switch (status) {
+                case HomeStatus.STARTING:
+                    if (selectedServiceDirectory) {
+                        const moduleName = path.basename(selectedServiceDirectory);
+                        this.statusBarItem.text = `$(sync~spin) 正在启动模块: ${moduleName}`;
+                        this.statusBarItem.tooltip = `模块路径: ${selectedServiceDirectory}`;
+                    } else {
+                        this.statusBarItem.text = "$(sync~spin) 正在启动NC HOME服务...";
+                        this.statusBarItem.tooltip = "正在启动NC HOME服务";
+                    }
+                    this.statusBarItem.show();
+                    break;
+                case HomeStatus.RUNNING:
+                    if (selectedServiceDirectory) {
+                        const moduleName = path.basename(selectedServiceDirectory);
+                        this.statusBarItem.text = `$(check) 模块运行中: ${moduleName}`;
+                        this.statusBarItem.tooltip = `模块路径: ${selectedServiceDirectory}`;
+                    } else {
+                        this.statusBarItem.text = "$(check) HOME服务运行中";
+                        this.statusBarItem.tooltip = "NC HOME服务正在运行";
+                    }
+                    this.statusBarItem.show();
+                    break;
+                case HomeStatus.STOPPING:
+                    if (selectedServiceDirectory) {
+                        const moduleName = path.basename(selectedServiceDirectory);
+                        this.statusBarItem.text = `$(sync~spin) 正在停止模块: ${moduleName}`;
+                        this.statusBarItem.tooltip = `模块路径: ${selectedServiceDirectory}`;
+                    } else {
+                        this.statusBarItem.text = "$(sync~spin) 正在停止HOME服务...";
+                        this.statusBarItem.tooltip = "正在停止NC HOME服务";
+                    }
+                    this.statusBarItem.show();
+                    break;
+                case HomeStatus.STOPPED:
+                    this.statusBarItem.text = "$(circle-slash) HOME服务已停止";
+                    this.statusBarItem.tooltip = "NC HOME服务已停止";
+                    this.statusBarItem.show();
+                    break;
+                case HomeStatus.ERROR:
+                    this.statusBarItem.text = "$(error) HOME服务错误";
+                    this.statusBarItem.tooltip = "NC HOME服务发生错误";
+                    this.statusBarItem.show();
+                    break;
+            }
+        }
     }
 
     /**
@@ -2046,6 +2130,33 @@ export class HomeService {
 
         // 默认返回一个较低的版本号
         return 0;
+    }
+
+    /**
+     * 更新状态栏显示模块信息
+     * @param moduleName 模块名称
+     * @param modulePath 模块路径
+     */
+    private updateStatusBarModuleInfo(moduleName: string, modulePath: string): void {
+        if (this.statusBarItem) {
+            // 简化显示文本，避免过长
+            const displayText = `🚀 ${moduleName}`;
+            this.statusBarItem.text = displayText;
+            this.statusBarItem.tooltip = `正在启动模块: ${moduleName}\n路径: ${modulePath}`;
+            this.statusBarItem.show();
+        }
+    }
+
+    /**
+     * 更新状态栏显示通用信息
+     * @param message 显示信息
+     */
+    private updateStatusBarDisplay(message: string): void {
+        if (this.statusBarItem) {
+            this.statusBarItem.text = message;
+            this.statusBarItem.tooltip = message;
+            this.statusBarItem.show();
+        }
     }
 
 }
