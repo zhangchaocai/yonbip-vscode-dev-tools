@@ -507,22 +507,22 @@ export class ProjectContextCommands {
                 console.log('装饰器提供者不存在');
             }
 
-            // 询问用户是否立即启动HOME服务
-            const startService = await vscode.window.showInformationMessage(
-                `项目初始化完成！是否立即在目录 ${selectedPath} 中启动HOME服务？`,
-                '启动',
-                '取消'
-            );
+            // // 询问用户是否立即启动HOME服务
+            // const startService = await vscode.window.showInformationMessage(
+            //     `项目初始化完成！是否立即在目录 ${selectedPath} 中启动HOME服务？`,
+            //     '启动',
+            //     '取消'
+            // );
 
-            if (startService === '启动') {
-                // 启动HOME服务
-                if (extensionContext) {
-                    const homeService = new HomeService(extensionContext, configService);
-                    await homeService.startHomeService(selectedPath);
-                } else {
-                    vscode.window.showErrorMessage('无法启动HOME服务：扩展上下文未初始化');
-                }
-            }
+            // if (startService === '启动') {
+            //     // 启动HOME服务
+            //     if (extensionContext) {
+            //         const homeService = new HomeService(extensionContext, configService);
+            //         await homeService.startHomeService(selectedPath);
+            //     } else {
+            //         vscode.window.showErrorMessage('无法启动HOME服务：扩展上下文未初始化');
+            //     }
+            // }
 
             vscode.window.showInformationMessage('项目初始化完成！');
         } catch (error: any) {
