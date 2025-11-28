@@ -117,6 +117,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 注册HOME服务命令
 	HomeCommands.registerCommands(context, ncHomeConfigService);
+	
+	// 初始化工具栏图标状态上下文
+	vscode.commands.executeCommand('setContext', 'yonbip.home.stop.enabled', false);
 
 	// 注册库管理命令
 	LibraryCommands.registerCommands(context, ncHomeConfigService);

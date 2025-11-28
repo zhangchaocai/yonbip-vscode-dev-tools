@@ -76,6 +76,8 @@ export class HomeCommands {
                 homeCommands.stopHomeService();
             }
         );
+        
+
 
         context.subscriptions.push(
             startCommand,

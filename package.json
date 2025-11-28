@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Tools",
   "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.1.10",
+  "version": "2.1.11",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -294,7 +294,8 @@
         },
         {
           "command": "yonbip.home.stopFromToolbar",
-          "group": "navigation@1.2"
+          "group": "navigation@1.2",
+          "when": "yonbip.home.stop.visible"
         }
       ],
       "view/title": [
@@ -311,7 +312,7 @@
         {
           "command": "yonbip.home.stopFromToolbar",
           "group": "navigation@1.2",
-          "when": "view == terminal"
+          "when": "view == terminal && yonbip.home.stop.visible"
         }
       ],
       "view/item/context": [

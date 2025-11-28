@@ -11,6 +11,8 @@ import { JavaVersionUtils } from '../../utils/JavaVersionUtils';
 import { ClasspathUtils } from '../../utils/ClasspathUtils';
 import { StatisticsService } from '../../utils/StatisticsService';
 import { ServiceStateManager } from '../../utils/ServiceStateManager';
+import { ToolbarIconService } from './ToolbarIconService';
+
 
 /**
  * NC HOME服务管理类
@@ -1568,6 +1570,13 @@ export class HomeService {
                     break;
             }
         }
+        
+        // 更新工具栏图标视觉效果
+        const toolbarIconService = ToolbarIconService.getInstance(this.context);
+        toolbarIconService.updateToolbarIconVisual(status);
+
+        // 发送状态变更事件，供其他组件更新UI
+        vscode.commands.executeCommand('setContext', 'yonbip.home.status', status);
     }
 
     /**
