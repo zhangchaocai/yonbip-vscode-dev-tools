@@ -222,39 +222,61 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 		// 注册服务目录选择命令
 		vscode.commands.registerCommand('yonbip.terminal.selectServiceDirectory', async () => {
-			try {
-				// 扫描服务目录
-				const serviceDirectories = await ServiceDirectoryScanner.scanServiceDirectories();
-				
-				if (serviceDirectories.length === 0) {
-					vscode.window.showInformationMessage('未找到可启动的服务目录。请确保工作区中包含带有.project和.classpath文件的YonBIP项目目录。');
-					return;
+			// 显示进度条并执行扫描操作
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: '🔍 扫描YonBIP服务目录',
+				cancellable: false
+			}, async (progress) => {
+				try {
+					// 初始化进度
+					progress.report({ increment: 0, message: '开始扫描工作区...' });
+					
+					// 模拟初始进度
+					await new Promise(resolve => setTimeout(resolve, 200));
+					
+					// 扫描服务目录，传入进度回调
+					const serviceDirectories = await ServiceDirectoryScanner.scanServiceDirectories((scanProgress) => {
+						progress.report(scanProgress);
+					});
+					
+					if (serviceDirectories.length === 0) {
+						progress.report({ increment: 100, message: '扫描完成，未找到服务目录' });
+						await new Promise(resolve => setTimeout(resolve, 500));
+						vscode.window.showInformationMessage('未找到可启动的服务目录。请确保工作区中包含带有.project和.classpath文件的YonBIP项目目录。');
+						return;
+					}
+					
+					progress.report({ increment: 90, message: `找到 ${serviceDirectories.length} 个服务目录` });
+					await new Promise(resolve => setTimeout(resolve, 200));
+					
+					// 创建QuickPick选项
+					const quickPickItems = serviceDirectories.map(dir => ({
+						label: ServiceDirectoryScanner.getDirectoryDisplayName(dir),
+						description: dir,
+						detail: '包含.project和.classpath文件的服务目录',
+						dirPath: dir
+					}));
+					
+					progress.report({ increment: 100, message: '准备选择界面...' });
+					await new Promise(resolve => setTimeout(resolve, 200));
+					
+					// 显示QuickPick下拉面板
+					const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
+						placeHolder: '选择要启动的服务目录',
+						canPickMany: false
+					});
+					
+					if (selectedItem) {
+						// 保存选择的服务目录
+						await ServiceStateManager.saveSelectedServiceDirectory(selectedItem.dirPath);
+						vscode.window.showInformationMessage(`✅ 已选择服务目录: ${selectedItem.label}`);
+					}
+				} catch (error: any) {
+					console.error('选择服务目录时出错:', error);
+					vscode.window.showErrorMessage(`选择服务目录时出错: ${error.message || '未知错误'}`);
 				}
-				
-				// 创建QuickPick选项
-				const quickPickItems = serviceDirectories.map(dir => ({
-					label: ServiceDirectoryScanner.getDirectoryDisplayName(dir),
-					description: dir,
-					detail: '包含.project和.classpath文件的服务目录',
-					dirPath: dir
-				}));
-				
-				// 显示QuickPick下拉面板
-				const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
-					placeHolder: '选择要启动的服务目录',
-					canPickMany: false
-				});
-				
-				if (selectedItem) {
-					// 保存选择的服务目录
-					await ServiceStateManager.saveSelectedServiceDirectory(selectedItem.dirPath);
-					vscode.window.showInformationMessage(`已选择服务目录: ${selectedItem.label}`);
-					// 可以在这里执行启动服务的命令
-				}
-			} catch (error: any) {
-				console.error('选择服务目录时出错:', error);
-				vscode.window.showErrorMessage(`选择服务目录时出错: ${error.message || '未知错误'}`);
-			}
+			});
 		})
 	);
 	
