@@ -185,6 +185,31 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             console.log('导出补丁 - selectedPath:', selectedPath);
             console.log('导出补丁 - selectedPaths:', selectedPaths);
 
+            // 检查选择的Java文件是否有对应的编译码文件
+            const hasCompiledFiles = await this._validateJavaFilesHaveCompiledFiles(selectedPath, selectedPaths, basePath);
+            if (!hasCompiledFiles) {
+                // 如果没有对应的编译码文件，终止导出流程并提醒用户配置源码
+                const errorMessage = `编译文件检查失败
+
+` +
+                    `选择的Java文件缺少对应的编译码文件(.class)。
+
+` +
+                    `💡 解决方案：
+` +
+                    `1. 确保项目已成功编译（Build Project）
+` +
+                    `2. 或使用【全部加入源码路径】功能配置源码路径
+` +
+                    `3. 然后重新导出补丁`;
+                this._view?.webview.postMessage({
+                    type: 'showMessage',
+                    level: 'error',
+                    message: errorMessage
+                });
+                return;
+            }
+
             let files: { path: string, type: string, relativePath: string }[] = [];
 
             if (selectedPaths && selectedPaths.length > 0) {
@@ -2485,5 +2510,134 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         });
 
         return grouped;
+    }
+
+    /**
+     * 检查选择的Java文件是否有对应的编译码文件
+     */
+    private async _validateJavaFilesHaveCompiledFiles(selectedPath: string | undefined, selectedPaths: string[] | undefined, basePath: string): Promise<boolean> {
+        const fs = require('fs');
+        const path = require('path');
+
+        try {
+            let filesToCheck: string[] = [];
+
+            // 收集所有要检查的Java文件
+            if (selectedPaths && selectedPaths.length > 0) {
+                for (const selPath of selectedPaths) {
+                    const javaFiles = await this._collectJavaFiles(selPath);
+                    filesToCheck = filesToCheck.concat(javaFiles);
+                }
+            } else if (selectedPath) {
+                const javaFiles = await this._collectJavaFiles(selectedPath);
+                filesToCheck = filesToCheck.concat(javaFiles);
+            } else {
+                const javaFiles = await this._collectJavaFiles(basePath);
+                filesToCheck = filesToCheck.concat(javaFiles);
+            }
+
+            // 检查每个Java文件是否有对应的编译码文件
+            for (const javaFile of filesToCheck) {
+                // 查找项目根目录（包含.classpath文件的目录）
+                let projectPath = path.dirname(javaFile);
+                while (projectPath && projectPath !== path.dirname(projectPath)) {
+                    if (fs.existsSync(path.join(projectPath, '.classpath'))) {
+                        break;
+                    }
+                    projectPath = path.dirname(projectPath);
+                }
+
+                // 如果没找到项目根目录，使用文件所在目录
+                if (!projectPath || projectPath === path.dirname(projectPath)) {
+                    projectPath = path.dirname(javaFile);
+                }
+
+                // 获取编译后的class文件路径
+                const compiledClassPath = await this._getCompiledClassPath(javaFile, projectPath);
+                
+                // 获取输出路径
+                const outputPath = await this._getClasspathOutputPath(projectPath);
+                const fullClassPath = path.join(projectPath, outputPath, compiledClassPath);
+
+                // 检查编译后的class文件是否存在
+                if (!fs.existsSync(fullClassPath)) {
+                    console.log(`编译文件不存在: ${fullClassPath}`);
+                    return false;
+                }
+            }
+
+            return true;
+        } catch (error) {
+            console.error('检查编译码文件时出错:', error);
+            // 出错时为了保证流程继续，返回true，但在实际应用中可能需要更严格的处理
+            return true;
+        }
+    }
+
+    /**
+     * 收集指定路径下的所有Java文件
+     */
+    private async _collectJavaFiles(basePath: string): Promise<string[]> {
+        const fs = require('fs');
+        const path = require('path');
+        const javaFiles: string[] = [];
+
+        // 首先检查传入的路径是否为文件
+        try {
+            const stat = await fs.promises.stat(basePath);
+            
+            // 如果是文件且为Java文件，直接加入数组
+            if (stat.isFile() && basePath.endsWith('.java')) {
+                javaFiles.push(basePath);
+                return javaFiles;
+            }
+        } catch (error) {
+            // 如果无法获取文件状态，继续执行目录扫描逻辑
+            console.warn(`无法获取文件状态: ${basePath}`, error);
+        }
+
+        // 使用异步方式扫描目录，避免阻塞UI
+        const scanDir = async (dirPath: string): Promise<void> => {
+            try {
+                const items = await fs.promises.readdir(dirPath);
+
+                // 创建所有子任务的Promise数组
+                const tasks = items.map(async (item: string) => {
+                    const fullPath = path.join(dirPath, item);
+
+                    try {
+                        const stat = await fs.promises.stat(fullPath);
+
+                        if (stat.isDirectory()) {
+                            // 跳过一些目录
+                            if (item === 'node_modules' || item === '.git' || item === 'target' ||
+                                item === 'build' || item === 'out' || item.startsWith('.')) {
+                                return;
+                            }
+                            await scanDir(fullPath);
+                        } else {
+                            // 如果是Java文件，加入数组
+                            if (item.endsWith('.java')) {
+                                javaFiles.push(fullPath);
+                            }
+                        }
+                    } catch (statError) {
+                        // 忽略无法访问的文件
+                        console.warn(`无法访问文件: ${fullPath}`, statError);
+                        return;
+                    }
+                });
+
+                // 等待所有子任务完成
+                await Promise.all(tasks);
+            } catch (readError) {
+                // 忽略无法读取的目录
+                console.warn(`无法读取目录: ${dirPath}`, readError);
+                return;
+            }
+        };
+
+        await scanDir(basePath);
+        return javaFiles;
     }
 }
