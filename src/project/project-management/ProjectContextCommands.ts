@@ -7,6 +7,7 @@ import { HomeService } from '../nc-home/HomeService';
 import { ClasspathService } from '../library/ClasspathService';
 import { AutoHotwebsAccessService } from './AutoHotwebsAccessService';
 import { CopyResourcesToHomeCommand } from './CopyResourcesToHomeCommand';
+import { IconThemeUpdater } from '../../utils/IconThemeUpdater';
 
 // 添加一个静态属性来存储context
 let extensionContext: vscode.ExtensionContext | undefined;
@@ -274,8 +275,7 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
                 }
                 
                 decoration = {
-                    badge: '✅',  // 使用齿轮图标表示已初始化的YonBIP项目
-                    tooltip: 'YonBIP 项目已初始化 - 包含 .project 和 .classpath 文件、build 目录和 META-INF 目录',
+                    tooltip: 'YonBIP 项目已初始化',
                     color: new vscode.ThemeColor('charts.green'),
                     propagate: false // 不传播，避免子目录也显示
                 };
@@ -507,6 +507,11 @@ export class ProjectContextCommands {
                 console.log('装饰器提供者不存在');
             }
 
+            // 动态添加模块到图标主题配置
+            const moduleName = path.basename(selectedPath);
+            console.log(`准备将模块 ${moduleName} 添加到图标主题配置中`);
+            await IconThemeUpdater.addModuleToIconTheme(moduleName);
+  
             // // 询问用户是否立即启动HOME服务
             // const startService = await vscode.window.showInformationMessage(
             //     `项目初始化完成！是否立即在目录 ${selectedPath} 中启动HOME服务？`,

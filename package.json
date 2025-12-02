@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Tools",
   "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.1.12",
+  "version": "2.1.13",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -484,7 +484,7 @@
     "iconThemes": [
       {
         "id": "yonbip-icon-theme",
-        "label": "YonBIP Icon Theme",
+        "label": "YonBIP Premium Icon Theme",
         "path": "./resources/icons/yonbip-icon-theme.json",
         "description": "YonBIP 项目文件图标主题，为 YonBIP 项目文件夹提供专业图标"
       }
