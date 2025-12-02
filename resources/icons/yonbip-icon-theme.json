@@ -23,14 +23,10 @@
   "folderExpanded": "_yonbip_open_folder",
   "folderNames": {
     "patches": "_yonbip_patch",
-    ".vscode": "_yonbip_vscode",
-    "zcctest": "_yonbip_project",
-    "testproject": "_yonbip_project"
+    ".vscode": "_yonbip_vscode"
   },
   "folderNamesExpanded": {
     "patches": "_yonbip_patch",
-    ".vscode": "_yonbip_vscode",
-    "zcctest": "_yonbip_project",
-    "testproject": "_yonbip_project"
+    ".vscode": "_yonbip_vscode"
   }
 }

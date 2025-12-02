@@ -120,15 +120,13 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
             const classpathPath = path.join(folderPath, '.classpath');
             const buildPath = path.join(folderPath, 'build');
             const metaInfPath = path.join(folderPath, 'META-INF');
-            const projectFolder = path.join(folderPath, '.yonbip-project');
             
             // 检查关键文件/目录是否存在
             // YonBIP项目初始化标准：存在.project和.classpath文件，且存在build和META-INF目录，或者存在yonbip-project文件夹
             return (fs.existsSync(projectPath) && 
                    fs.existsSync(classpathPath) &&
                    fs.existsSync(buildPath) && 
-                   fs.existsSync(metaInfPath)) ||
-                   fs.existsSync(projectFolder);
+                   fs.existsSync(metaInfPath));
         } catch (error) {
             return false;
         }
@@ -177,12 +175,7 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
 </classpath>`;
                 fs.writeFileSync(classpathFile, classpathContent, 'utf-8');
             }
-            
-            // 创建一个特殊的隐藏文件夹来标识初始化的项目
-            const projectFolder = path.join(absPath, '.yonbip-project');
-            if (!fs.existsSync(projectFolder)) {
-                fs.mkdirSync(projectFolder);
-            }
+    
         } catch (error) {
             console.error('创建项目标记文件失败:', error);
         }
@@ -208,16 +201,6 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
         this.initializedFolders.delete(absPath);
         this.invalidateCache(absPath);
         this.savePersistedState();
-        
-        // 删除特殊的隐藏项目文件夹
-        try {
-            const projectFolder = path.join(absPath, '.yonbip-project');
-            if (fs.existsSync(projectFolder)) {
-                fs.rmdirSync(projectFolder);
-            }
-        } catch (error) {
-            console.error('删除项目标记文件夹失败:', error);
-        }
         
         this._onDidChangeFileDecorations.fire(vscode.Uri.file(absPath));
     }
