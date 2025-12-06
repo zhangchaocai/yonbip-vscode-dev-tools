@@ -44,10 +44,10 @@ export class ServiceDirectoryScanner {
             progressCallback({ increment: 10, message: `准备扫描 ${this.totalCount} 个目录...` });
         }
         
-        // 执行实际扫描
+        // 执行实际扫描，限制扫描深度为2层
         for (const folder of workspaceFolders) {
             const folderPath = folder.uri.fsPath;
-            await this.scanDirectoryRecursive(folderPath, serviceDirectories);
+            await this.scanDirectoryRecursive(folderPath, serviceDirectories, 0, 2);
         }
         
         if (progressCallback) {
@@ -85,8 +85,10 @@ export class ServiceDirectoryScanner {
      * 递归扫描目录，查找包含.project和.classpath文件的目录
      * @param dirPath 当前扫描的目录路径
      * @param serviceDirectories 存储服务目录的数组
+     * @param currentDepth 当前扫描的深度
+     * @param maxDepth 最大扫描深度
      */
-    private static async scanDirectoryRecursive(dirPath: string, serviceDirectories: string[]): Promise<void> {
+    private static async scanDirectoryRecursive(dirPath: string, serviceDirectories: string[], currentDepth: number, maxDepth: number): Promise<void> {
         try {
             // 检查当前目录是否包含.project和.classpath文件
             const hasProjectFile = fs.existsSync(path.join(dirPath, '.project'));
@@ -110,6 +112,11 @@ export class ServiceDirectoryScanner {
                 });
             }
             
+            // 如果达到最大深度，则停止递归
+            if (currentDepth >= maxDepth) {
+                return;
+            }
+            
             // 读取目录内容
             const entries = fs.readdirSync(dirPath, { withFileTypes: true });
             
@@ -117,7 +124,7 @@ export class ServiceDirectoryScanner {
             for (const entry of entries) {
                 if (entry.isDirectory() && !entry.name.startsWith('.')) {
                     const childDirPath = path.join(dirPath, entry.name);
-                    await this.scanDirectoryRecursive(childDirPath, serviceDirectories);
+                    await this.scanDirectoryRecursive(childDirPath, serviceDirectories, currentDepth + 1, maxDepth);
                 }
             }
         } catch (error: any) {
