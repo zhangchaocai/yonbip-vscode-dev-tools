@@ -30,6 +30,8 @@ import { ServiceDirectoryScanner } from './utils/ServiceDirectoryScanner';
 import { ServiceStateManager } from './utils/ServiceStateManager';
 // 导入扩展版本服务
 import { ExtensionVersionService } from './utils/ExtensionVersionService';
+// 导入图标主题更新服务
+import { IconThemeUpdater } from './utils/IconThemeUpdater';
 
 // 全局变量用于在deactivate时释放资源
 let ncHomeConfigService: NCHomeConfigService | undefined;
@@ -41,6 +43,8 @@ let macHomeConversionService: MacHomeConversionService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
+	// 初始化图标主题更新服务
+	IconThemeUpdater.initialize(context);
 
 	// 显示插件加载成功的提示信息
 	vscode.window.showInformationMessage('🚀 YonBIP高级版开发者工具加载成功', '了解更多')
