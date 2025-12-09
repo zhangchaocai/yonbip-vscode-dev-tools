@@ -83,7 +83,7 @@ export class MacHomeConversionService {
         this.outputChannel.appendLine('正在替换sysConfig.sh文件...');
 
         // 获取扩展路径
-        const extensionPath = vscode.extensions.getExtension('zhang-chaocai.yonbip-devtool')?.extensionPath;
+        const extensionPath = vscode.extensions.getExtension('zhangchck.yonbip-devtool')?.extensionPath;
         if (!extensionPath) {
             throw new Error('无法获取扩展路径');
         }
@@ -116,7 +116,7 @@ export class MacHomeConversionService {
         this.outputChannel.appendLine('正在替换uapSetupCmdLine.sh文件...');
 
         // 获取扩展路径
-        const extensionPath = vscode.extensions.getExtension('zhang-chaocai.yonbip-devtool')?.extensionPath;
+        const extensionPath = vscode.extensions.getExtension('zhangchck.yonbip-devtool')?.extensionPath;
         if (!extensionPath) {
             throw new Error('无法获取扩展路径');
         }
@@ -148,10 +148,8 @@ export class MacHomeConversionService {
         if (!jdkPath) {
             const commonJdkPaths = [
                 '/Library/Java/JavaVirtualMachines/default/Contents/Home',
-                '/Library/Java/JavaVirtualMachines/jdk1.8.0_281.jdk/Contents/Home',
-                '/Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home',
-                '/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home',
-                '/System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home'
+                '/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home',
+                '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home'
             ];
 
             for (const path of commonJdkPaths) {
