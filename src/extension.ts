@@ -41,10 +41,10 @@ let libraryService: LibraryService | undefined;
 let homeService: HomeService | undefined;
 let macHomeConversionService: MacHomeConversionService | undefined;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 
 	// 初始化图标主题更新服务
-	IconThemeUpdater.initialize(context);
+	await IconThemeUpdater.initialize(context);
 
 	// 显示插件加载成功的提示信息
 	vscode.window.showInformationMessage('🚀 YonBIP高级版开发者工具加载成功', '了解更多')
