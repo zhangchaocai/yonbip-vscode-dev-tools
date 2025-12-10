@@ -9,6 +9,8 @@ import { LibraryService } from '../library/LibraryService';
 import { getHomeVersion } from '../../utils/HomeVersionUtils';
 import { CopyResourcesToHomeCommand } from './CopyResourcesToHomeCommand';
 import { PatchToHomeCommand } from './PatchToHomeCommand';
+import { IconThemeUpdater } from '../../utils/IconThemeUpdater';
+import { CustomDialogUtils } from '../../utils/CustomDialogUtils';
 
 /**
  * 项目相关命令类
@@ -295,9 +297,27 @@ export class ProjectCommands {
             //     console.error('创建标记文件失败:', error);
             // }
 
-            vscode.window.showInformationMessage(isMultiModuleProject || isInMultiModuleRoot ?
-                `YonBIP模块项目 "${folderName}" 创建完成！` :
-                `YonBIP项目 "${folderName}" 创建完成！`);
+            // 为新创建的项目添加图标
+            let showMessage = true;
+            try {
+                const iconUpdated = await IconThemeUpdater.addModuleToIconTheme(folderName);
+                // 如果图标主题更新成功，请求用户确认重启
+                if (iconUpdated) {
+                    vscode.window.showInformationMessage(`${isMultiModuleProject || isInMultiModuleRoot ? 'YonBIP模块项目' : 'YonBIP项目'} "${folderName}" 创建完成！图标主题已更新。`);
+                    // 请求用户确认重启窗口
+                    await IconThemeUpdater.requestWindowReload();
+                    showMessage = false;
+                }
+            } catch (iconError) {
+                console.error('添加项目图标失败:', iconError);
+            }
+
+            // 如果没有显示过消息，则显示默认消息
+            if (showMessage) {
+                vscode.window.showInformationMessage(isMultiModuleProject || isInMultiModuleRoot ?
+                    `YonBIP模块项目 "${folderName}" 创建完成！` :
+                    `YonBIP项目 "${folderName}" 创建完成！`);
+            }
 
             // 在模块项目创建完成后，提示用户是否创建业务组件
             const createComponentChoice = await vscode.window.showInformationMessage(
@@ -418,7 +438,25 @@ export class ProjectCommands {
                 await libraryService.initLibrary(homePath, false, undefined, selectedPath);
             });
 
-            vscode.window.showInformationMessage(`YonBIP多模块项目 "${folderName}" 创建完成！`);
+            // 为新创建的项目添加图标
+            let showMessage = true;
+            try {
+                const iconUpdated = await IconThemeUpdater.addModuleToIconTheme(folderName);
+                // 如果图标主题更新成功，请求用户确认重启
+                if (iconUpdated) {
+                    vscode.window.showInformationMessage(`YonBIP多模块项目 "${folderName}" 创建完成！图标主题已更新。`);
+                    // 请求用户确认重启窗口
+                    await IconThemeUpdater.requestWindowReload();
+                    showMessage = false;
+                }
+            } catch (iconError) {
+                console.error('添加项目图标失败:', iconError);
+            }
+
+            // 如果没有显示过消息，则显示默认消息
+            if (showMessage) {
+                vscode.window.showInformationMessage(`YonBIP多模块项目 "${folderName}" 创建完成！`);
+            }
 
             // 在多模块项目创建完成后，提示用户是否创建业务组件
             const createComponentChoice = await vscode.window.showInformationMessage(

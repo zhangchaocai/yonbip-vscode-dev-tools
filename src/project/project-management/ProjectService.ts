@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { IconThemeUpdater } from '../../utils/IconThemeUpdater';
 
 /**
  * 项目配置接口
@@ -121,6 +122,14 @@ ${config.type === 'yonbip' ? `
                 await this.createSampleCode(finalProjectPath, projectInfo);
 
                 progress.report({ increment: 100, message: '完成项目初始化...' });
+
+                // 为新创建的项目添加图标
+                try {
+                    await IconThemeUpdater.addModuleToIconTheme(projectInfo.name);
+                } catch (iconError) {
+                    console.error('添加项目图标失败:', iconError);
+                    this.outputChannel.appendLine(`添加项目图标失败: ${iconError}`);
+                }
 
                 vscode.window.showInformationMessage(
                     `YonBIP项目 "${projectInfo.name}" 创建成功！`,

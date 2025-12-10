@@ -1187,7 +1187,9 @@ export class LibraryService {
                         "files.encoding": "utf8"
                     },
                     //此处配置JDK21或以上版本
-                    "java.jdt.ls.java.home": jdk21OrHigherPath
+                    "java.jdt.ls.java.home": jdk21OrHigherPath,
+                    // 添加自动编译配置
+                    "java.autobuild.enabled": true
                 };
 
                 // 如果工作区配置中还没有settings部分，则创建
@@ -1288,7 +1290,9 @@ export class LibraryService {
                         "files.encoding": "utf8"
                     },
                     //此处配置JDK21或以上版本
-                    "java.jdt.ls.java.home": jdk21OrHigherPath
+                    "java.jdt.ls.java.home": jdk21OrHigherPath,
+                    // 添加自动编译配置
+                    "java.autobuild.enabled": true
                 };
 
                 // 合并现有配置和新配置
@@ -1393,7 +1397,9 @@ export class LibraryService {
                     "files.encoding": "utf8"
                 },
                 //此处配置JDK21或以上版本
-                "java.jdt.ls.java.home": jdk21OrHigherPath
+                "java.jdt.ls.java.home": jdk21OrHigherPath,
+                // 添加自动编译配置
+                "java.autobuild.enabled": true
             };
 
             // 合并现有配置和新配置
