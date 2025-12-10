@@ -60,6 +60,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                     case 'refreshFiles':
                         this._refreshExportableFiles();
                         break;
+
                     case 'selectOutputDir':
                         this._handleSelectOutputDir();
                         break;
@@ -1750,6 +1751,35 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         let config = this.configService.getConfig();
         const nccloudPath = path.join(config.homePath, 'hotwebs', 'nccloud');
         const isNCCHome = fs.existsSync(nccloudPath);
+        
+        // 获取当前时间，用于设置目录时间戳
+        const now = new Date();
+        
+        // 用于跟踪已创建的目录
+        const createdDirectories = new Set<string>();
+        
+        // 辅助函数：创建目录并设置时间戳
+        const createDirectoryWithTimestamp = (directoryPath: string) => {
+            if (!directoryPath || createdDirectories.has(directoryPath)) {
+                return;
+            }
+            
+            // 分割目录路径，递归创建所有父目录
+            const parts = directoryPath.split('/');
+            let currentPath = '';
+            
+            for (const part of parts) {
+                if (!part) continue;
+                
+                currentPath = currentPath ? `${currentPath}/${part}` : part;
+                
+                if (!createdDirectories.has(currentPath)) {
+                    // 显式创建目录并设置当前时间戳
+                    archive.append(null, { name: `${currentPath}/`, date: now });
+                    createdDirectories.add(currentPath);
+                }
+            }
+        };
 
         for (const file of files) {
             if (!fs.existsSync(file.path)) {
@@ -1801,11 +1831,30 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
                     // 检查编译后的class文件是否存在
                     if (fs.existsSync(fullClassPath)) {
-                        // 使用编译后的class文件作为源文件
-                        archive.file(fullClassPath, { name: targetPath });
+                        // 获取目标文件的目录路径
+                        const classDir = path.dirname(targetPath);
+                        const javaDir = path.dirname(targetPath.replace('.class', '.java'));
+                        
+                        // 显式创建目录并设置当前时间戳
+                        createDirectoryWithTimestamp(classDir);
+                        if ((patchInfo as any).includeJavaSource !== false) {
+                            createDirectoryWithTimestamp(javaDir);
+                        }
+                        
+                        // 使用编译后的class文件作为源文件，并确保保留正确的时间戳
+                        const classStat = fs.statSync(fullClassPath);
+                        archive.file(fullClassPath, { 
+                            name: targetPath,
+                            date: classStat.mtime // 确保使用正确的修改时间
+                        });
+                        
                         // 如果包含源码，则添加源码文件
                         if ((patchInfo as any).includeJavaSource !== false) {
-                            archive.file(file.path, { name: targetPath.replace('.class', '.java') });
+                            const javaStat = fs.statSync(file.path);
+                            archive.file(file.path, { 
+                                name: targetPath.replace('.class', '.java'),
+                                date: javaStat.mtime // 确保使用正确的修改时间
+                            });
                         }
                     } else {
                         // 如果编译后的文件不存在，生成详细的错误信息
@@ -1855,22 +1904,66 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             } else if (this._isResourceFile(filePath)) {
                 targetPath = this._getResourceFileTargetPath(filePath);
                 if (targetPath) {
-                    archive.file(filePath, { name: targetPath });
+                    // 获取目标文件的目录路径
+                    const targetDir = path.dirname(targetPath);
+                    
+                    // 显式创建目录并设置当前时间戳
+                    createDirectoryWithTimestamp(targetDir);
+                    
+                    // 对于资源文件，确保保留正确的时间戳
+                    const fileStat = fs.statSync(filePath);
+                    archive.file(filePath, { 
+                        name: targetPath,
+                        date: fileStat.mtime // 确保使用正确的修改时间
+                    });
                 }
             } else if (this._isConfigFile(filePath)) {
                 targetPath = this._getConfigFileTargetPath(filePath);
                 if (targetPath) {
-                    archive.file(filePath, { name: targetPath });
+                    // 获取目标文件的目录路径
+                    const targetDir = path.dirname(targetPath);
+                    
+                    // 显式创建目录并设置当前时间戳
+                    createDirectoryWithTimestamp(targetDir);
+                    
+                    // 对于配置文件，确保保留正确的时间戳
+                    const fileStat = fs.statSync(filePath);
+                    archive.file(filePath, { 
+                        name: targetPath,
+                        date: fileStat.mtime // 确保使用正确的修改时间
+                    });
                 }
             } else if (this._isSqlFile(filePath)) {
                 targetPath = this._getSqlFileTargetPath(filePath, basePath);
                 if (targetPath) {
-                    archive.file(filePath, { name: targetPath });
+                    // 获取目标文件的目录路径
+                    const targetDir = path.dirname(targetPath);
+                    
+                    // 显式创建目录并设置当前时间戳
+                    createDirectoryWithTimestamp(targetDir);
+                    
+                    // 对于SQL文件，确保保留正确的时间戳
+                    const fileStat = fs.statSync(filePath);
+                    archive.file(filePath, { 
+                        name: targetPath,
+                        date: fileStat.mtime // 确保使用正确的修改时间
+                    });
                 }
             } else if (this._isMetaInfFile(filePath)) {
                 targetPath = await this._getMetaInfFileTargetPath(filePath);
                 if (targetPath) {
-                    archive.file(filePath, { name: targetPath });
+                    // 获取目标文件的目录路径
+                    const targetDir = path.dirname(targetPath);
+                    
+                    // 显式创建目录并设置当前时间戳
+                    createDirectoryWithTimestamp(targetDir);
+                    
+                    // 对于META-INF文件，确保保留正确的时间戳
+                    const fileStat = fs.statSync(filePath);
+                    archive.file(filePath, { 
+                        name: targetPath,
+                        date: fileStat.mtime // 确保使用正确的修改时间
+                    });
                 }
             } else {
                 // 其他文件使用默认处理
@@ -1919,10 +2012,18 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
         return new Promise((resolve, reject) => {
             const output = fs.createWriteStream(zipPath);
-            const archive = archiver('zip', { zlib: { level: 9 } });
+            // 修改archiver配置，确保正确处理文件时间戳
+            const archive = archiver('zip', { 
+                zlib: { level: 9 },
+                // 确保时间戳正确处理
+                store: false, // 使用压缩而非存储模式
+                // 强制使用本地时间，避免UTC转换导致的时间偏差
+                forceLocalTime: true
+            });
 
             output.on('close', () => {
                 console.log('ZIP文件创建完成:', zipPath);
+                console.log('补丁包总大小: ' + archive.pointer() + ' bytes');
                 resolve(zipPath);
             });
 
@@ -1941,15 +2042,15 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
             // 添加packmetadata.xml
             const packmetadata = this._generatePackMetadata(patchInfo, patchId, files);
-            archive.append(packmetadata, { name: 'packmetadata.xml' });
+            archive.append(packmetadata, { name: 'packmetadata.xml', date: now });
 
             // 添加installpatch.xml
             const installpatch = this._generateInstallPatch();
-            archive.append(installpatch, { name: 'installpatch.xml' });
+            archive.append(installpatch, { name: 'installpatch.xml', date: now });
 
             // 添加readme.txt
             const readme = this._generateReadme(patchInfo, patchId);
-            archive.append(readme, { name: 'readme.txt' });
+            archive.append(readme, { name: 'readme.txt', date: now });
 
             // 使用IDEA插件的规则构建replacement内容
             // 使用basePath作为homePath
@@ -2564,6 +2665,32 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                     console.log(`编译文件不存在: ${fullClassPath}`);
                     return false;
                 }
+                
+                // 额外检查：确保class文件是最新的（修改时间应该在java文件之后）
+                const javaStat = fs.statSync(javaFile);
+                const classStat = fs.statSync(fullClassPath);
+                
+                if (classStat.mtime < javaStat.mtime) {
+                    console.log(`编译文件不是最新的: ${fullClassPath}`);
+                    console.log(`Java文件修改时间: ${javaStat.mtime}`);
+                    console.log(`Class文件修改时间: ${classStat.mtime}`);
+                    // 自动刷新工作区以获取最新文件
+                    await this._forceRefreshWorkspace();
+                    
+                    // 重新检查文件状态
+                    const refreshedJavaStat = fs.statSync(javaFile);
+                    const refreshedClassStat = fs.statSync(fullClassPath);
+                    
+                    if (refreshedClassStat.mtime < refreshedJavaStat.mtime) {
+                        // 如果刷新后仍然不是最新的，提示用户需要重新编译
+                        this._view?.webview.postMessage({
+                            type: 'showMessage',
+                            level: 'warning',
+                            message: `检测到 ${path.basename(javaFile)} 的编译文件不是最新的，请重新编译项目后再导出补丁。`
+                        });
+                        return false;
+                    }
+                }
             }
 
             return true;
@@ -2639,5 +2766,38 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
 
         await scanDir(basePath);
         return javaFiles;
+    }
+    
+    /**
+     * 强制刷新工作区文件系统
+     * 在导出补丁前调用此方法可确保文件状态是最新的
+     * @param showMessages 是否向用户显示刷新消息
+     */
+    private async _forceRefreshWorkspace(showMessages: boolean = true): Promise<void> {
+        try {
+            // 发送命令刷新文件资源管理器
+            await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+            
+            if (showMessages) {
+                // 显示提示消息
+                this._view?.webview.postMessage({
+                    type: 'showMessage',
+                    level: 'info',
+                    message: '工作区文件已刷新，请重新导出补丁。'
+                });
+            }
+            
+            // 重新扫描可导出文件
+            await this._refreshExportableFiles();
+        } catch (error) {
+            console.error('刷新工作区失败:', error);
+            if (showMessages) {
+                this._view?.webview.postMessage({
+                    type: 'showMessage',
+                    level: 'error',
+                    message: '刷新工作区失败，请手动刷新后再试。'
+                });
+            }
+        }
     }
 }
