@@ -8,13 +8,13 @@
     "name": "YonBIP开发社区",
     "email": "zhangchck@yonyou.com"
   },
-  "homepage": "https://github.com/yonbip/vscode-dev-tools",
+  "homepage": "https://github.com/zhangchaocai/yonbip-vscode-dev-tools.git",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yonbip/vscode-dev-tools.git"
+    "url": "https://github.com/zhangchaocai/yonbip-vscode-dev-tools.git"
   },
   "bugs": {
-    "url": "https://github.com/yonbip/vscode-dev-tools/issues"
+    "url": "https://github.com/zhangchaocai/yonbip-vscode-dev-tools.git/issues"
   },
   "license": "MIT",
   "icon": "resources/icons/project/nccicon.png",
