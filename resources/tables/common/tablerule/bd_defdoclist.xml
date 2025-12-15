@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bd_defdoclist">
+	<tableName>bd_defdoclist</tableName>
+	<pk>pk_defdoclist</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>bd_defdoc</tableName>
+			<foreignKeyColumn>pk_defdoclist</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

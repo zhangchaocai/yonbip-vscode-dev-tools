@@ -1,0 +1,609 @@
+{
+  "name": "yonbip-devtool",
+  "displayName": "YDS Premium Tools",
+  "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
+  "version": "2.1.15",
+  "publisher": "zhangchck",
+  "author": {
+    "name": "YonBIP开发社区",
+    "email": "zhangchck@yonyou.com"
+  },
+  "homepage": "https://github.com/zhangchaocai/yonbip-vscode-dev-tools.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhangchaocai/yonbip-vscode-dev-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zhangchaocai/yonbip-vscode-dev-tools.git/issues"
+  },
+  "license": "MIT",
+  "icon": "resources/icons/project/nccicon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "keywords": [
+    "YonBIP",
+    "用友",
+    "NCC",
+    "MCP",
+    "OpenAPI"
+  ],
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "extensionDependencies": [
+    "vscjava.vscode-java-pack"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:explorer",
+    "workspaceContains:.classpath"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "yonbip-explorer",
+          "title": "YonBIP功能导航",
+          "icon": "resources/icons/project/nccicon.png"
+        }
+      ]
+    },
+    "views": {
+      "yonbip-explorer": [
+        {
+          "id": "yonbip-function-tree",
+          "name": "功能导航",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "yonbip.terminal.menu",
+        "title": "YonBIP终端操作",
+        "category": "YonBIP/终端"
+      },
+      {
+        "command": "yonbip.terminal.selectServiceDirectory",
+        "title": "📂 选择YonBIP Premium 服务启动目录",
+        "category": "YonBIP/终端",
+        "icon": "$(folder-active)"
+      },
+      {
+        "command": "yonbip.mcp.start",
+        "title": "启动MCP服务",
+        "category": "YonBIP/MCP"
+      },
+      {
+        "command": "yonbip.mcp.stop",
+        "title": "停止MCP服务",
+        "category": "YonBIP/MCP"
+      },
+      {
+        "command": "yonbip.mcp.status",
+        "title": "查看MCP服务状态",
+        "category": "YonBIP/MCP"
+      },
+      {
+        "command": "yonbip.mcp.logs",
+        "title": "查看MCP服务日志",
+        "category": "YonBIP/MCP"
+      },
+      {
+        "command": "yonbip.database.connect",
+        "title": "连接数据库",
+        "category": "YonBIP/数据库"
+      },
+      {
+        "command": "yonbip.database.disconnect",
+        "title": "断开数据库连接",
+        "category": "YonBIP/数据库"
+      },
+      {
+        "command": "yonbip.openapi.test",
+        "title": "测试OpenAPI",
+        "category": "YonBIP/OpenAPI"
+      },
+      {
+        "command": "yonbip.test.webview",
+        "title": "测试Webview界面",
+        "category": "YonBIP/测试"
+      },
+      {
+        "command": "yonbip.home.start",
+        "title": "启动HOME服务",
+        "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.home.debug",
+        "title": "调试启动HOME服务",
+        "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.home.status",
+        "title": "查看HOME服务状态",
+        "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.home.logs",
+        "title": "查看HOME服务日志",
+        "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.library.init",
+        "title": "初始化Java项目库",
+        "category": "YonBIP/库管理"
+      },
+      {
+        "command": "yonbip.library.reinit",
+        "title": "重新初始化Java项目库",
+        "category": "YonBIP/库管理"
+      },
+      {
+        "command": "yonbip.library.check",
+        "title": "检查库状态",
+        "category": "YonBIP/库管理"
+      },
+      {
+        "command": "yonbip.library.debugConfig",
+        "title": "调试配置信息",
+        "category": "YonBIP/库管理"
+      },
+      {
+        "command": "yonbip.project.initContext",
+        "title": "🚀 YonBIP 工程初始化",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.home.startFromDirectory",
+        "title": "🖥️ 启动YonBIP Premium中间件",
+        "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.home.stop",
+        "title": "⛔ HOME 服务停用",
+        "category": "YonBIP/HOME"
+      },
+      {
+        "command": "yonbip.scaffold.download",
+        "title": "📦 下载YonBIP脚手架",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.create",
+        "title": "📁 创建YonBIP模块项目",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.createMultiModule",
+        "title": "🧩 创建YonBIP多模块项目",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.createComponent",
+        "title": "🔧 创建业务组件",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.exportPatch",
+        "title": "📤 导出YonBIP补丁",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.exportPrecastScript",
+        "title": "🐘 导出预置脚本",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.addAllSourcePaths",
+        "title": "📜 全部加入源码路径",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.test.oracleClient",
+        "title": "🧪 测试Oracle客户端",
+        "category": "YonBIP/测试"
+      },
+      {
+        "command": "yonbip.home.startFromToolbar",
+        "title": "🖥️ 启动YonBIP Premium中间件",
+        "category": "YonBIP/HOME",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "yonbip.home.stopFromToolbar",
+        "title": "⛔ 停用YonBIP Premium中间件",
+        "category": "YonBIP/HOME",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "yonbip.project.autoAccessHotwebs",
+        "title": "🌐 自动访问Hotwebs资源",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.project.copyResourcesToHome",
+        "title": "📋 复制配置文件到HOME",
+        "category": "YonBIP/项目管理"
+      },
+      {
+        "command": "yonbip.patch.applyToHome",
+        "title": "🩹 打补丁到HOME",
+        "category": "YonBIP/补丁"
+      },
+      {
+        "command": "yonbip.patch.removeFromHome",
+        "title": "↩️ 从HOME取消补丁",
+        "category": "YonBIP/补丁"
+      },
+      {
+        "command": "yonbip.function.showMcp",
+        "title": "显示MCP服务",
+        "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.function.showHomeConfig",
+        "title": "显示HOME配置",
+        "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.function.showOpenApi",
+        "title": "显示OpenAPI测试",
+        "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.function.showPatchExport",
+        "title": "显示补丁导出配置",
+        "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.function.showPrecastExport",
+        "title": "显示预置脚本导出",
+        "category": "YonBIP/功能导航"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "yonbip.project.submenu",
+        "label": "YonBIP项目管理（高级版）"
+      },
+      {
+        "id": "yonbip.project.file.submenu",
+        "label": "YonBIP文件操作"
+      },
+      {
+        "id": "yonbip.terminal.submenu",
+        "label": "YonBIP终端操作"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "yonbip.terminal.selectServiceDirectory",
+          "group": "navigation@1"
+        },
+        {
+          "command": "yonbip.home.startFromToolbar",
+          "group": "navigation@1.1"
+        },
+        {
+          "command": "yonbip.home.stopFromToolbar",
+          "group": "navigation@1.2",
+          "when": "yonbip.home.stop.visible"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "yonbip.terminal.selectServiceDirectory",
+          "group": "navigation@1",
+          "when": "view == terminal"
+        },
+        {
+          "command": "yonbip.home.startFromToolbar",
+          "group": "navigation@1.1",
+          "when": "view == terminal"
+        },
+        {
+          "command": "yonbip.home.stopFromToolbar",
+          "group": "navigation@1.2",
+          "when": "view == terminal && yonbip.home.stop.visible"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "yonbip.function.showMcp",
+          "when": "view == yonbip-function-tree && viewItem == mcp-service",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.function.showHomeConfig",
+          "when": "view == yonbip-function-tree && viewItem == home-config",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.function.showOpenApi",
+          "when": "view == yonbip-function-tree && viewItem == openapi-test",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.function.showPatchExport",
+          "when": "view == yonbip-function-tree && viewItem == patch-export",
+          "group": "inline"
+        },
+        {
+          "command": "yonbip.function.showPrecastExport",
+          "when": "view == yonbip-function-tree && viewItem == precast-export",
+          "group": "inline"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "yonbip.project.submenu",
+          "group": "navigation@1"
+        },
+        {
+          "submenu": "yonbip.project.file.submenu",
+          "group": "navigation@2",
+          "when": "resourceExtname"
+        }
+      ],
+      "yonbip.project.submenu": [
+        {
+          "command": "yonbip.project.initContext",
+          "when": "explorerResourceIsFolder",
+          "group": "1_project@1"
+        },
+        {
+          "command": "yonbip.project.createMultiModule",
+          "when": "explorerResourceIsFolder",
+          "group": "1_project@2"
+        },
+        {
+          "command": "yonbip.project.create",
+          "when": "explorerResourceIsFolder",
+          "group": "1_project@3"
+        },
+        {
+          "command": "yonbip.project.createComponent",
+          "when": "explorerResourceIsFolder",
+          "group": "1_project@4"
+        },
+        {
+          "command": "yonbip.scaffold.download",
+          "when": "explorerResourceIsFolder",
+          "group": "1_project@5"
+        },
+        {
+          "command": "yonbip.project.exportPatch",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "2_patch@1"
+        },
+        {
+          "command": "yonbip.project.exportPrecastScript",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "2_patch@4"
+        },
+        {
+          "command": "yonbip.patch.applyToHome",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "2_patch@2"
+        },
+        {
+          "command": "yonbip.patch.removeFromHome",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "2_patch@3"
+        },
+        {
+          "command": "yonbip.home.startFromDirectory",
+          "when": "explorerResourceIsFolder",
+          "group": "3_service@1"
+        },
+        {
+          "command": "yonbip.home.stop",
+          "when": "explorerResourceIsFolder",
+          "group": "3_service@2"
+        },
+        {
+          "command": "yonbip.project.addAllSourcePaths",
+          "when": "explorerResourceIsFolder",
+          "group": "4_utils@1"
+        },
+        {
+          "command": "yonbip.project.autoAccessHotwebs",
+          "when": "explorerResourceIsFolder",
+          "group": "4_utils@2"
+        },
+        {
+          "command": "yonbip.project.copyResourcesToHome",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "4_utils@3"
+        }
+      ],
+      "yonbip.project.file.submenu": [
+        {
+          "command": "yonbip.project.exportPatch",
+          "group": "1_patch@1",
+          "when": "resourceExtname"
+        },
+        {
+          "command": "yonbip.project.exportPrecastScript",
+          "group": "1_patch@4",
+          "when": "resourceExtname"
+        },
+        {
+          "command": "yonbip.patch.applyToHome",
+          "group": "1_patch@2",
+          "when": "resourceExtname"
+        },
+        {
+          "command": "yonbip.patch.removeFromHome",
+          "group": "1_patch@3",
+          "when": "resourceExtname"
+        },
+        {
+          "command": "yonbip.project.copyResourcesToHome",
+          "group": "2_utils@1",
+          "when": "resourceExtname"
+        }
+      ],
+      "yonbip.terminal.submenu": [
+        {
+          "command": "yonbip.home.startFromToolbar",
+          "group": "1_home@1"
+        },
+        {
+          "command": "yonbip.home.stopFromToolbar",
+          "group": "1_home@2"
+        },
+        {
+          "command": "yonbip.mcp.start",
+          "group": "2_mcp@1"
+        },
+        {
+          "command": "yonbip.mcp.stop",
+          "group": "2_mcp@2"
+        },
+        {
+          "command": "yonbip.mcp.status",
+          "group": "2_mcp@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "yonbip.terminal.menu",
+          "when": "false"
+        }
+      ]
+    },
+    "iconThemes": [
+      {
+        "id": "yonbip-icon-theme",
+        "label": "YonBIP Premium Icon Theme",
+        "path": "./resources/icons/yonbip-icon-theme.json",
+        "description": "YonBIP 项目文件图标主题，为 YonBIP 项目文件夹提供专业图标"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "YonBIP高级版开发者工具",
+      "properties": {
+        "yonbip.mcp.port": {
+          "type": "number",
+          "default": 9000,
+          "description": "MCP服务端口"
+        },
+        "yonbip.mcp.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否启用调试模式"
+        },
+        "yonbip.mcp.debugPort": {
+          "type": "number",
+          "default": 5005,
+          "description": "调试模式端口"
+        },
+        "yonbip.mcp.homePath": {
+          "type": "string",
+          "default": "",
+          "description": "MCP服务HOME路径"
+        },
+        "yonbip.homePath": {
+          "type": "string",
+          "default": "",
+          "description": "NC Home目录路径"
+        },
+        "yonbip.home.debugPort": {
+          "type": "number",
+          "default": 8888,
+          "description": "NC Home调试模式端口"
+        },
+        "yonbip.openapi.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:9000",
+          "description": "OpenAPI测试基础URL"
+        },
+        "yonbip.openapi.headers": {
+          "type": "object",
+          "default": {},
+          "description": "OpenAPI测试默认请求头"
+        },
+        "yonbip.openapi.timeout": {
+          "type": "number",
+          "default": 30000,
+          "description": "OpenAPI测试请求超时时间(毫秒)"
+        },
+        "yonbip.patchOutputDir": {
+          "type": "string",
+          "default": "./patches",
+          "description": "补丁文件输出目录"
+        },
+        "yonbip.selectedServiceDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "用户选择的服务目录路径"
+        }
+      }
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "package.json",
+      "README.md",
+      "CHANGELOG.md",
+      "LICENSE"
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.3",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.1",
+    "@types/mssql": "^9.1.8",
+    "@types/node": "^24.5.2",
+    "@types/oracledb": "^6.9.1",
+    "@types/pg": "^8.15.5",
+    "@types/sinon": "^17.0.4",
+    "@types/vscode": "^1.75.0",
+    "@types/xml2js": "^0.4.14",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "@vscode/test-electron": "^2.3.0",
+    "@vscode/vsce": "^3.7.0",
+    "eslint": "^9.35.0",
+    "glob": "^11.0.3",
+    "mocha": "^11.7.2",
+    "sinon": "^21.0.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/axios": "^0.9.36",
+    "@types/ws": "^8.18.1",
+    "adm-zip": "^0.5.16",
+    "archiver": "^7.0.1",
+    "axios": "^1.12.2",
+    "iconv-lite": "^0.7.0",
+    "mssql": "^11.0.1",
+    "mysql2": "^3.15.0",
+    "node-stream-zip": "^1.15.0",
+    "oracledb": "^6.9.0",
+    "pg": "^8.16.3",
+    "ws": "^8.18.3",
+    "xml2js": "^0.6.2"
+  }
+}

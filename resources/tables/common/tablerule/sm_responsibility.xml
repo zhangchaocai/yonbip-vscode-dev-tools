@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="sm_responsibility">
+	<tableName>sm_responsibility</tableName>
+	<pk>pk_responsibility</pk>
+	<sqlNo>001</sqlNo>
+	<substitutionGroup/>
+	<subTableGroup>
+		<subTable>
+			<tableName>sm_resp_app</tableName>
+			<foreignKeyColumn>pk_responsibility</foreignKeyColumn>
+			<sqlNo>002</sqlNo>		
+		</subTable>
+	</subTableGroup>
+</hierarchy>

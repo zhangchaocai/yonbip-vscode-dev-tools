@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bd_uniquerule">
+	<tableName>bd_uniquerule</tableName>
+	<pk>pk_rule</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>bd_uniquerule_item</tableName>
+			<foreignKeyColumn>pk_rule</foreignKeyColumn>
+			<whereCondition></whereCondition>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

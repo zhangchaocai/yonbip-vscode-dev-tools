@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="pub_alerttype">
+	<tableName>pub_alerttype</tableName>
+	<pk>pk_alerttype</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>pub_alerttype_b</tableName>
+			<foreignKeyColumn>pk_alerttype</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+		<subTable>
+			<tableName>pub_alertregistry</tableName>
+			<foreignKeyColumn>pk_alerttype</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>003</sqlNo>
+			<subTableGroup>
+		        <subTable>
+			        <tableName>pub_alerttypeconfig</tableName>
+			        <foreignKeyColumn>pk_alertregistry</foreignKeyColumn>
+			        <whereCondition/>
+			        <sqlNo>004</sqlNo>
+			        <subTableGroup/>
+		        </subTable>
+		        <subTable>
+			        <tableName>pub_alertsendconfig</tableName>
+			        <foreignKeyColumn>pk_alertregistry</foreignKeyColumn>
+			        <whereCondition/>
+			        <sqlNo>005</sqlNo>
+			        <subTableGroup/>
+		        </subTable>
+			<subTable>
+			        <tableName>pub_timeconfig</tableName>
+			        <foreignKeyColumn>pk_reference</foreignKeyColumn>
+			        <whereCondition/>
+			        <sqlNo>006</sqlNo>
+			        <subTableGroup/>
+		        </subTable>
+			</subTableGroup>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

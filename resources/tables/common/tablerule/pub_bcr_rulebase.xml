@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name=" pub_bcr_rulebase">
+	<tableName>pub_bcr_rulebase</tableName>
+	<pk>pk_billcodebase</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>pub_bcr_elem</tableName>
+			<foreignKeyColumn>pk_billcodebase</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

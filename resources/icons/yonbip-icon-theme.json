@@ -1,0 +1,32 @@
+{
+  "iconDefinitions": {
+    "_yonbip_project": {
+      "iconPath": "./project/nccicon.png"
+    },
+    "_yonbip_initialized": {
+      "iconPath": "./project/initialized-icon.png"
+    },
+    "_yonbip_patch": {
+      "iconPath": "./project/patch-icon.png"
+    },
+    "_yonbip_folder": {
+      "iconPath": "./project/folder-icon.png"
+    },
+    "_yonbip_open_folder": {
+      "iconPath": "./project/open-folder-icon.png"
+    },
+    "_yonbip_vscode": {
+      "iconPath": "./project/vscode.png"
+    }
+  },
+  "folder": "_yonbip_folder",
+  "folderExpanded": "_yonbip_open_folder",
+  "folderNames": {
+    "patches": "_yonbip_patch",
+    ".vscode": "_yonbip_vscode"
+  },
+  "folderNamesExpanded": {
+    "patches": "_yonbip_patch",
+    ".vscode": "_yonbip_vscode"
+  }
+}

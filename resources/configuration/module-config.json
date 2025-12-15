@@ -1,0 +1,1450 @@
+[
+    {
+        "code": "ae",
+        "name": "数据处理平台",
+        "must": true,
+        "modules": [
+            {
+                "code": "aeam",
+                "name": "分析建模",
+                "must": true
+            },
+            {
+                "code": "aedsm",
+                "name": "数据服务管理",
+                "must": true
+            },
+            {
+                "code": "aemm",
+                "name": "元数据管理",
+                "must": true
+            },
+            {
+                "code": "aert",
+                "name": "数据处理平台运行时",
+                "must": true
+            },
+            {
+                "code": "aesm",
+                "name": "语义建模",
+                "must": true
+            }
+        ]
+    },
+    {
+        "code": "am",
+        "name": "资产管理",
+        "must": false,
+        "modules": [
+            {
+                "code": "aim",
+                "name": "资产信息管理",
+                "must": false
+            },
+            {
+                "code": "ali",
+                "name": "资产租入管理",
+                "must": false
+            },
+            {
+                "code": "alo",
+                "name": "设备资产租出",
+                "must": false
+            },
+            {
+                "code": "ampub",
+                "name": "资产基础设置",
+                "must": false
+            },
+            {
+                "code": "aol",
+                "name": "经营性资产租出",
+                "must": false
+            },
+            {
+                "code": "apm",
+                "name": "资产绩效管理",
+                "must": false
+            },
+            {
+                "code": "asp",
+                "name": "闲置资产管理",
+                "must": false
+            },
+            {
+                "code": "aum",
+                "name": "资产使用管理",
+                "must": false
+            },
+            {
+                "code": "dam",
+                "name": "数智资产管理",
+                "must": false
+            },
+            {
+                "code": "elm",
+                "name": "润滑管理",
+                "must": false
+            },
+            {
+                "code": "emm",
+                "name": "维护管理",
+                "must": false
+            },
+            {
+                "code": "eom",
+                "name": "运行管理",
+                "must": false
+            },
+            {
+                "code": "ewm",
+                "name": "维修管理",
+                "must": false
+            },
+            {
+                "code": "fa",
+                "name": "固定资产",
+                "must": false
+            },
+            {
+                "code": "rlm",
+                "name": "周转材租入管理",
+                "must": false
+            },
+            {
+                "code": "rom",
+                "name": "周转材租出管理",
+                "must": false
+            },
+            {
+                "code": "rum",
+                "name": "易耗品管理",
+                "must": false
+            },
+            {
+                "code": "semi",
+                "name": "特种设备与计量",
+                "must": false
+            },
+            {
+                "code": "ttm",
+                "name": "两票管理",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "amp",
+        "name": "应用管理平台",
+        "must": true,
+        "modules": [
+            {
+                "code": "bda",
+                "name": "业务数据归档",
+                "must": true
+            }
+        ]
+    },
+    {
+        "code": "bq",
+        "name": "商业分析平台",
+        "must": false,
+        "modules": [
+            {
+                "code": "bqdsndbd",
+                "name": "BQ仪表板设计器",
+                "must": false
+            },
+            {
+                "code": "bqdsnpvt",
+                "name": "BQ多维分析设计器",
+                "must": false
+            },
+            {
+                "code": "bqriadbd",
+                "name": "BQRIA仪表板运行框架",
+                "must": false
+            },
+            {
+                "code": "bqriamrp",
+                "name": "BQRIA报表库运行框架",
+                "must": false
+            },
+            {
+                "code": "bqriapvt",
+                "name": "BQRIA多维分析运行框架",
+                "must": false
+            },
+            {
+                "code": "bqriart",
+                "name": "BQRIA运行框架",
+                "must": false
+            },
+            {
+                "code": "bqriartpub",
+                "name": "BQRIA基础运行框架",
+                "must": false
+            },
+            {
+                "code": "bqriaufr",
+                "name": "BQRIA自由报表运行框架",
+                "must": false
+            },
+            {
+                "code": "bqrt",
+                "name": "BQ运行框架",
+                "must": false
+            },
+            {
+                "code": "bqrtdbd",
+                "name": "BQ仪表板运行框架",
+                "must": false
+            },
+            {
+                "code": "bqrtmrp",
+                "name": "BQ报表库运行框架",
+                "must": false
+            },
+            {
+                "code": "bqrtpvt",
+                "name": "BQ多维分析运行框架",
+                "must": false
+            },
+            {
+                "code": "bqrtufr",
+                "name": "BQ自由报表运行框架",
+                "must": false
+            },
+            {
+                "code": "bqwebdbd",
+                "name": "BQWEB仪表板运行框架",
+                "must": false
+            },
+            {
+                "code": "bqwebmrp",
+                "name": "BQWEB报表库运行框架",
+                "must": false
+            },
+            {
+                "code": "bqwebrt",
+                "name": "BQWEB杩愯妗嗘灦",
+                "must": false
+            },
+            {
+                "code": "bqwebrtpub",
+                "name": "BQWEB基础运行框架",
+                "must": false
+            },
+            {
+                "code": "bqwebufr",
+                "name": "BQWEB自由报表运行框架",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "co",
+        "name": "管理会计",
+        "must": false,
+        "modules": [
+            {
+                "code": "cca",
+                "name": "成本中心会计",
+                "must": false
+            },
+            {
+                "code": "cm",
+                "name": "产品成本",
+                "must": false
+            },
+            {
+                "code": "mapub",
+                "name": "管理会计基础",
+                "must": false
+            },
+            {
+                "code": "nresa",
+                "name": "责任会计",
+                "must": false
+            },
+            {
+                "code": "sca",
+                "name": "成本估算",
+                "must": false
+            },
+            {
+                "code": "scaba",
+                "name": "标准成本核算",
+                "must": false
+            },
+            {
+                "code": "ica",
+                "name": "项目成本",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "fi",
+        "name": "财务管理",
+        "must": false,
+        "modules": [
+            {
+                "code": "arap",
+                "name": "应收、应付",
+                "must": false
+            },
+            {
+                "code": "erm",
+                "name": "费用管理",
+                "must": false
+            },
+            {
+                "code": "fct",
+                "name": "收付款合同",
+                "must": false
+            },
+            {
+                "code": "fiba",
+                "name": "财务自助分析",
+                "must": false
+            },
+            {
+                "code": "fipub",
+                "name": "财务基础设置",
+                "must": false
+            },
+            {
+                "code": "gl",
+                "name": "总账",
+                "must": false
+            },
+            {
+                "code": "rm",
+                "name": "收入管理",
+                "must": false
+            },
+            {
+                "code": "ebill",
+                "name": "电子凭证管理",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "hr",
+        "name": "人力资源",
+        "must": false,
+        "modules": [
+            {
+                "code": "hrbm",
+                "name": "社保福利",
+                "must": false
+            },
+            {
+                "code": "hrcm",
+                "name": "人员合同管理",
+                "must": false
+            },
+            {
+                "code": "hrfz",
+                "name": "人才盘点",
+                "must": false
+            },
+            {
+                "code": "hrhi",
+                "name": "人员信息管理",
+                "must": false
+            },
+            {
+                "code": "hrjf",
+                "name": "组织机构管理",
+                "must": false
+            },
+            {
+                "code": "hrjx",
+                "name": "绩效管理",
+                "must": false
+            },
+            {
+                "code": "hrkq",
+                "name": "假勤管理",
+                "must": false
+            },
+            {
+                "code": "hrp",
+                "name": "编制管理",
+                "must": false
+            },
+            {
+                "code": "hrpub",
+                "name": "人力资源基础设置",
+                "must": false
+            },
+            {
+                "code": "hrpx",
+                "name": "培训学习",
+                "must": false
+            },
+            {
+                "code": "hrrpt",
+                "name": "HR分析报表",
+                "must": false
+            },
+            {
+                "code": "hrsz",
+                "name": "人力设置",
+                "must": false
+            },
+            {
+                "code": "hrtrn",
+                "name": "人员变动管理",
+                "must": false
+            },
+            {
+                "code": "hrwa",
+                "name": "薪酬管理",
+                "must": false
+            },
+            {
+                "code": "hryf",
+                "name": "员工服务",
+                "must": false
+            },
+            {
+                "code": "hrys",
+                "name": "预算管理",
+                "must": false
+            },
+            {
+                "code": "hrzf",
+                "name": "组织发展",
+                "must": false
+            },
+            {
+                "code": "hrzz",
+                "name": "自助应用",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "ipm",
+        "name": "投资管理",
+        "must": false,
+        "modules": [
+            {
+                "code": "ipmam",
+                "name": "投后管理",
+                "must": false
+            },
+            {
+                "code": "ipmas",
+                "name": "投资分析",
+                "must": false
+            },
+            {
+                "code": "ipmbd",
+                "name": "基础数据及设置",
+                "must": false
+            },
+            {
+                "code": "ipmdm",
+                "name": "决策模型",
+                "must": false
+            },
+            {
+                "code": "ipmexit",
+                "name": "退出管理",
+                "must": false
+            },
+            {
+                "code": "ipmfund",
+                "name": "基金管理",
+                "must": false
+            },
+            {
+                "code": "ipmip",
+                "name": "投资计划",
+                "must": false
+            },
+            {
+                "code": "ipmpb",
+                "name": "投资决策",
+                "must": false
+            },
+            {
+                "code": "ipmpe",
+                "name": "项目后评价",
+                "must": false
+            },
+            {
+                "code": "ipmpg",
+                "name": "投资规划",
+                "must": false
+            },
+            {
+                "code": "ipmpl",
+                "name": "项目库",
+                "must": false
+            },
+            {
+                "code": "ipmrisk",
+                "name": "风险管理",
+                "must": false
+            },
+            {
+                "code": "ipmrm",
+                "name": "产权管理",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "lightapp",
+        "name": "轻量化平台",
+        "must": true,
+        "modules": [
+            {
+                "code": "graphic_report",
+                "name": "图形化报表",
+                "must": true
+            },
+            {
+                "code": "lappreportrt",
+                "name": "轻量化报表运行时平台",
+                "must": true
+            },
+            {
+                "code": "lightbq",
+                "name": "自由报表",
+                "must": true
+            },
+            {
+                "code": "lightsmart",
+                "name": "轻量化语义模型",
+                "must": true
+            },
+            {
+                "code": "platform",
+                "name": "轻量化平台",
+                "must": true
+            },
+            {
+                "code": "smartba",
+                "name": "报表自助分析平台",
+                "must": true
+            },
+            {
+                "code": "ytys",
+                "name": "友图友数",
+                "must": true
+            }
+        ]
+    },
+    {
+        "code": "mm",
+        "name": "生产制造",
+        "must": false,
+        "modules": [
+            {
+                "code": "mmbcm-mm",
+                "name": "移动条码管理-制造",
+                "must": false
+            },
+            {
+                "code": "mmbcm-scm",
+                "name": "移动条码管理-仓储",
+                "must": false
+            },
+            {
+                "code": "mmdp",
+                "name": "需求管理",
+                "must": false
+            },
+            {
+                "code": "mmdpac",
+                "name": "离散生产任务管理",
+                "must": false
+            },
+            {
+                "code": "mmecn",
+                "name": "工程变更",
+                "must": false
+            },
+            {
+                "code": "mmmps",
+                "name": "主生产计划",
+                "must": false
+            },
+            {
+                "code": "mmmrp",
+                "name": "物料需求计划",
+                "must": false
+            },
+            {
+                "code": "mmpac",
+                "name": "生产任务管理公共",
+                "must": false
+            },
+            {
+                "code": "mmppac",
+                "name": "流程生产任务管理",
+                "must": false
+            },
+            {
+                "code": "mmpps",
+                "name": "计划公共",
+                "must": false
+            },
+            {
+                "code": "mmpsc",
+                "name": "工序委外管理",
+                "must": false
+            },
+            {
+                "code": "mmpub",
+                "name": "制造公共",
+                "must": false
+            },
+            {
+                "code": "mmsfc",
+                "name": "车间管理",
+                "must": false
+            },
+            {
+                "code": "mmsop",
+                "name": "销售运营计划",
+                "must": false
+            },
+            {
+                "code": "mmpmk",
+                "name": "生产看板",
+                "must": false
+            },
+            {
+                "code": "mmpsm",
+                "name": "排产管理",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "ncpub",
+        "name": "NC公共",
+        "must": true,
+        "modules": [
+            {
+                "code": "ncpub",
+                "name": "NC公共基础",
+                "must": true
+            }
+        ]
+    },
+    {
+        "code": "pd",
+        "name": "工程基础数据",
+        "must": false,
+        "modules": [
+            {
+                "code": "pd",
+                "name": "工程基础数据",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "pm",
+        "name": "项目管理",
+        "must": false,
+        "modules": [
+            {
+                "code": "pbm",
+                "name": "预算管理",
+                "must": false
+            },
+            {
+                "code": "pcm",
+                "name": "付款合同",
+                "must": false
+            },
+            {
+                "code": "phm",
+                "name": "前期管理",
+                "must": false
+            },
+            {
+                "code": "pim",
+                "name": "立项管理",
+                "must": false
+            },
+            {
+                "code": "pma",
+                "name": "工程转固",
+                "must": false
+            },
+            {
+                "code": "pmbd",
+                "name": "基础设置",
+                "must": false
+            },
+            {
+                "code": "pmcm",
+                "name": "收款合同",
+                "must": false
+            },
+            {
+                "code": "pmdoc",
+                "name": "文档管理",
+                "must": false
+            },
+            {
+                "code": "pmf",
+                "name": "竣工管理",
+                "must": false
+            },
+            {
+                "code": "pmr",
+                "name": "物资及服务",
+                "must": false
+            },
+            {
+                "code": "pms",
+                "name": "项目启动",
+                "must": false
+            },
+            {
+                "code": "pmsch",
+                "name": "进度管理",
+                "must": false
+            },
+            {
+                "code": "pmv",
+                "name": "项目看板",
+                "must": false
+            },
+            {
+                "code": "ptm",
+                "name": "投标管理",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "qc",
+        "name": "质量管理",
+        "must": false,
+        "modules": [
+            {
+                "code": "qc",
+                "name": "质量管理",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "ria",
+        "name": "智能客户端应用平台",
+        "must": true,
+        "modules": [
+            {
+                "code": "arcp",
+                "name": "归档平台",
+                "must": true
+            },
+            {
+                "code": "baseapp",
+                "name": "baseapp",
+                "must": true
+            },
+            {
+                "code": "baseapp_0",
+                "name": "baseapp",
+                "must": true
+            },
+            {
+                "code": "bcbd",
+                "name": "条码配置",
+                "must": true
+            },
+            {
+                "code": "epmex",
+                "name": "企业绩效平台Excel端",
+                "must": true
+            },
+            {
+                "code": "epmp",
+                "name": "企业绩效管理平台",
+                "must": true
+            },
+            {
+                "code": "ffw",
+                "name": "基础框架",
+                "must": true
+            },
+            {
+                "code": "fip",
+                "name": "会计平台",
+                "must": true
+            },
+            {
+                "code": "iaudit",
+                "name": "标准接口",
+                "must": true
+            },
+            {
+                "code": "lcdp",
+                "name": "应用工厂",
+                "must": true
+            },
+            {
+                "code": "opm",
+                "name": "OpenAPI管理",
+                "must": true
+            },
+            {
+                "code": "opm_0",
+                "name": "OpenAPI管理",
+                "must": true
+            },
+            {
+                "code": "pubapp",
+                "name": "RIA运行框架",
+                "must": true
+            },
+            {
+                "code": "pubapputil",
+                "name": "pubapputil",
+                "must": true
+            },
+            {
+                "code": "pubapp_0",
+                "name": "RIA运行框架",
+                "must": true
+            },
+            {
+                "code": "riaaam",
+                "name": "应用资产管理",
+                "must": true
+            },
+            {
+                "code": "riaadp",
+                "name": "分布系统管理",
+                "must": true
+            },
+            {
+                "code": "riaam",
+                "name": "权限管理",
+                "must": true
+            },
+            {
+                "code": "riaam_0",
+                "name": "权限管理",
+                "must": true
+            },
+            {
+                "code": "riacc",
+                "name": "客户化配置",
+                "must": true
+            },
+            {
+                "code": "riadc",
+                "name": "开发配置工具",
+                "must": true
+            },
+            {
+                "code": "riaiw",
+                "name": "实施平台",
+                "must": true
+            },
+            {
+                "code": "riamm",
+                "name": "模型定制与管理",
+                "must": true
+            },
+            {
+                "code": "riaorg",
+                "name": "组织管理",
+                "must": true
+            },
+            {
+                "code": "riaorg_0",
+                "name": "组织管理",
+                "must": true
+            },
+            {
+                "code": "riart",
+                "name": "RIA运行框架",
+                "must": true
+            },
+            {
+                "code": "riasm",
+                "name": "系统管理",
+                "must": true
+            },
+            {
+                "code": "riawf",
+                "name": "流程管理",
+                "must": true
+            },
+            {
+                "code": "uapbd",
+                "name": "基础数据",
+                "must": true
+            },
+            {
+                "code": "uapbd_0",
+                "name": "基础数据",
+                "must": true
+            },
+            {
+                "code": "uapwb",
+                "name": "uapServer工作台",
+                "must": true
+            },
+            {
+                "code": "ufofr",
+                "name": "报表平台",
+                "must": true
+            },
+            {
+                "code": "workbench",
+                "name": "workbench",
+                "must": true
+            },
+            {
+                "code": "workbench_0",
+                "name": "workbench",
+                "must": true
+            }
+        ]
+    },
+    {
+        "code": "scap",
+        "name": "国资服务",
+        "must": false,
+        "modules": [
+            {
+                "code": "scaplm",
+                "name": "大额资金监测",
+                "must": false
+            },
+            {
+                "code": "scapso",
+                "name": "组织机构信息库",
+                "must": false
+            },
+            {
+                "code": "scapto",
+                "name": "三重一大",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "scct",
+        "name": "供应链控制塔",
+        "must": false,
+        "modules": [
+            {
+                "code": "scctac",
+                "name": "自动决策",
+                "must": false
+            },
+            {
+                "code": "scctdv",
+                "name": "端到端可视",
+                "must": false
+            },
+            {
+                "code": "scctpa",
+                "name": "预测性洞察",
+                "must": false
+            },
+            {
+                "code": "scctpub",
+                "name": "供应链控制塔基础",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "scm",
+        "name": "供应链",
+        "must": false,
+        "modules": [
+            {
+                "code": "bc",
+                "name": "条码管理",
+                "must": false
+            },
+            {
+                "code": "bcsi",
+                "name": "无线设备接口",
+                "must": false
+            },
+            {
+                "code": "credit",
+                "name": "销售信用",
+                "must": false
+            },
+            {
+                "code": "ct",
+                "name": "合同管理",
+                "must": false
+            },
+            {
+                "code": "dm",
+                "name": "运输管理 ",
+                "must": false
+            },
+            {
+                "code": "ia",
+                "name": "存货核算",
+                "must": false
+            },
+            {
+                "code": "ic",
+                "name": "库存管理",
+                "must": false
+            },
+            {
+                "code": "invp",
+                "name": "库存计划",
+                "must": false
+            },
+            {
+                "code": "me",
+                "name": "营销费用管理",
+                "must": false
+            },
+            {
+                "code": "mpp",
+                "name": "采购计划",
+                "must": false
+            },
+            {
+                "code": "price",
+                "name": "价格管理",
+                "must": false
+            },
+            {
+                "code": "pu",
+                "name": "采购管理",
+                "must": false
+            },
+            {
+                "code": "purp",
+                "name": "采购价格",
+                "must": false
+            },
+            {
+                "code": "sc",
+                "name": "委外加工",
+                "must": false
+            },
+            {
+                "code": "scmpub",
+                "name": "供应链基础设置",
+                "must": false
+            },
+            {
+                "code": "sn",
+                "name": "序列号管理",
+                "must": false
+            },
+            {
+                "code": "so",
+                "name": "销售管理",
+                "must": false
+            },
+            {
+                "code": "sr",
+                "name": "销售返利",
+                "must": false
+            },
+            {
+                "code": "to",
+                "name": "内部交易",
+                "must": false
+            },
+            {
+                "code": "wmsi",
+                "name": "WMS集成接口",
+                "must": false
+            },
+            {
+                "code": "yxy",
+                "name": "营销云",
+                "must": false
+            },
+            {
+                "code": "yyc",
+                "name": "采购云",
+                "must": false
+            },
+            {
+                "code": "imp",
+                "name": "制造云",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "sem",
+        "name": "企业绩效管理",
+        "must": false,
+        "modules": [
+            {
+                "code": "bcs",
+                "name": "集团财务合并",
+                "must": false
+            },
+            {
+                "code": "bgr",
+                "name": "集团报表",
+                "must": false
+            },
+            {
+                "code": "dcpp",
+                "name": "外系统数据采集",
+                "must": false
+            },
+            {
+                "code": "em",
+                "name": "费控服务",
+                "must": false
+            },
+            {
+                "code": "epa",
+                "name": "企业绩效分析",
+                "must": false
+            },
+            {
+                "code": "tb",
+                "name": "全面预算",
+                "must": false
+            },
+            {
+                "code": "ufoc",
+                "name": "合并报表",
+                "must": false
+            },
+            {
+                "code": "ufoe",
+                "name": "企业报表",
+                "must": false
+            },
+            {
+                "code": "dafi",
+                "name": "财务主题",
+                "must": false
+            },
+            {
+                "code": "dapub",
+                "name": "数据分析基础",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "ssc",
+        "name": "共享服务",
+        "must": false,
+        "modules": [
+            {
+                "code": "imag",
+                "name": "影像管理",
+                "must": false
+            },
+            {
+                "code": "sscbd",
+                "name": "基础设置",
+                "must": false
+            },
+            {
+                "code": "ssccm",
+                "name": "信用管理",
+                "must": false
+            },
+            {
+                "code": "sscia",
+                "name": "智能审核",
+                "must": false
+            },
+            {
+                "code": "sscip",
+                "name": "集成平台",
+                "must": false
+            },
+            {
+                "code": "sscivm",
+                "name": "发票中心",
+                "must": false
+            },
+            {
+                "code": "ssckm",
+                "name": "知识管理",
+                "must": false
+            },
+            {
+                "code": "sscpe",
+                "name": "绩效评价",
+                "must": false
+            },
+            {
+                "code": "sscpfa",
+                "name": "绩效分析",
+                "must": false
+            },
+            {
+                "code": "sscpfm",
+                "name": "绩效管理",
+                "must": false
+            },
+            {
+                "code": "sscpub",
+                "name": "共享服务公共基础",
+                "must": false
+            },
+            {
+                "code": "sscqm",
+                "name": "共享稽核",
+                "must": false
+            },
+            {
+                "code": "sscrp",
+                "name": "全员业务平台",
+                "must": true
+            },
+            {
+                "code": "sscsfm",
+                "name": "满意度管理",
+                "must": false
+            },
+            {
+                "code": "ssctp",
+                "name": "作业平台",
+                "must": true
+            },
+            {
+                "code": "sscwo",
+                "name": "工单",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "tm",
+        "name": "财资管理",
+        "must": false,
+        "modules": [
+            {
+                "code": "batm",
+                "name": "资金分析、财资分析",
+                "must": false
+            },
+            {
+                "code": "bgm",
+                "name": "保函管理",
+                "must": false
+            },
+            {
+                "code": "bond",
+                "name": "发债管理",
+                "must": false
+            },
+            {
+                "code": "ccc",
+                "name": "授信管理",
+                "must": false
+            },
+            {
+                "code": "cdmc",
+                "name": "贷款管理",
+                "must": false
+            },
+            {
+                "code": "cmp",
+                "name": "现金管理",
+                "must": false
+            },
+            {
+                "code": "fbm",
+                "name": "商业汇票、银行票据池、票据集中管理",
+                "must": false
+            },
+            {
+                "code": "fd",
+                "name": "融资筹划",
+                "must": false
+            },
+            {
+                "code": "filc",
+                "name": "融资租赁",
+                "must": false
+            },
+            {
+                "code": "fmc",
+                "name": "财资费用",
+                "must": false
+            },
+            {
+                "code": "fmr",
+                "name": "投融资报表",
+                "must": false
+            },
+            {
+                "code": "fp",
+                "name": "资金计划",
+                "must": false
+            },
+            {
+                "code": "fts",
+                "name": "资金结算",
+                "must": false
+            },
+            {
+                "code": "gpmc",
+                "name": "担保管理",
+                "must": false
+            },
+            {
+                "code": "icdmc",
+                "name": "内贷管理",
+                "must": false
+            },
+            {
+                "code": "ifac",
+                "name": "银行存款管理、内部存款管理",
+                "must": false
+            },
+            {
+                "code": "ifm",
+                "name": "金融投资",
+                "must": false
+            },
+            {
+                "code": "lcm",
+                "name": "信用证管理",
+                "must": false
+            },
+            {
+                "code": "obm",
+                "name": "银企直联",
+                "must": false
+            },
+            {
+                "code": "ps",
+                "name": "付款排程",
+                "must": false
+            },
+            {
+                "code": "sf",
+                "name": "资金调度",
+                "must": false
+            },
+            {
+                "code": "sp",
+                "name": "结算平台",
+                "must": false
+            },
+            {
+                "code": "tam",
+                "name": "账户管理",
+                "must": false
+            },
+            {
+                "code": "tmpf",
+                "name": "资金预测",
+                "must": false
+            },
+            {
+                "code": "tmpub",
+                "name": "资金基础设置",
+                "must": false
+            },
+            {
+                "code": "bis",
+                "name": "财资集成服务",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "uapServer",
+        "name": "UAP Server",
+        "must": true,
+        "modules": [
+            {
+                "code": "0098",
+                "name": "ufjdk",
+                "must": true
+            },
+            {
+                "code": "uapbs",
+                "name": "UAP基础服务",
+                "must": true
+            },
+            {
+                "code": "uapfw",
+                "name": "UAP基础技术",
+                "must": true
+            },
+            {
+                "code": "uapmq",
+                "name": "消息中间件",
+                "must": true
+            },
+            {
+                "code": "uapmw",
+                "name": "应用服务器",
+                "must": true
+            },
+            {
+                "code": "uapsc",
+                "name": "系统配置",
+                "must": true
+            },
+            {
+                "code": "uapss",
+                "name": "安全搜索框架",
+                "must": true
+            },
+            {
+                "code": "uapmc",
+                "name": "UAPConsole",
+                "must": true
+            }
+        ]
+    },
+    {
+        "code": "xi",
+        "name": "集成平台",
+        "must": false,
+        "modules": [
+            {
+                "code": "ufesbexpress",
+                "name": "数据交换管理",
+                "must": false
+            }
+        ]
+    },
+    {
+        "code": "iap",
+        "name": "智能应用",
+        "must": false,
+        "modules": [
+            {
+                "code": "atp",
+                "name": "自动化任务平台",
+                "must": false
+            },
+            {
+                "code": "icl",
+                "name": "智能结账",
+                "must": false
+            }
+        ]
+    }
+]

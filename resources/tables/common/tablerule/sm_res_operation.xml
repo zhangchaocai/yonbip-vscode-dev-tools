@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="sm_res_operation">
+	<tableName>sm_res_operation</tableName>
+	<pk>pk_res_operation</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>sm_op_busiop</tableName>
+			<foreignKeyColumn>pk_operation</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+		</subTable>		
+	</subTableGroup>
+</hierarchy>

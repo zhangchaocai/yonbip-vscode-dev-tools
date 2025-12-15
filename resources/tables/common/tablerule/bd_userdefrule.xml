@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bd_userdefrule">
+	<tableName>bd_userdefrule</tableName>
+	<pk>pk_userdefrule</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>bd_userdefruleref</tableName>
+			<foreignKeyColumn>pk_userdefrule</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+		<subTable>
+			<tableName>bd_userdefitem</tableName>
+			<foreignKeyColumn>pk_userdefrule</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>003</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

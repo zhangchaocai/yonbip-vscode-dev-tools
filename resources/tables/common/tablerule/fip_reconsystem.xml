@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="fip_reconsystem">
+  <tableName>fip_reconsystem</tableName>
+  <sqlNo>001</sqlNo>
+  <subTableGroup>
+    <subTable>
+      <tableName>fip_rs_orgdim</tableName>
+      <foreignKeyColumn>pk_reconsystem</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>002</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>fip_rs_dim</tableName>
+      <foreignKeyColumn>pk_reconsystem</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>003</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>fip_rs_defcol</tableName>
+      <foreignKeyColumn>pk_reconsystem</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>004</sqlNo>
+      <subTableGroup/>
+    </subTable>
+    <subTable>
+      <tableName>fip_rs_amttype</tableName>
+      <foreignKeyColumn>pk_reconsystem</foreignKeyColumn>
+      <whereCondition/>
+      <sqlNo>005</sqlNo>
+      <subTableGroup/>
+    </subTable>
+  </subTableGroup>
+</hierarchy>

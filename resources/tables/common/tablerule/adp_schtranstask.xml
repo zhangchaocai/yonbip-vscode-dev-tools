@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="adp_schtranstask">
+	<tableName>adp_schtranstask</tableName>
+	<pk>taskid</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>adp_tasktranscnt</tableName>
+			<foreignKeyColumn>transcontentid</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

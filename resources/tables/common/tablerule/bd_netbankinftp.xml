@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bd_netbankinftp">
+	<tableName>bd_netbankinftp</tableName>
+	<pk>pk_netbankinftp</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>bd_templetitem</tableName>
+			<foreignKeyColumn>pk_netbankinftp</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

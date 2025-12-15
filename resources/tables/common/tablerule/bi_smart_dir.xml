@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="bi_smart_dir">
+ <tableName>bi_smart_dir</tableName>
+ <pk>pk_dir</pk>
+ <sqlNo>001</sqlNo>
+ <subTableGroup>
+  <subTable>
+   <tableName>bi_smart_def</tableName>
+   <foreignKeyColumn>pk_dir</foreignKeyColumn>
+   <whereCondition/>
+   <sqlNo>002</sqlNo>
+   <subTableGroup>
+      <subTable>
+         <tableName>iufo_tracedatadispatch</tableName>
+         <foreignKeyColumn>pk_smart</foreignKeyColumn>
+         <whereCondition/>
+         <sqlNo>003</sqlNo>
+	 	 <subTableGroup/>	
+	  </subTable>
+   </subTableGroup>	
+  </subTable>
+ </subTableGroup>
+</hierarchy>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding='gb2312'?>
+<hierarchy docType="SDP_MULTI-TABLE_HIERARCHY" name="pub_query_templet">
+	<tableName>pub_query_templet</tableName>
+	<pk>id</pk>
+	<sqlNo>001</sqlNo>
+	<subTableGroup>
+		<subTable>
+			<tableName>pub_query_condition</tableName>
+			<foreignKeyColumn>pk_templet</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>002</sqlNo>
+			<subTableGroup/>
+		</subTable>
+		<subTable>
+			<tableName>pub_queryscheme</tableName>
+			<foreignKeyColumn>pk_template</foreignKeyColumn>
+			<whereCondition/>
+			<sqlNo>003</sqlNo>
+			<subTableGroup/>
+		</subTable>
+	</subTableGroup>
+</hierarchy>

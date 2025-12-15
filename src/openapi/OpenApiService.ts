@@ -1,0 +1,419 @@
+import * as vscode from 'vscode';
+import axios from 'axios';
+import { createHash } from 'crypto';
+import { OpenApiTokenUtils } from '../utils/OpenApiTokenUtils';
+import { StatisticsService } from '../utils/StatisticsService';
+
+/**
+ * OpenAPI配置接口
+ */
+export type HomeVersionOption = '2105及之后版本' | '2105之前版本';
+export interface OpenApiConfig {
+    id: string;
+    name: string; // 名称
+    homeVersion: HomeVersionOption; // Home版本
+    ip: string; // IP
+    port: number; // 端口
+    accountCode: string; // 帐套编码
+    appId: string; // APP ID
+    appSecret: string; // APP Secret
+    userCode: string; // 用户编码
+    userPassword?: string; // 用户密码（可选）
+    publicKey?: string; // 公钥（可选）
+}
+
+/**
+ * HTTP请求方法
+ */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+
+/**
+ * API请求参数
+ */
+export interface ApiRequest {
+    method: HttpMethod;
+    url: string;
+    headers?: Record<string, string>;
+    params?: Record<string, any>;
+    body?: any;
+}
+
+/**
+ * API响应结果
+ */
+export interface ApiResponse {
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    data: any;
+    duration: number;
+}
+
+/**
+ * OpenAPI服务类
+ */
+export class OpenApiService {
+    private configs: OpenApiConfig[];
+    private currentConfigId: string;
+    private context: vscode.ExtensionContext;
+
+    constructor(context: vscode.ExtensionContext) {
+        this.context = context;
+        const data = this.loadConfigs();
+        this.configs = data.configs;
+        this.currentConfigId = data.currentConfigId;
+    }
+
+    /**
+     * 加载所有配置
+     */
+    private loadConfigs(): { configs: OpenApiConfig[], currentConfigId: string } {
+        const configs = this.context.globalState.get<OpenApiConfig[]>('openapi.configs');
+        const currentConfigId = this.context.globalState.get<string>('openapi.currentConfigId');
+        
+        return {
+            configs: configs || [],
+            currentConfigId: currentConfigId || ''
+        };
+    }
+
+    /**
+     * 保存所有配置
+     */
+    public async saveConfigs(configs: OpenApiConfig[], currentConfigId: string): Promise<void> {
+        this.configs = configs;
+        this.currentConfigId = currentConfigId;
+        await this.context.globalState.update('openapi.configs', configs);
+        await this.context.globalState.update('openapi.currentConfigId', currentConfigId);
+    }
+
+    /**
+     * 获取所有配置
+     */
+    public getConfigs(): OpenApiConfig[] {
+        return [...this.configs];
+    }
+
+    /**
+     * 获取当前配置
+     */
+    public getCurrentConfig(): OpenApiConfig | undefined {
+        return this.configs.find(config => config.id === this.currentConfigId);
+    }
+
+    /**
+     * 设置当前配置
+     */
+    public async setCurrentConfig(configId: string): Promise<void> {
+        this.currentConfigId = configId;
+        await this.context.globalState.update('openapi.currentConfigId', configId);
+    }
+
+    /**
+     * 添加新配置
+     */
+    public async addConfig(config: OpenApiConfig): Promise<void> {
+        this.configs.push(config);
+        await this.saveConfigs(this.configs, this.currentConfigId);
+    }
+
+    /**
+     * 更新配置
+     */
+    public async updateConfig(config: OpenApiConfig): Promise<void> {
+        const index = this.configs.findIndex(c => c.id === config.id);
+        if (index !== -1) {
+            this.configs[index] = config;
+            await this.saveConfigs(this.configs, this.currentConfigId);
+        }
+    }
+
+    /**
+     * 删除配置
+     */
+    public async deleteConfig(configId: string): Promise<void> {
+        this.configs = this.configs.filter(config => config.id !== configId);
+        // 如果删除的是当前配置，设置第一个配置为当前配置
+        if (this.currentConfigId === configId && this.configs.length > 0) {
+            this.currentConfigId = this.configs[0].id;
+        } else if (this.configs.length === 0) {
+            this.currentConfigId = '';
+        }
+        await this.saveConfigs(this.configs, this.currentConfigId);
+    }
+
+    /**
+     * 发送API请求
+     */
+    public async sendRequest(request: ApiRequest, configId?: string): Promise<ApiResponse> {
+        const config = configId 
+            ? this.configs.find(c => c.id === configId) 
+            : this.getCurrentConfig();
+            
+        if (!config) {
+            throw new Error('未找到有效的OpenAPI配置');
+        }
+        
+        const startTime = Date.now();
+        
+        try {
+            // 获取token
+            let tokenResult: any = null;
+            let securityKey: string | null = null;
+            try {
+                console.log('开始获取token', { configId: config.id, configName: config.name });
+                const tokenResponse = await OpenApiTokenUtils.getToken(config);
+                console.log('获取token响应:', tokenResponse);
+                if (tokenResponse && tokenResponse.data && tokenResponse.data.access_token) {
+                    tokenResult = tokenResponse.data;
+                    securityKey = tokenResponse.data.security_key || null;
+                    console.log('成功获取access_token和security_key');
+                } else {
+                    console.warn('未获取到access_token，使用原有认证方式');
+                }
+            } catch (tokenError) {
+                console.error('获取token失败:', tokenError);
+                // token获取失败不中断请求，继续使用原有的认证方式
+            }
+            
+            // 构建完整URL
+            const fullUrl = this.buildUrl(request.url, config);
+            
+            // 构建请求配置
+            const axiosConfig: any = {
+                method: request.method,
+                url: fullUrl,
+                timeout: 30000,
+                headers: {
+                    ...(request.headers || {})
+                }
+            };
+
+            // 添加请求参数
+            if (request.params) {
+                axiosConfig.params = request.params;
+            }
+
+            // 处理请求体
+            let requestBody = request.body;
+            if (request.body) {
+                // 如果有securityKey，则根据安全级别处理请求体
+                if (securityKey) {
+                    requestBody = this.dealRequestBody(JSON.stringify(request.body), securityKey, 'L0');
+                } else {
+                    requestBody = typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
+                }
+                
+                axiosConfig.data = requestBody;
+                if (!axiosConfig.headers['Content-Type']) {
+                    axiosConfig.headers['Content-Type'] = 'application/json;charset=utf-8';
+                }
+            }
+
+            // 添加认证头
+            if (tokenResult && tokenResult.access_token) {
+                // 使用新的认证方式
+                axiosConfig.headers['access_token'] = tokenResult.access_token;
+                axiosConfig.headers['client_id'] = config.appId;
+                
+                // 生成签名
+                const signContent = `${config.appId}${requestBody || ''}${config.publicKey || ''}`;
+                const signature = this.generateSignature(signContent, config.publicKey || '');
+                axiosConfig.headers['signature'] = signature;
+                
+                // 添加其他必需的请求头
+                axiosConfig.headers['repeat_check'] = 'Y';
+                axiosConfig.headers['ucg_flag'] = 'y';
+                
+                console.log('使用新的认证方式');
+            } else if (config.appId && config.appSecret) {
+                // 回退到原有的Basic认证
+                axiosConfig.headers['Authorization'] = this.generateAuthHeader(request, config);
+                console.log('回退到Basic认证');
+            }
+
+            // 附加来自配置的业务头
+            if (config.userCode) {
+                axiosConfig.headers['X-User-Code'] = config.userCode;
+            }
+            if (config.accountCode) {
+                axiosConfig.headers['X-Account-Code'] = config.accountCode;
+            }
+
+            console.log('发送请求:', {
+                method: axiosConfig.method,
+                url: axiosConfig.url,
+                headers: axiosConfig.headers
+            });
+
+            // 发送请求
+            const response: any = await axios(axiosConfig);
+            
+            // 处理响应体
+            let responseData = response.data;
+            if (securityKey && response.data) {
+                // 如果有securityKey，则根据安全级别处理响应体
+                const responseStr = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+                responseData = this.dealResponseBody(responseStr, securityKey, 'L0');
+                
+                // 尝试解析JSON
+                try {
+                    responseData = JSON.parse(responseData);
+                } catch (e) {
+                    // 如果解析失败，保持原样
+                }
+            }
+            
+            const duration = Date.now() - startTime;
+            
+            console.log('请求成功:', {
+                status: response.status,
+                statusText: response.statusText,
+                duration: duration
+            });
+            
+            // 记录OpenAPI测试统计
+            StatisticsService.incrementCount(StatisticsService.OPENAPI_TEST_COUNT);
+            
+            return {
+                status: response.status,
+                statusText: response.statusText,
+                headers: response.headers,
+                data: responseData,
+                duration
+            };
+
+        } catch (error: any) {
+            const duration = Date.now() - startTime;
+            
+            console.error('请求失败:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
+            
+            if (error.response) {
+                // 服务器响应错误
+                return {
+                    status: error.response.status,
+                    statusText: error.response.statusText,
+                    headers: error.response.headers,
+                    data: error.response.data,
+                    duration
+                };
+            } else {
+                // 网络错误或其他错误
+                throw new Error(`请求失败: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * 构建完整URL
+     */
+    private buildUrl(path: string, config: OpenApiConfig): string {
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+            return path;
+        }
+        
+        const baseUrl = `http://${config.ip}:${config.port}`;
+        const url = path.startsWith('/') ? path : `/${path}`;
+        
+        return `${baseUrl}${url}`;
+    }
+
+    /**
+     * 生成认证头（APP ID/APP Secret）
+     */
+    private generateAuthHeader(request: ApiRequest, config: OpenApiConfig): string {
+        const credentials = `${config.appId}:${config.appSecret}`;
+        return `Basic ${Buffer.from(credentials).toString('base64')}`;
+    }
+
+    /**
+     * 根据加密等级加密请求体
+     * @param source 原始数据
+     * @param securityKey 安全密钥
+     * @param level 加密等级
+     * @returns 处理后的数据
+     */
+    private dealRequestBody(source: string, securityKey: string, level: string): string {
+        // 目前只实现L0级别（不加密、不压缩）
+        // 后续可根据需要实现其他级别的加密和压缩
+        if (level === 'L0') {
+            return source;
+        }
+        // 其他级别暂未实现，返回原始数据
+        return source;
+    }
+
+    /**
+     * 根据加密等级解密返回数据
+     * @param source 原始数据
+     * @param securityKey 安全密钥
+     * @param level 解密等级
+     * @returns 处理后的数据
+     */
+    private dealResponseBody(source: string, securityKey: string, level: string): string {
+        // 目前只实现L0级别（不加密、不压缩）
+        // 后续可根据需要实现其他级别的解密和解压缩
+        if (level === 'L0') {
+            return source;
+        }
+        // 其他级别暂未实现，返回原始数据
+        return source;
+    }
+
+    /**
+     * 生成签名
+     * @param content 签名内容
+     * @param publicKey 公钥
+     * @returns 签名结果
+     */
+    private generateSignature(content: string, publicKey: string): string {
+        // 使用SHA256生成签名
+        const hash = createHash('sha256');
+        hash.update(content);
+        return hash.digest('hex');
+    }
+
+    /**
+     * 测试连接
+     */
+    public async testConnection(configId?: string): Promise<{ success: boolean; message: string }> {
+        try {
+            const config = configId 
+                ? this.configs.find(c => c.id === configId) 
+                : this.getCurrentConfig();
+                
+            if (!config) {
+                return { success: false, message: '未找到有效的OpenAPI配置' };
+            }
+            
+            const response = await this.sendRequest({
+                method: 'GET',
+                url: '/api/health'
+            }, configId);
+            
+            return { 
+                success: response.status >= 200 && response.status < 300,
+                message: response.status >= 200 && response.status < 300 
+                    ? '连接成功' 
+                    : `连接失败: ${response.status} ${response.statusText}`
+            };
+        } catch (error: any) {
+            return { success: false, message: `连接失败: ${error.message}` };
+        }
+    }
+
+    /**
+     * 格式化JSON响应
+     */
+    public formatJsonResponse(data: any): string {
+        try {
+            return JSON.stringify(data, null, 2);
+        } catch (error) {
+            return String(data);
+        }
+    }
+}
