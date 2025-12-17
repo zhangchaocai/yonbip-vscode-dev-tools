@@ -404,6 +404,11 @@ export class NCHomeConfigService {
                 case 'mysql8':
                     connectionResult = await this.testMySQLConnection(secureDataSource);
                     break;
+                case 'dm':
+                case 'dmdb':
+                case 'dameng':
+                    connectionResult = await this.testDMConnection(secureDataSource);
+                    break;
                 case 'oracle':
                 case 'oracle11g':
                 case 'oracle12c':
@@ -526,6 +531,55 @@ export class NCHomeConfigService {
             return {
                 success: false,
                 message: `PostgreSQL连接失败: ${error.message}`,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * 测试达梦数据库连接
+     */
+    private async testDMConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        try {
+            // 动态导入达梦数据库驱动
+            const dmdb = await import('dmdb');
+
+            // 确保密码是字符串类型
+            let password = dataSource.password || '';
+            if (typeof password !== 'string') {
+                password = String(password);
+            }
+
+            const connectionConfig = {
+                host: dataSource.host,
+                port: dataSource.port,
+                user: dataSource.username,
+                password: password,
+                database: dataSource.databaseName,
+                connectTimeout: 10000,
+                socketTimeout: 10000
+            };
+
+            this.outputChannel.appendLine(`连接达梦数据库: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}, 密码值: ${password}`);
+
+            const connection = await dmdb.createConnection(connectionConfig);
+            await connection.connect();
+
+            // 执行简单的查询测试
+            const result = await connection.execute('SELECT 1 as test FROM DUAL');
+            await connection.close();
+
+            return {
+                success: true,
+                message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}, 数据库: ${dataSource.databaseName}`
+            };
+
+        } catch (error: any) {
+            this.outputChannel.appendLine(`达梦数据库连接失败详情: ${error.message}`);
+            return {
+                success: false,
+                message: `达梦数据库连接失败: ${error.message}`,
                 error: error.message
             };
         }

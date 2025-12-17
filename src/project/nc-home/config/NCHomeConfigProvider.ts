@@ -2820,9 +2820,11 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             
             const portValue = document.getElementById('dsPort').value;
             const dsTypeValue = document.getElementById('dsType').value;
-            // 获取数据库版本值（如果存在）
+            // 获取数据库版本值（如果存在且可见）
             const dsVersionSelect = document.getElementById('dsVersion');
-            const dsVersionValue = dsVersionSelect ? dsVersionSelect.value : dsTypeValue;
+            const dsVersionGroup = document.getElementById('dsVersionGroup');
+            // 只有当版本选择器存在且可见时才使用其值
+            const dsVersionValue = (dsVersionSelect && dsVersionGroup && dsVersionGroup.style.display !== 'none') ? dsVersionSelect.value : dsTypeValue;
             
             const dataSource = {
                 name: document.getElementById('dsName').value,

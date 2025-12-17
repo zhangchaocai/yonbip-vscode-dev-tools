@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Tools",
   "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.1.16",
+  "version": "2.1.17",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -604,6 +604,7 @@
     "oracledb": "^6.9.0",
     "pg": "^8.16.3",
     "ws": "^8.18.3",
-    "xml2js": "^0.6.2"
+    "xml2js": "^0.6.2",
+    "dmdb": "^1.0.0"
   }
 }
