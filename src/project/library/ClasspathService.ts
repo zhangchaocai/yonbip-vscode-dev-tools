@@ -87,6 +87,7 @@ export class ClasspathService {
      */
     private scanForSourcePaths(rootPath: string): string[] {
         const sourcePaths: string[] = [];
+        // 使用正斜杠格式的路径模式，以确保跨平台兼容性
         const targetPatterns = ['src/client', 'src/public', 'src/private'];
 
         const scanDirectory = (dirPath: string, relativePath: string = '') => {
@@ -98,9 +99,13 @@ export class ClasspathService {
                         const itemPath = path.join(dirPath, item.name);
                         const itemRelativePath = relativePath ? path.join(relativePath, item.name) : item.name;
                         
+                        // 标准化路径分隔符为正斜杠，确保在Windows和Unix系统上都能正确匹配
+                        const normalizedRelativePath = itemRelativePath.split(path.sep).join('/');
+                        
                         // 检查当前路径是否匹配目标模式
                         for (const pattern of targetPatterns) {
-                            if (itemRelativePath.endsWith(pattern)) {
+                            if (normalizedRelativePath.endsWith(pattern)) {
+                                // 保持原始路径格式存储，但使用标准化路径进行匹配
                                 sourcePaths.push(itemRelativePath);
                                 this.outputChannel.appendLine(`找到匹配路径: ${itemRelativePath}`);
                             }
