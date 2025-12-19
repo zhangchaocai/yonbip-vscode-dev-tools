@@ -103,3 +103,6 @@ Microsoft可能要求手机号验证，这是正常的安全流程：
 ---
 
 **立即开始：** https://marketplace.visualstudio.com/manage 🚀
+
+
+ovsx publish your-extension.vsix --pat <your-personal-access-token>

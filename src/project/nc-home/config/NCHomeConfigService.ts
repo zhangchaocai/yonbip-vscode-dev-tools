@@ -563,19 +563,14 @@ export class NCHomeConfigService {
             this.outputChannel.appendLine(`连接达梦数据库: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
             this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}, 密码值: ${password}`);
 
-            const connection = await dmdb.createConnection(connectionConfig);
-            await connection.connect();
-
+            const connection = await dmdb.getConnection(connectionConfig);
             // 执行简单的查询测试
             const result = await connection.execute('SELECT 1 as test FROM DUAL');
             await connection.close();
-
             return {
                 success: true,
                 message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}, 数据库: ${dataSource.databaseName}`
-            };
-
-        } catch (error: any) {
+            };        } catch (error: any) {
             this.outputChannel.appendLine(`达梦数据库连接失败详情: ${error.message}`);
             return {
                 success: false,
