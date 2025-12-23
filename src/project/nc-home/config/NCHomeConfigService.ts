@@ -200,6 +200,7 @@ export class NCHomeConfigService {
 
         return {
             homePath: '',
+            homeVersion: undefined, // 默认为undefined，后续会尝试从HOME目录获取
             exportAllsql: true,
             customTableCheck: false,
             showLocalDatadict: false,

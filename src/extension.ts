@@ -323,4 +323,7 @@ export function deactivate() {
 	if (macHomeConversionService) {
 		macHomeConversionService.dispose();
 	}
+	
+	// 释放图标主题更新器资源
+	IconThemeUpdater.dispose();
 }

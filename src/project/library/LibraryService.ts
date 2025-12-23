@@ -1619,8 +1619,27 @@ export class LibraryService {
         try {
             const javaRuntimes: any[] = [];
             //获取home版本
-            const versionStr = this.configService.getConfig().homeVersion 
-
+            let versionStr = this.configService.getConfig().homeVersion;
+            
+            // 如果homeVersion未设置，尝试从HOME目录获取版本信息
+            if (!versionStr) {
+                try {
+                    const homePath = this.configService.getConfig().homePath;
+                    if (homePath) {
+                        const { getHomeVersion, findClosestHomeVersion } = require('../../utils/HomeVersionUtils');
+                        const homeVersion = getHomeVersion(homePath);
+                        versionStr = findClosestHomeVersion(homeVersion);
+                        
+                        // 临时更新配置，但不保存到持久化存储
+                        if (versionStr) {
+                            this.outputChannel.appendLine(`从HOME目录获取到版本信息: ${versionStr}`);
+                        }
+                    }
+                } catch (error) {
+                    this.outputChannel.appendLine(`尝试从HOME目录获取版本信息失败: ${error}`);
+                }
+            }
+            
             const version = versionStr ? parseInt(versionStr, 10) : 0;
 
             // 根据home版本确定需要的JDK版本
@@ -1749,7 +1768,27 @@ export class LibraryService {
             const javaRuntimes: any[] = [];
             
             // 获取home版本
-            const versionStr = this.configService.getConfig().homeVersion;
+            let versionStr = this.configService.getConfig().homeVersion;
+            
+            // 如果homeVersion未设置，尝试从HOME目录获取版本信息
+            if (!versionStr) {
+                try {
+                    const homePath = this.configService.getConfig().homePath;
+                    if (homePath) {
+                        const { getHomeVersion, findClosestHomeVersion } = require('../../utils/HomeVersionUtils');
+                        const homeVersion = getHomeVersion(homePath);
+                        versionStr = findClosestHomeVersion(homeVersion);
+                        
+                        // 临时更新配置，但不保存到持久化存储
+                        if (versionStr) {
+                            this.outputChannel.appendLine(`从HOME目录获取到版本信息: ${versionStr}`);
+                        }
+                    }
+                } catch (error) {
+                    this.outputChannel.appendLine(`尝试从HOME目录获取版本信息失败: ${error}`);
+                }
+            }
+            
             const version = versionStr ? parseInt(versionStr, 10) : 0;
 
             // 根据home版本确定需要的JDK版本

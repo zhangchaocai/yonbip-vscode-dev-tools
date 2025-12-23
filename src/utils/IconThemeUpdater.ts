@@ -20,6 +20,9 @@ export class IconThemeUpdater {
     // 标记是否正在刷新中，避免并行刷新
     private static isRefreshing = false;
     
+    // 存储文件监视器实例，以便后续清理
+    private static iconThemeWatcher: vscode.FileSystemWatcher | null = null;
+    
     /**
      * 初始化图标主题路径
      * @param context 扩展上下文
@@ -47,17 +50,17 @@ export class IconThemeUpdater {
         );
         
         // 注册配置文件变化事件 - 使用防抖
-        const iconThemeWatcher = vscode.workspace.createFileSystemWatcher('**/.vscode/yonbip-icon-theme.json');
-        context.subscriptions.push(iconThemeWatcher);
+        this.iconThemeWatcher = vscode.workspace.createFileSystemWatcher('**/.vscode/yonbip-icon-theme.json');
+        context.subscriptions.push(this.iconThemeWatcher);
         
         const handleConfigChange = () => {
             console.log('图标主题配置文件已变化，计划重新加载图标主题配置');
             this.debouncedLoadWorkspaceIconTheme();
         };
         
-        context.subscriptions.push(iconThemeWatcher.onDidChange(handleConfigChange));
-        context.subscriptions.push(iconThemeWatcher.onDidCreate(handleConfigChange));
-        context.subscriptions.push(iconThemeWatcher.onDidDelete(handleConfigChange));
+        context.subscriptions.push(this.iconThemeWatcher.onDidChange(handleConfigChange));
+        context.subscriptions.push(this.iconThemeWatcher.onDidCreate(handleConfigChange));
+        context.subscriptions.push(this.iconThemeWatcher.onDidDelete(handleConfigChange));
     }
     
     /**
@@ -189,16 +192,6 @@ export class IconThemeUpdater {
         try {
             this.isRefreshing = true;
             console.log('开始刷新图标主题，skipThemeSwitch:', skipThemeSwitch);
-            
-            // 只使用文件系统变化事件来触发更新，避免主题切换
-            if (fs.existsSync(this.ICON_THEME_PATH)) {
-                const content = fs.readFileSync(this.ICON_THEME_PATH, 'utf8');
-                // 添加一个空格然后删除，触发文件变化事件
-                fs.appendFileSync(this.ICON_THEME_PATH, ' ');
-                await new Promise(resolve => setTimeout(resolve, 20)); // 缩短等待时间
-                fs.writeFileSync(this.ICON_THEME_PATH, content, 'utf8');
-                console.log('已触发图标主题文件变化事件');
-            }
             
             // 只在绝对必要时才切换主题（skipThemeSwitch为false且主题不是我们的）
             // 这是最后的手段，尽量避免
@@ -402,6 +395,23 @@ export class IconThemeUpdater {
         if (confirmed) {
             await vscode.commands.executeCommand('workbench.action.reloadWindow');
         }
+    }
+    
+    /**
+     * 清理资源，应在扩展卸载时调用
+     */
+    public static dispose(): void {
+        if (this.iconThemeWatcher) {
+            this.iconThemeWatcher.dispose();
+            this.iconThemeWatcher = null;
+        }
+        
+        if (this.refreshDebounceTimer) {
+            clearTimeout(this.refreshDebounceTimer);
+            this.refreshDebounceTimer = null;
+        }
+        
+        console.log('图标主题更新器资源已清理');
     }
     
 }

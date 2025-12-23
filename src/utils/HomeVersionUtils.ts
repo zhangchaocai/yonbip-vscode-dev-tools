@@ -36,6 +36,11 @@ export function getHomeVersion(homePath: string): string | null {
 
         const versionLine = versionMatch[1];
 
+        // 特殊处理：NC Cloud 2020.05版本
+        if (versionLine.includes('NC Cloud 2020.05')) {
+            return '2005';
+        }
+
         // 解析版本字符串 "YonBIP V3 (R2_2311_1 Premium) 20230830171835"
         // 提取其中的 "2311" 部分
         const versionPattern = /R\d+_(\d+)_\d+/;
