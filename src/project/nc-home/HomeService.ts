@@ -85,11 +85,15 @@ export class HomeService {
         });
 
         // 检查是否包含非中文字符的亚洲字符（可能是乱码）
-        const hasNonChineseAsianChars = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF66-\uFF9F]/.test(str) && 
-                                         !/[\u4e00-\u9fa5]/.test(str);
-
+        const hasNonChineseAsianChars = /[぀-ヿ㐀-䶿一-鿿豈-﫿ｦ-ﾟ]/.test(str) && 
+                                         !/[一-龥]/.test(str);
+                
+        // 检查是否包含日期格式的乱码（如月份乱码）
+        const hasDateGarbledPattern = /\d+[,，]\s*\d+\s*(日|月|年)/.test(str) && 
+                                    (str.includes('') || str.includes('') || str.includes(''));
+        
         // 如果包含中文但也有乱码特征，则认为有乱码
-        if (hasChinese && hasGarbledPattern) {
+        if (hasChinese && (hasGarbledPattern || hasDateGarbledPattern)) {
             return true;
         }
 
@@ -105,6 +109,11 @@ export class HomeService {
 
         // 检查是否包含XML错误信息的乱码特征
         if (str.includes('涓嶅厑璁') && str.includes('鐨勫鐞嗘寚浠ょ洰鏍囥')) {
+            return true;
+        }
+        
+        // 如果包含日期格式乱码，也认为有乱码
+        if (hasDateGarbledPattern) {
             return true;
         }
 
@@ -158,6 +167,12 @@ export class HomeService {
                 }
                 // 特殊处理：如果原始字符串包含XML错误信息乱码，但当前编码解码后是正常中文，可能是正确编码
                 if (originalString.includes('涓嶅厑璁') && decoded.includes('不允许有匹配')) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含日期格式乱码（如月份乱码），但当前编码解码后是正常日期格式，可能是正确编码
+                if ((originalString.includes('') || originalString.includes('') || originalString.includes('')) && 
+                    /\d+[,，]\s*\d+\s*月/.test(decoded)) {
                     return decoded;
                 }
             } catch (e) {
