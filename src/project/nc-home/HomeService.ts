@@ -64,27 +64,37 @@ export class HomeService {
             '',         // 多字符乱码
             '涓嶅厑璁',     // XML错误信息乱码特征
             '搴旂敤宸ュ巶', // 应用工厂乱码特征
-            '鎻掍欢鎵弿'  // 插件扫描乱码特征
+            '鎻掍欢鎵弿',  // 插件扫描乱码特征
+            '関榮囘銣',     // 新增乱码模式（从截图中提取）
+            '氣惜娉屢',     // 新增乱码模式（从截图中提取）
+            '壘縲版垮',     // 新增乱码模式（从截图中提取）
+            '堟唱嘰滅',     // 新增乱码模式（从截图中提取）
+            '涓栫被'       // 新增乱码模式（从截图中提取）
         ];
 
         // 检查是否包含中文字符（正常中文应该能正确显示）
         const hasChinese = /[\u4e00-\u9fa5]/.test(str);
 
-        // 检查是否包含大量乱码字符
-        const hasManyUnknownChars = (str.match(/[^\x00-\x7F]/g) || []).length > str.length * 0.3;
+        // 检查是否包含大量非ASCII字符（可能是乱码）
+        const nonAsciiChars = str.match(/[^\x00-\x7F]/g) || [];
+        const hasManyNonAscii = nonAsciiChars.length > str.length * 0.3;
 
-        // 检查是否有乱码字符
+        // 检查是否包含典型的乱码字符模式
         const hasGarbledPattern = garbledPatterns.some(pattern => {
-            return str.includes(pattern);
+            return pattern && str.includes(pattern);
         });
+
+        // 检查是否包含非中文字符的亚洲字符（可能是乱码）
+        const hasNonChineseAsianChars = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF66-\uFF9F]/.test(str) && 
+                                         !/[\u4e00-\u9fa5]/.test(str);
 
         // 如果包含中文但也有乱码特征，则认为有乱码
         if (hasChinese && hasGarbledPattern) {
             return true;
         }
 
-        // 如果不包含中文，但包含大量非ASCII字符或有乱码模式，可能有乱码
-        if (!hasChinese && (hasManyUnknownChars || hasGarbledPattern)) {
+        // 如果不包含中文，但包含大量非ASCII字符、有乱码模式或包含非中文亚洲字符，可能有乱码
+        if (!hasChinese && (hasManyNonAscii || hasGarbledPattern || hasNonChineseAsianChars)) {
             return true;
         }
 
@@ -108,7 +118,7 @@ export class HomeService {
      */
     private decodeDataWithMultipleEncodings(data: Buffer): string {
         // 尝试的编码列表，按优先级排序
-        const encodings = ['utf-8', 'gbk', 'gb2312'];
+        const encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'big5', 'euc-jp', 'euc-kr', 'shift_jis'];
 
         // 保存原始字符串用于比较
         const originalString = data.toString();
@@ -129,7 +139,21 @@ export class HomeService {
                     return decoded;
                 }
                 // 特殊处理：如果原始字符串包含"应用工厂"乱码，但当前编码解码后是正常中文，可能是正确编码
-                if (originalString.includes('') && decoded.includes('应用工厂')) {
+                if (originalString.includes('搴旂敤宸ュ巶') && decoded.includes('应用工厂')) {
+                    return decoded;
+                }
+                // 特殊处理：如果原始字符串包含插件扫描乱码，但当前编码解码后是正常中文，可能是正确编码
+                if (originalString.includes('鎻掍欢鎵弿') && decoded.includes('插件扫描')) {
+                    return decoded;
+                }
+                // 特殊处理：如果原始字符串包含XML错误乱码，但当前编码解码后是正常中文，可能是正确编码
+                if (originalString.includes('涓嶅厑璁') && decoded.includes('无法解析')) {
+                    return decoded;
+                }
+                // 特殊处理：从截图中识别的乱码模式
+                if ((originalString.includes('関榮囘銣') || originalString.includes('氣惜娉屢') || 
+                     originalString.includes('壘縲版垮') || originalString.includes('堟唱嘰滅')) && 
+                    /[\u4e00-\u9fa5]/.test(decoded)) {
                     return decoded;
                 }
                 // 特殊处理：如果原始字符串包含XML错误信息乱码，但当前编码解码后是正常中文，可能是正确编码
@@ -514,11 +538,6 @@ export class HomeService {
                     }
                     // 移除ANSI转义序列
                     stderrOutput = stderrOutput.replace(/\u001b\[.*?m/g, '');
-                    // 移除其他控制字符
-                    stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
-                    this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
-
-                    // 检查错误信息
                     // 移除其他控制字符
                     stderrOutput = stderrOutput.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '');
                     this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
