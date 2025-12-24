@@ -59,17 +59,17 @@ export class HomeService {
             '??',           // 问号替代字符
             '? ?',          // 间隔问号
             'Warning: setSecurityManager',
-            '9',          // 月份乱码
-            '',          // 其他乱码字符
-            '',         // 多字符乱码
-            '涓嶅厑璁',     // XML错误信息乱码特征
-            '搴旂敤宸ュ巶', // 应用工厂乱码特征
-            '鎻掍欢鎵弿',  // 插件扫描乱码特征
-            '関榮囘銣',     // 新增乱码模式（从截图中提取）
-            '氣惜娉屢',     // 新增乱码模式（从截图中提取）
-            '壘縲版垮',     // 新增乱码模式（从截图中提取）
-            '堟唱嘰滅',     // 新增乱码模式（从截图中提取）
-            '涓栫被'       // 新增乱码模式（从截图中提取）
+            '\u00ca\u00ca',          // 十月乱码
+            '\u00ca\u00ca\u00ca\u00ca',          // 乱码字符
+            '\u00ca\u00ca\u00ca\u00ca',         // 乱码字符
+            '\u672a\u627e\u5230',     // "未找到"的乱码
+            '\u5e94\u7528\u5de5\u5382', // "应用工厂"的乱码
+            '\u63d2\u4ef6\u626b\u63cf',  // "插件扫描"的乱码
+            '\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca',     // 乱码模式
+            '\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca',     // 乱码模式
+            '\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca',     // 乱码模式
+            '\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca',     // 乱码模式
+            '\u00ca\u00ca\u00ca\u00ca'       // 乱码模式
         ];
 
         // 检查是否包含中文字符（正常中文应该能正确显示）
@@ -90,7 +90,7 @@ export class HomeService {
                 
         // 检查是否包含日期格式的乱码（如月份乱码）
         const hasDateGarbledPattern = /\d+[,，]\s*\d+\s*(日|月|年)/.test(str) && 
-                                    (str.includes('') || str.includes('') || str.includes(''));
+                                    (str.includes('\u00ca\u00ca\u00ca\u00ca') || str.includes('\u00ca\u00ca\u00ca\u00ca') || str.includes('\u00ca\u00ca\u00ca\u00ca'));
         
         // 如果包含中文但也有乱码特征，则认为有乱码
         if (hasChinese && (hasGarbledPattern || hasDateGarbledPattern)) {
@@ -103,12 +103,12 @@ export class HomeService {
         }
 
         // 特殊处理：如果包含月份乱码，则认为有乱码
-        if (str.includes('9') && !str.includes('9月')) {
+        if (str.includes('\u00ca\u00ca') && !str.includes('十月')) {
             return true;
         }
 
         // 检查是否包含XML错误信息的乱码特征
-        if (str.includes('涓嶅厑璁') && str.includes('鐨勫鐞嗘寚浠ょ洰鏍囥')) {
+        if (str.includes('\u672a\u627e\u5230') && str.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca')) {
             return true;
         }
         
@@ -144,34 +144,34 @@ export class HomeService {
                     return decoded;
                 }
                 // 特殊处理：如果原始字符串包含月份乱码，但当前编码解码后是正常月份，可能是正确编码
-                if ((originalString.includes('9') || originalString.includes('')) && decoded.includes('9月')) {
+                if ((originalString.includes('\u00ca\u00ca') || originalString.includes('\u00ca\u00ca\u00ca\u00ca')) && decoded.includes('十月')) {
                     return decoded;
                 }
                 // 特殊处理：如果原始字符串包含"应用工厂"乱码，但当前编码解码后是正常中文，可能是正确编码
-                if (originalString.includes('搴旂敤宸ュ巶') && decoded.includes('应用工厂')) {
+                if (originalString.includes('\u5e94\u7528\u5de5\u5382') && decoded.includes('应用工厂')) {
                     return decoded;
                 }
                 // 特殊处理：如果原始字符串包含插件扫描乱码，但当前编码解码后是正常中文，可能是正确编码
-                if (originalString.includes('鎻掍欢鎵弿') && decoded.includes('插件扫描')) {
+                if (originalString.includes('\u63d2\u4ef6\u626b\u63cf') && decoded.includes('插件扫描')) {
                     return decoded;
                 }
                 // 特殊处理：如果原始字符串包含XML错误乱码，但当前编码解码后是正常中文，可能是正确编码
-                if (originalString.includes('涓嶅厑璁') && decoded.includes('无法解析')) {
+                if (originalString.includes('\u672a\u627e\u5230') && decoded.includes('无法解析')) {
                     return decoded;
                 }
                 // 特殊处理：从截图中识别的乱码模式
-                if ((originalString.includes('関榮囘銣') || originalString.includes('氣惜娉屢') || 
-                     originalString.includes('壘縲版垮') || originalString.includes('堟唱嘰滅')) && 
+                if ((originalString.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca') || originalString.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca') || 
+                     originalString.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca') || originalString.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca')) && 
                     /[\u4e00-\u9fa5]/.test(decoded)) {
                     return decoded;
                 }
                 // 特殊处理：如果原始字符串包含XML错误信息乱码，但当前编码解码后是正常中文，可能是正确编码
-                if (originalString.includes('涓嶅厑璁') && decoded.includes('不允许有匹配')) {
+                if (originalString.includes('\u672a\u627e\u5230') && decoded.includes('不允许有匹配')) {
                     return decoded;
                 }
                 
                 // 特殊处理：如果原始字符串包含日期格式乱码（如月份乱码），但当前编码解码后是正常日期格式，可能是正确编码
-                if ((originalString.includes('') || originalString.includes('') || originalString.includes('')) && 
+                if ((originalString.includes('\u00ca\u00ca\u00ca\u00ca') || originalString.includes('\u00ca\u00ca\u00ca\u00ca') || originalString.includes('\u00ca\u00ca\u00ca\u00ca')) && 
                     /\d+[,，]\s*\d+\s*月/.test(decoded)) {
                     return decoded;
                 }
@@ -500,7 +500,7 @@ export class HomeService {
             let javaArgs: string[];
             if (classpath.length > 7000 && fs.existsSync(customClassLoaderJar)) {
                 // 使用自定义类加载器处理超长类路径
-                this.outputChannel.appendLine('类路径过长，使用自定义类加载器');
+                this.outputChannel.appendLine('📚 类路径过长，使用自定义类加载器');
                 javaArgs = [
                     ...vmParameters,
                     '-cp',
@@ -520,15 +520,26 @@ export class HomeService {
             }
 
              // 执行启动命令
+            // 根据平台设置环境变量
+            const platformEnv = { ...env };
+            if (process.platform === 'win32') {
+                // Windows平台设置编码环境变量
+                platformEnv.LANG = 'zh_CN.GBK';
+                platformEnv.LC_ALL = 'zh_CN.GBK';
+                platformEnv.LC_CTYPE = 'zh_CN.GBK';
+                platformEnv.CMDEXTVERSION = '2';
+                platformEnv.CMD_SAVE_DIR = '1';
+            } else {
+                // 非Windows平台保持原有设置
+                platformEnv.LANG = 'zh_CN.UTF-8';
+                platformEnv.LC_ALL = 'zh_CN.UTF-8';
+                platformEnv.LC_CTYPE = 'zh_CN.UTF-8';
+            }
+            
             this.process = spawn(javaExecutable, javaArgs, {
                 cwd: config.homePath,
                 stdio: ['pipe', 'pipe', 'pipe'],
-                env: {
-                    ...env,
-                    LANG: 'zh_CN.UTF-8',
-                    LC_ALL: 'zh_CN.UTF-8',
-                    LC_CTYPE: 'zh_CN.UTF-8',
-                }
+                env: platformEnv
             });
 
             
@@ -537,6 +548,17 @@ export class HomeService {
             if (this.process) {
                 this.process.stdout?.on('data', (data: Buffer) => {
                     let output = data.toString();
+                    // Windows平台特殊处理：尝试使用CP936解码
+                    if (process.platform === 'win32') {
+                        try {
+                            const cp936Decoded = iconv.decode(data, 'cp936');
+                            if (this.containsGarbledCharacters(output) && !this.containsGarbledCharacters(cp936Decoded)) {
+                                output = cp936Decoded;
+                            }
+                        } catch (e) {
+                            // 如果CP936解码失败，继续使用默认解码
+                        }
+                    }
                     // 检测并处理可能的编码问题
                     if (this.containsGarbledCharacters(output)) {
                         output = this.decodeDataWithMultipleEncodings(data);
@@ -566,6 +588,17 @@ export class HomeService {
             if (this.process) {
                 this.process.stderr?.on('data', (data: Buffer) => {
                     let stderrOutput = data.toString();
+                    // Windows平台特殊处理：尝试使用CP936解码
+                    if (process.platform === 'win32') {
+                        try {
+                            const cp936Decoded = iconv.decode(data, 'cp936');
+                            if (this.containsGarbledCharacters(stderrOutput) && !this.containsGarbledCharacters(cp936Decoded)) {
+                                stderrOutput = cp936Decoded;
+                            }
+                        } catch (e) {
+                            // 如果CP936解码失败，继续使用默认解码
+                        }
+                    }
                     // 检测并处理可能的编码问题
                     if (this.containsGarbledCharacters(stderrOutput)) {
                         stderrOutput = this.decodeDataWithMultipleEncodings(data);
@@ -1209,6 +1242,15 @@ export class HomeService {
         defaultVmParameters.push('-Dconsole.encoding=UTF-8');
         defaultVmParameters.push('-Dsun.jnu.encoding=UTF-8');
         defaultVmParameters.push('-Dclient.encoding.override=UTF-8');
+        
+        // Windows平台特殊处理：设置控制台编码为GBK以避免乱码
+        if (process.platform === 'win32') {
+            defaultVmParameters.push('-Dfile.encoding=GBK');
+            defaultVmParameters.push('-Dstdout.encoding=GBK');
+            defaultVmParameters.push('-Dstderr.encoding=GBK');
+        } else {
+            defaultVmParameters.push('-Dfile.encoding=UTF-8');
+        }
 
         // 添加XML解析器配置
         defaultVmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
@@ -2155,31 +2197,26 @@ export class HomeService {
                         'DirectJDKLog.class'
                     );
 
-                    // 检查目标文件是否已存在
-                    if (!fs.existsSync(targetFile)) {
-                        // 确保目标目录存在
-                        const targetDir = path.dirname(targetFile);
-                        if (!fs.existsSync(targetDir)) {
-                            fs.mkdirSync(targetDir, { recursive: true });
-                        }
+                    // 确保目标目录存在
+                    const targetDir = path.dirname(targetFile);
+                    if (!fs.existsSync(targetDir)) {
+                        fs.mkdirSync(targetDir, { recursive: true });
+                    }
 
-                        // 尝试从resources目录获取补丁文件
-                        const patchFile = path.join(
-                            this.context.extensionPath,
-                            'resources',
-                            'replacement',
-                            'DirectJDKLog.class'
-                        );
+                    // 尝试从resources目录获取补丁文件
+                    const patchFile = path.join(
+                        this.context.extensionPath,
+                        'resources',
+                        'replacement',
+                        'DirectJDKLog.class'
+                    );
 
-                        if (fs.existsSync(patchFile)) {
-                            // 复制补丁文件到目标位置
-                            fs.copyFileSync(patchFile, targetFile);
-                            this.outputChannel.appendLine(`✅ DirectJDKLog补丁已应用: ${targetFile}`);
-                        } else {
-                            this.outputChannel.appendLine(`⚠️ 未找到DirectJDKLog补丁文件: ${patchFile}`);
-                        }
+                    if (fs.existsSync(patchFile)) {
+                        // 复制补丁文件到目标位置
+                        fs.copyFileSync(patchFile, targetFile);
+                        this.outputChannel.appendLine(`✅ DirectJDKLog补丁已应用: ${targetFile}`);
                     } else {
-                        this.outputChannel.appendLine('✅ DirectJDKLog补丁已存在，无需重复应用');
+                        this.outputChannel.appendLine(`⚠️ 未找到DirectJDKLog补丁文件: ${patchFile}`);
                     }
                 } else {
                     this.outputChannel.appendLine('✅ JDK版本 < 50，无需应用DirectJDKLog补丁');
