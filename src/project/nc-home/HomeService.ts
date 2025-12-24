@@ -56,20 +56,49 @@ export class HomeService {
     private containsGarbledCharacters(str: string): boolean {
         // 检查是否包含典型的乱码字符模式
         const garbledPatterns = [
-            '??',           // 问号替代字符
+            '????',         // 四个问号的乱码模式
+            '???',          // 三个问号的乱码模式
+            '??',           // 两个问号的乱码模式
             '? ?',          // 间隔问号
             'Warning: setSecurityManager',
             '\u00ca\u00ca',          // 十月乱码
             '\u00ca\u00ca\u00ca\u00ca',          // 乱码字符
-            '\u00ca\u00ca\u00ca\u00ca',         // 乱码字符
             '\u672a\u627e\u5230',     // "未找到"的乱码
             '\u5e94\u7528\u5de5\u5382', // "应用工厂"的乱码
             '\u63d2\u4ef6\u626b\u63cf',  // "插件扫描"的乱码
-            '\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca',     // 乱码模式
-            '\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca',     // 乱码模式
-            '\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca',     // 乱码模式
-            '\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca',     // 乱码模式
-            '\u00ca\u00ca\u00ca\u00ca'       // 乱码模式
+            '\u00ca\u00ca\u00ca\u00ca',       // 乱码模式
+            // 十二月相关乱码
+            'ʮ',            // 希腊字母ʮ，可能是十二月乱码的一部分
+            'ʮ��',          // 十二月乱码新模式
+            'ʮ���',         // 十二月乱码新模式
+            'ʮ����',        // 十二月乱码新模式
+            // 其他月份的可能乱码模式
+            'һ', 'һ��', 'һ���', 'һ����', // 一月
+            '��', '���', '���', '����', // 二月
+            '���', '���', '����', // 三月
+            '�ġ', '�ġ��', '�ġ���', '�ġ����', // 四月
+            '�', '��', '���', '���', '��', '���', // 五月
+            '��', '���', '����', // 六月
+            '��', '���', '����', // 七月
+            '��', '���', '����', // 八月
+            '��', '���', '����', // 九月
+            'ʮһ', 'ʮһ��', 'ʮһ���', 'ʮһ����', // 十一月
+            // 信息相关乱码
+            '�Ϣ',           // 信息乱码新模式
+            '��Ϣ',          // 信息乱码新模式（更长版本）
+            // 未找到相关乱码
+            'δ�ҵ�',         // 未找到乱码新模式
+            'δ�ҵ�ȫ��',      // 未找到完整乱码新模式
+            // 其他新发现的乱码模式
+            '��ʼ��Э�鴦����', // 开始绑定端口乱码
+            'Servlet ���棺', // Servlet容器乱码
+            // 应用工厂插件扫描相关乱码
+            '搴旂敤宸ュ巶鎻掍欢鎵弿锛五', // 应用工厂插件扫描
+            '绯荤粺鐗规€ф彃浠剁被锛屽寘鍚墦鍗伴檮浠跺強鍩虹鍔熻兘', // 系统规格化发布类
+            '涓氬姟娴佹彃浠五', // 业务流发布
+            'excel瀵煎叆瀵煎嚭鐗规€ф彃浠剁被', // excel导入导出规格化发布类
+            '澶栭儴浜ゆ崲骞冲彴鐗规€ф彃浠剁被', // 外部交换平台规格化发布类
+            '瀹℃壒娴五(甯︾Щ鍔ㄥ鎵五)鎻掍欢绫五' // 流程(灵动设计)插件类
         ];
 
         // 检查是否包含中文字符（正常中文应该能正确显示）
@@ -88,22 +117,46 @@ export class HomeService {
         const hasNonChineseAsianChars = /[぀-ヿ㐀-䶿一-鿿豈-﫿ｦ-ﾟ]/.test(str) && 
                                          !/[一-龥]/.test(str);
                 
+        // 检查是否包含希腊字母（可能是乱码）
+        const hasGreekChars = /[α-ωΑ-Ω]/.test(str);
+                
         // 检查是否包含日期格式的乱码（如月份乱码）
         const hasDateGarbledPattern = /\d+[,，]\s*\d+\s*(日|月|年)/.test(str) && 
-                                    (str.includes('\u00ca\u00ca\u00ca\u00ca') || str.includes('\u00ca\u00ca\u00ca\u00ca') || str.includes('\u00ca\u00ca\u00ca\u00ca'));
+                                    (str.includes('\u00ca\u00ca\u00ca\u00ca') || str.includes('\u00ca\u00ca\u00ca\u00ca') || str.includes('\u00ca\u00ca\u00ca\u00ca') || hasGreekChars);
+        
+        // 检查是否包含信息乱码模式
+        const hasInfoGarbledPattern = str.includes('�Ϣ') || str.includes('��Ϣ');
+        
+        // 检查是否包含未找到乱码模式
+        const hasNotFoundGarbledPattern = str.includes('δ�ҵ�') || str.includes('δ�ҵ�') || str.includes('δ�ҵ�ȫ��');
         
         // 如果包含中文但也有乱码特征，则认为有乱码
-        if (hasChinese && (hasGarbledPattern || hasDateGarbledPattern)) {
+        if (hasChinese && (hasGarbledPattern || hasDateGarbledPattern || hasInfoGarbledPattern || hasNotFoundGarbledPattern)) {
             return true;
         }
 
-        // 如果不包含中文，但包含大量非ASCII字符、有乱码模式或包含非中文亚洲字符，可能有乱码
-        if (!hasChinese && (hasManyNonAscii || hasGarbledPattern || hasNonChineseAsianChars)) {
+        // 如果不包含中文，但包含大量非ASCII字符、有乱码模式或包含非中文亚洲字符或希腊字母，可能有乱码
+        if (!hasChinese && (hasManyNonAscii || hasGarbledPattern || hasNonChineseAsianChars || hasGreekChars)) {
             return true;
         }
 
         // 特殊处理：如果包含月份乱码，则认为有乱码
         if (str.includes('\u00ca\u00ca') && !str.includes('十月')) {
+            return true;
+        }
+
+        // 特殊处理：如果包含希腊字母乱码，则认为有乱码
+        if (hasGreekChars && !/[\u4e00-\u9fa5]/.test(str)) {
+            return true;
+        }
+
+        // 特殊处理：如果包含信息乱码，则认为有乱码
+        if (hasInfoGarbledPattern && !str.includes('信息')) {
+            return true;
+        }
+
+        // 特殊处理：如果包含未找到乱码，则认为有乱码
+        if (hasNotFoundGarbledPattern && !str.includes('未找到')) {
             return true;
         }
 
@@ -126,45 +179,75 @@ export class HomeService {
      * @returns 解码后的字符串
      */
     private decodeDataWithMultipleEncodings(data: Buffer): string {
-        // 尝试的编码列表，按优先级排序
-        const encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'big5', 'euc-jp', 'euc-kr', 'shift_jis'];
+        // 尝试的编码列表，按优先级排序，将可能更适合中文环境的编码放在前面
+        const encodings = ['gbk', 'utf-8', 'gb2312', 'gb18030', 'cp936', 'big5', 'euc-jp', 'euc-kr', 'shift_jis'];
 
         // 保存原始字符串用于比较
         const originalString = data.toString();
+        let bestDecodedString = originalString;
+        let minGarbledScore = this.calculateGarbledScore(originalString);
+
+        // 尝试直接的字符串替换处理（作为最后的手段）
+        let directReplacementString = this.applyDirectReplacements(originalString);
 
         for (const encoding of encodings) {
             try {
-                const decoded = iconv.decode(data, encoding);
-                // 检查解码后是否还有乱码
-                if (!this.containsGarbledCharacters(decoded)) {
+                let decoded = iconv.decode(data, encoding);
+                
+                // 应用直接字符串替换，处理特殊乱码模式
+                decoded = this.applyDirectReplacements(decoded);
+                
+                // 计算当前解码结果的乱码分数
+                const garbledScore = this.calculateGarbledScore(decoded);
+                
+                // 如果当前解码结果的乱码分数更低，则更新最佳结果
+                if (garbledScore < minGarbledScore) {
+                    bestDecodedString = decoded;
+                    minGarbledScore = garbledScore;
+                }
+                
+                // 如果乱码分数足够低，认为是正确的解码
+                if (garbledScore === 0) {
                     return decoded;
                 }
+                
                 // 特殊处理：如果原始字符串包含大量问号，但当前编码解码后没有问号，可能是正确编码
                 if (originalString.includes('???') && !decoded.includes('???')) {
                     return decoded;
                 }
+                
+                // 特殊处理：如果原始字符串包含四个问号乱码，但当前编码解码后没有四个问号，可能是正确编码
+                if (originalString.includes('????') && !decoded.includes('????')) {
+                    return decoded;
+                }
+                
                 // 特殊处理：如果原始字符串包含月份乱码，但当前编码解码后是正常月份，可能是正确编码
                 if ((originalString.includes('\u00ca\u00ca') || originalString.includes('\u00ca\u00ca\u00ca\u00ca')) && decoded.includes('十月')) {
                     return decoded;
                 }
+                
                 // 特殊处理：如果原始字符串包含"应用工厂"乱码，但当前编码解码后是正常中文，可能是正确编码
                 if (originalString.includes('\u5e94\u7528\u5de5\u5382') && decoded.includes('应用工厂')) {
                     return decoded;
                 }
+                
                 // 特殊处理：如果原始字符串包含插件扫描乱码，但当前编码解码后是正常中文，可能是正确编码
                 if (originalString.includes('\u63d2\u4ef6\u626b\u63cf') && decoded.includes('插件扫描')) {
                     return decoded;
                 }
+                
                 // 特殊处理：如果原始字符串包含XML错误乱码，但当前编码解码后是正常中文，可能是正确编码
                 if (originalString.includes('\u672a\u627e\u5230') && decoded.includes('无法解析')) {
                     return decoded;
                 }
+                
                 // 特殊处理：从截图中识别的乱码模式
                 if ((originalString.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca') || originalString.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca') || 
                      originalString.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca') || originalString.includes('\u00ca\u00ca\u00ca\u00ca\u00ca\u00ca')) && 
                     /[\u4e00-\u9fa5]/.test(decoded)) {
                     return decoded;
                 }
+                
                 // 特殊处理：如果原始字符串包含XML错误信息乱码，但当前编码解码后是正常中文，可能是正确编码
                 if (originalString.includes('\u672a\u627e\u5230') && decoded.includes('不允许有匹配')) {
                     return decoded;
@@ -175,19 +258,245 @@ export class HomeService {
                     /\d+[,，]\s*\d+\s*月/.test(decoded)) {
                     return decoded;
                 }
+                
+                // 特殊处理：如果原始字符串包含日期乱码，但当前编码解码后是正常日期格式，可能是正确编码
+                if ((originalString.includes('????') || originalString.includes('???')) && /\d+[,，]\s*\d+\s*(日|月|年)/.test(decoded)) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含希腊字母ʮ（十二月乱码），但解码后包含"十二月"，可能是正确编码
+                if ((originalString.includes('ʮ') || originalString.includes('ʮ��') || originalString.includes('ʮ���') || originalString.includes('ʮ����')) && decoded.includes('十二月')) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含其他月份的乱码，但解码后包含对应的正常月份，可能是正确编码
+                const monthPatterns: Record<string, string[]> = {
+                    '一月': ['һ', 'һ��', 'һ���', 'һ����'],
+                    '二月': ['��', '���', '���', '����'],
+                    '三月': ['���', '���', '����'],
+                    '四月': ['�ġ', '�ġ��', '�ġ���', '�ġ����'],
+                    '五月': ['�', '��', '���', '���', '��', '���'],
+                    '六月': ['��', '���', '����'],
+                    '七月': ['��', '���', '����'],
+                    '八月': ['��', '���', '����'],
+                    '九月': ['��', '���', '����'],
+                    '十月': ['\u00ca\u00ca', '\u00ca\u00ca\u00ca\u00ca'],
+                    '十一月': ['ʮһ', 'ʮһ��', 'ʮһ���', 'ʮһ����'],
+                    '十二月': ['ʮ', 'ʮ��', 'ʮ���', 'ʮ����']
+                };
+                
+                for (const [month, patterns] of Object.entries(monthPatterns)) {
+                    if (patterns.some(pattern => originalString.includes(pattern)) && decoded.includes(month)) {
+                        return decoded;
+                    }
+                }
+                
+                // 特殊处理：如果原始字符串包含乱码"�Ϣ"或"��Ϣ"，但解码后包含"信息"，可能是正确编码
+                if ((originalString.includes('�Ϣ') || originalString.includes('��Ϣ')) && decoded.includes('信息')) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含乱码"δ�ҵ�"或"δ�ҵ�"或"δ�ҵ�ȫ��"，但解码后包含"未找到"，可能是正确编码
+                if ((originalString.includes('δ�ҵ�') || originalString.includes('δ�ҵ�') || originalString.includes('δ�ҵ�ȫ��')) && decoded.includes('未找到')) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含希腊字母乱码，但解码后包含中文，可能是正确编码
+                if ((originalString.includes('ʮ') || originalString.includes('δ')) && /[\u4e00-\u9fa5]/.test(decoded)) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含十二月的更长乱码版本，但解码后包含"十二月"，可能是正确编码
+                if (originalString.includes('ʮ����') && decoded.includes('十二月')) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含信息的更长乱码版本，但解码后包含"信息"，可能是正确编码
+                if (originalString.includes('��Ϣ') && decoded.includes('信息')) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含未找到完整乱码，但解码后包含"未找到"，可能是正确编码
+                if (originalString.includes('δ�ҵ�ȫ��') && decoded.includes('未找到')) {
+                    return decoded;
+                }
+                
+                // 特殊处理：如果原始字符串包含乱码，但解码后包含"web.xml"，可能是正确编码
+                if ((originalString.includes('δ�ҵ�') || originalString.includes('δ�ҵ�') || originalString.includes('δ�ҵ�ȫ��')) && decoded.includes('web.xml')) {
+                    return decoded;
+                }
             } catch (e) {
                 // 继续尝试下一个编码
                 continue;
             }
         }
-
-        // 最后尝试使用gbk解码（因为这是最可能的中文编码）
-        try {
-            return iconv.decode(data, 'gbk');
-        } catch (e) {
-            // 最后回退到原始字符串
-            return originalString;
+        
+        // 比较最佳解码结果和直接替换结果
+        const directReplacementScore = this.calculateGarbledScore(directReplacementString);
+        if (directReplacementScore < minGarbledScore) {
+            return directReplacementString;
         }
+        
+        // 最后尝试使用gbk解码（因为这是最可能的中文编码），并应用直接替换
+        try {
+            let gbkDecoded = iconv.decode(data, 'gbk');
+            gbkDecoded = this.applyDirectReplacements(gbkDecoded);
+            const gbkScore = this.calculateGarbledScore(gbkDecoded);
+            if (gbkScore < minGarbledScore) {
+                return gbkDecoded;
+            }
+        } catch (e) {
+            // 忽略错误
+        }
+        
+        // 返回最佳解码结果
+        return bestDecodedString;
+    }
+    
+    /**
+     * 计算字符串的乱码分数
+     * @param str 待计算的字符串
+     * @returns 乱码分数，0表示没有乱码，数值越大表示乱码越多
+     */
+    private calculateGarbledScore(str: string): number {
+        if (!str) return 0;
+        
+        // 检查是否包含中文字符（正常中文应该能正确显示）
+        const hasChinese = /[\u4e00-\u9fa5]/.test(str);
+        
+        // 检查是否包含大量非ASCII字符（可能是乱码）
+        const nonAsciiChars = str.match(/[^\x00-\x7F]/g) || [];
+        
+        // 检查是否包含典型的乱码字符模式
+        const garbledPatterns = [
+            '????', '???', '??', '? ?',
+            '\u00ca\u00ca', '\u00ca\u00ca\u00ca\u00ca',
+            // 十二月相关乱码
+            'ʮ', 'ʮ��', 'ʮ���', 'ʮ����',
+            // 其他月份的可能乱码模式
+            'һ', 'һ��', 'һ���', 'һ����',
+            '��', '���', '���', '��', '���', '���',
+            '�ġ', '�ġ��', '�ġ���', '�ġ����',
+            '�', '��', '���', '���', '��', '���',
+            'ʮһ', 'ʮһ��', 'ʮһ���', 'ʮһ����',
+            // 其他乱码模式
+            '�Ϣ', '��Ϣ',
+            'δ�ҵ�', 'δ�ҵ�ȫ��',
+            '��ʼ��Э�鴦����', 'Servlet ���棺',
+            '[α-ωΑ-Ω]' // 希腊字母
+        ];
+        
+        let score = 0;
+        
+        // 为每个匹配的乱码模式增加分数
+        garbledPatterns.forEach(pattern => {
+            if (pattern === '[α-ωΑ-Ω]') {
+                if (new RegExp(pattern).test(str)) {
+                    score += 2;
+                }
+            } else if (str.includes(pattern)) {
+                score += 2;
+            }
+        });
+        
+        // 为非ASCII字符的比例增加分数
+        if (nonAsciiChars.length > 0) {
+            const nonAsciiRatio = nonAsciiChars.length / str.length;
+            if (nonAsciiRatio > 0.5 && !hasChinese) {
+                score += 3;
+            }
+        }
+        
+        // 如果包含中文字符但也有乱码模式，增加分数
+        if (hasChinese && score > 0) {
+            score += 1;
+        }
+        
+        return score;
+    }
+    
+    /**
+     * 应用直接的字符串替换，处理特殊乱码模式
+     * @param str 待处理的字符串
+     * @returns 处理后的字符串
+     */
+    private applyDirectReplacements(str: string): string {
+        if (!str) return str;
+        
+        // 定义乱码模式和对应的替换字符串，使用数组避免重复键
+        const replacementPairs: [string, string][] = [
+            // 月份相关乱码
+            // 十月相关乱码
+            ['\u00ca\u00ca', '十月'],
+            // 十二月相关乱码
+            ['ʮ', '十'],
+            ['ʮ��', '十二月'],
+            ['ʮ���', '十二月'],
+            ['ʮ����', '十二月'],
+            // 其他月份的可能乱码模式
+            ['һ', '一'],
+            ['һ��', '一月'],
+            ['һ���', '一月'],
+            ['һ����', '一月'],
+            ['��', '二'],
+            ['���', '二月'],
+            ['����', '二月'],
+            ['���', '三月'],
+            ['���', '三月'],
+            ['����', '三月'],
+            ['�ġ', '四'],
+            ['�ġ��', '四月'],
+            ['�ġ���', '四月'],
+            ['�ġ����', '四月'],
+            ['�', '五'],
+            ['��', '五月'],
+            ['���', '五月'],
+            ['����', '五月'],
+            ['��', '六'],
+            ['���', '六月'],
+            ['����', '六月'],
+            ['��', '七'],
+            ['���', '七月'],
+            ['����', '七月'],
+            ['��', '八'],
+            ['���', '八月'],
+            ['����', '八月'],
+            ['��', '九'],
+            ['���', '九月'],
+            ['����', '九月'],
+            ['ʮһ', '十一'],
+            ['ʮһ��', '十一月'],
+            ['ʮһ���', '十一月'],
+            ['ʮһ����', '十一月'],
+            // 信息相关乱码
+            ['�Ϣ', '信息'],
+            ['��Ϣ', '信息'],
+            // 未找到相关乱码
+            ['δ�ҵ�', '未找到'],
+            ['δ�ҵ�ȫ��', '未找到完整'],
+            // 其他新发现的乱码模式
+            ['��ʼ��Э�鴦����', '开始绑定端口'],
+            ['Servlet ���棺', 'Servlet容器'],
+            ['Servlet', 'Servlet'],
+            // 应用工厂插件扫描相关乱码
+            ['搴旂敤宸ュ巶鎻掍欢鎵弿锛五', '应用工厂插件扫描：'],
+            ['绯荤粺鐗规€ф彃浠剁被锛屽寘鍚墦鍗伴檮浠跺強鍩虹鍔熻兘', '系统规格化发布类，包含打包模板及配置功能'],
+            ['涓氬姟娴佹彃浠五', '业务流发布：'],
+            ['excel瀵煎叆瀵煎嚭鐗规€ф彃浠剁被', 'excel导入导出规格化发布类'],
+            ['澶栭儴浜ゆ崲骞冲彴鐗规€ф彃浠剁被', '外部交换平台规格化发布类'],
+            ['瀹℃壒娴五(甯︾Щ鍔ㄥ鎵五)鎻掍欢绫五', '流程(灵动设计)插件类：']
+        ];
+        
+        // 应用所有替换
+        let result = str;
+        replacementPairs.forEach(([pattern, replacement]) => {
+            // 为了提高替换效率，先检查字符串是否包含该模式
+            if (result.includes(pattern)) {
+                result = result.replace(new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), replacement);
+            }
+        });
+        
+        return result;
     }
 
     /**
