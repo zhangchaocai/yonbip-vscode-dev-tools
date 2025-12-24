@@ -493,12 +493,31 @@ export class HomeService {
             this.outputChannel.appendLine(`⚙️  JVM参数: ${vmParameters.join(' ')}`);
 
             // 构建Java命令参数
-            const javaArgs = [
-                ...vmParameters,
-                '-cp',
-                classpath,
-                mainClass
-            ];
+            // 检查类路径长度，如果过长则使用自定义类加载器
+            const customClassLoaderPath = path.join(this.context.extensionPath, 'resources', 'custom-classloader', 'bin');
+            const customClassLoaderJar = path.join(customClassLoaderPath, 'CustomClassLoader.class');
+            
+            let javaArgs: string[];
+            if (classpath.length > 7000 && fs.existsSync(customClassLoaderJar)) {
+                // 使用自定义类加载器处理超长类路径
+                this.outputChannel.appendLine('类路径过长，使用自定义类加载器');
+                javaArgs = [
+                    ...vmParameters,
+                    '-cp',
+                    customClassLoaderPath,  // 只包含自定义类加载器的路径
+                    'CustomClassLoader',      // 自定义类加载器主类
+                    classpath,                // 原始类路径作为第一个参数
+                    mainClass                 // 原始主类作为第二个参数
+                ];
+            } else {
+                // 使用标准方式
+                javaArgs = [
+                    ...vmParameters,
+                    '-cp',
+                    classpath,
+                    mainClass
+                ];
+            }
 
              // 执行启动命令
             this.process = spawn(javaExecutable, javaArgs, {
@@ -679,7 +698,6 @@ export class HomeService {
     private getCoreJarPath(homePath: string): string | null {
         // 按优先级检查不同位置的core.jar
         const possiblePaths = [
-            path.join(homePath, 'ierp', 'bin', 'core.jar'),
             path.join(homePath, 'middleware', 'core.jar'),
             path.join(homePath, 'lib', 'core.jar')
         ];
@@ -906,14 +924,58 @@ export class HomeService {
 
         this.outputChannel.appendLine(`类路径构建完成，共包含 ${validatedClasspathEntries.length} 个条目`);
 
-        // 如果类路径过长，创建类路径文件
+        // 如果类路径过长，根据JDK版本决定是否使用类路径文件
         const classpathString = validatedClasspathEntries.join(path.delimiter);
-        if (classpathString.length > 7000) { // 当类路径超过一定长度时使用文件
-            const tempDir = os.tmpdir();
-            const classpathFile = path.join(tempDir, `classpath_${Date.now()}.txt`);
-            fs.writeFileSync(classpathFile, classpathString, 'utf8');
-            this.outputChannel.appendLine(`.createClasspathFile 创建类路径文件: ${classpathFile}`);
-            return { classpath: `@${classpathFile}`, classpathFile };
+        
+        if (classpathString.length > 7000) { // 当类路径超过一定长度时考虑使用文件
+            // 检测Java版本，JDK 1.8不使用@文件引用方式
+            let javaVersion = 0;
+            try {
+                // 尝试从VS Code配置获取Java版本
+                const javaConfig = vscode.workspace.getConfiguration('java.configuration');
+                const runtimes = javaConfig.get<any[]>('runtimes', []);
+                
+                // 查找默认的Java运行时版本
+                const defaultRuntime = runtimes.find(runtime => runtime.default === true);
+                if (defaultRuntime && defaultRuntime.name) {
+                    // 改进的版本匹配正则表达式，支持Java 1.8, 11, 17等格式
+                    const versionMatch = defaultRuntime.name.match(/(\d+\.\d+|\d+)/);
+                    if (versionMatch && versionMatch[1]) {
+                        // 对于1.8这样的版本号，只取小数点后的数字
+                        if (versionMatch[1].includes('.')) {
+                            const parts = versionMatch[1].split('.');
+                            javaVersion = parseInt(parts[1]); // 对于1.8，取8
+                        } else {
+                            javaVersion = parseInt(versionMatch[1]); // 对于11, 17等，直接使用
+                        }
+                    }
+                }
+                
+                // 如果没有从配置中获取到版本，尝试使用命令行检测
+                if (javaVersion === 0) {
+                    const { execSync } = require('child_process');
+                    const versionOutput = execSync('java -version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+                    const versionMatch = (versionOutput || '').match(/version\s+"(\d+)/i);
+                    if (versionMatch && versionMatch[1]) {
+                        javaVersion = parseInt(versionMatch[1]);
+                    }
+                }
+            } catch (error: any) {
+                this.outputChannel.appendLine(`警告: 无法检测Java版本，将默认不使用类路径文件: ${error.message}`);
+            }
+            
+            // JDK 1.8 (版本号为8) 或检测失败时，不使用@文件引用方式
+            if (javaVersion <= 8) {
+                this.outputChannel.appendLine(`JDK ${javaVersion} 检测到，不使用@文件引用方式以避免兼容性问题`);
+                return { classpath: classpathString };
+            } else {
+                // JDK 9+ 使用@文件引用方式
+                const tempDir = os.tmpdir();
+                const classpathFile = path.join(tempDir, `classpath_${Date.now()}.txt`);
+                fs.writeFileSync(classpathFile, classpathString, 'utf8');
+                this.outputChannel.appendLine(`.createClasspathFile 创建类路径文件: ${classpathFile}`);
+                return { classpath: `@${classpathFile}`, classpathFile };
+            }
         }
 
         return { classpath: classpathString };
@@ -1123,7 +1185,7 @@ export class HomeService {
         // 仅在Java 8及以下版本添加MaxPermSize参数
         if (javaVersion < 8 && javaVersion !== 0) {
             defaultVmParameters.push('-XX:MaxPermSize=512m');
-            this.outputChannel.appendLine('添加MaxPermSize参数');
+            this.outputChannel.appendLine('Java版本 < 8，添加MaxPermSize参数');
         } else {
             defaultVmParameters.push('-XX:MetaspaceSize=512m');
             this.outputChannel.appendLine('Java版本 >= 8，添加MetaspaceSize参数');
@@ -1153,8 +1215,9 @@ export class HomeService {
         defaultVmParameters.push('-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl');
         defaultVmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
 
-        // 添加Java 17兼容性参数 (如果Java版本 >= 17)
+        // 根据Java版本添加相应的兼容性参数（与IDEA插件保持一致）
         if (javaVersion >= 17) {
+            // JDK 17+ 需要添加--add-opens参数
             defaultVmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
             defaultVmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
             defaultVmParameters.push('--add-opens=java.base/jdk.internal.reflect=ALL-UNNAMED');
@@ -1190,6 +1253,18 @@ export class HomeService {
             defaultVmParameters.push('--add-opens=java.desktop/java.awt=ALL-UNNAMED');
             defaultVmParameters.push('--add-opens=java.desktop/sun.swing=ALL-UNNAMED');
             defaultVmParameters.push('--add-opens=java.desktop/java.awt.color=ALL-UNNAMED');
+        }
+        // 为JDK 8及以下版本设置适当的参数
+        else if (javaVersion <= 8) {
+            // JDK 8不需要--add-opens参数，但可能需要其他兼容性设置
+            defaultVmParameters.push('-Djava.awt.headless=true');
+            defaultVmParameters.push('-Dsun.reflect.noInflation=true');
+            defaultVmParameters.push('-Dsun.reflect.inflationThreshold=0');
+        }
+        // JDK 9-16版本的处理
+        else if (javaVersion > 8 && javaVersion < 17) {
+            // JDK 9-16不需要--add-opens参数，但可能需要其他兼容性设置
+            defaultVmParameters.push('-Djava.awt.headless=true');
         }
 
         // macOS参数
@@ -2126,33 +2201,68 @@ export class HomeService {
      */
     private getJDKVersion(homePath: string): number {
         try {
-            // 获取Java可执行文件路径
-            let javaExecutable = 'java';
-            const ufjdkPath = path.join(homePath, 'ufjdk');
-            const ufjdkBinPath = path.join(ufjdkPath, 'bin');
-
-            if (process.platform === 'win32') {
-                const javaExe = path.join(ufjdkBinPath, 'java.exe');
-                if (fs.existsSync(javaExe)) {
-                    javaExecutable = javaExe;
+            // 首先尝试从VS Code的java.configuration.runtimes配置中获取Java路径
+            let javaExecutable: string | null = null;
+                
+            try {
+                const javaConfig = vscode.workspace.getConfiguration('java.configuration');
+                const runtimes = javaConfig.get<any[]>('runtimes', []);
+                    
+                // 查找默认的Java运行时
+                const defaultRuntime = runtimes.find(runtime => runtime.default === true);
+                if (defaultRuntime && defaultRuntime.path) {
+                    const javaPath = path.join(defaultRuntime.path, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+                    if (fs.existsSync(javaPath)) {
+                        this.outputChannel.appendLine(`✅ 从VS Code配置获取Java路径用于版本检测: ${javaPath}`);
+                        javaExecutable = javaPath;
+                    }
                 }
-            } else {
-                const javaBin = path.join(ufjdkBinPath, 'java');
-                if (fs.existsSync(javaBin)) {
-                    javaExecutable = javaBin;
+    
+                // 如果没有默认运行时，尝试使用第一个配置的运行时
+                if (!javaExecutable && runtimes.length > 0 && runtimes[0].path) {
+                    const javaPath = path.join(runtimes[0].path, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+                    if (fs.existsSync(javaPath)) {
+                        this.outputChannel.appendLine(`✅ 从VS Code配置获取第一个Java运行时用于版本检测: ${javaPath}`);
+                        javaExecutable = javaPath;
+                    }
+                }
+            } catch (error) {
+                this.outputChannel.appendLine(`⚠️ 读取VS Code Java配置时出错: ${error}`);
+            }
+                
+            // 如果VS Code配置中没有找到Java路径，回退到内置的ufjdk
+            if (!javaExecutable) {
+                const ufjdkPath = path.join(homePath, 'ufjdk');
+                const ufjdkBinPath = path.join(ufjdkPath, 'bin');
+                    
+                if (process.platform === 'win32') {
+                    const javaExe = path.join(ufjdkBinPath, 'java.exe');
+                    if (fs.existsSync(javaExe)) {
+                        javaExecutable = javaExe;
+                    }
+                } else {
+                    const javaBin = path.join(ufjdkBinPath, 'java');
+                    if (fs.existsSync(javaBin)) {
+                        javaExecutable = javaBin;
+                    }
                 }
             }
-
+                
+            if (!javaExecutable) {
+                this.outputChannel.appendLine('⚠️ 未找到Java可执行文件，无法检测JDK版本');
+                return 0;
+            }
+    
             // 执行Java版本命令
             const result = spawnSync(javaExecutable, ['-version'], {
                 encoding: 'utf8',
                 timeout: 10000
             });
-
+    
             if (result.status === 0) {
                 const versionOutput = result.stderr || result.stdout;
                 // 解析Java版本，例如 "java version \"1.8.0_261\"" 或 "openjdk version \"11.0.8\""
-                const versionMatch = versionOutput.match(/version\s+["']([^"']+)["']/i);
+                const versionMatch = versionOutput.match(/version\s+["']([^"']+)['"]/i);
                 if (versionMatch && versionMatch[1]) {
                     const versionStr = versionMatch[1];
                     // 提取主版本号
@@ -2170,7 +2280,7 @@ export class HomeService {
         } catch (error) {
             this.outputChannel.appendLine(`⚠️ 获取JDK版本时出错: ${error}`);
         }
-
+    
         // 默认返回一个较低的版本号
         return 0;
     }
