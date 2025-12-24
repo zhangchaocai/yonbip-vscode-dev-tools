@@ -5,14 +5,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 自定义类加载器，用于处理超长类路径问题
- * 通过动态加载jar文件来避免命令行参数超长的问题
- */
+     * 自定义类加载器，用于处理超长类路径问题
+     * 通过动态加载jar文件来避免命令行参数超长的问题
+     * 支持直接接收类路径字符串或类路径文件路径（以@开头）
+     */
 public class CustomClassLoader extends URLClassLoader {
     
-    public CustomClassLoader(String classpath) throws Exception {
+    public CustomClassLoader(String classpathOrFile) throws Exception {
         super(new URL[0]); // 初始化空的URL数组
-        addClasspathEntries(classpath);
+        
+        // 检查是否是类路径文件引用（以@开头）
+        if (classpathOrFile.startsWith("@")) {
+            // 从文件中读取类路径
+            String filePath = classpathOrFile.substring(1);
+            java.io.File classpathFile = new java.io.File(filePath);
+            java.util.Scanner scanner = new java.util.Scanner(classpathFile, "UTF-8");
+            try {
+                if (scanner.hasNextLine()) {
+                    String classpath = scanner.nextLine();
+                    addClasspathEntries(classpath);
+                }
+            } finally {
+                scanner.close();
+            }
+        } else {
+            // 直接使用类路径字符串
+            addClasspathEntries(classpathOrFile);
+        }
     }
     
     public CustomClassLoader(String[] classpathEntries) throws Exception {

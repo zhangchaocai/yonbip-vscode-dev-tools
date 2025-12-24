@@ -29,6 +29,7 @@ export class HomeService {
     private oracleClientService: OracleClientService;
     private statusBarItem: vscode.StatusBarItem | null = null;
     private currentModuleInfo: { moduleName: string; modulePath: string } | null = null;
+    private currentClasspathFile: string | null = null;
 
     constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService) {
         this.context = context;
@@ -659,6 +660,12 @@ export class HomeService {
         // 检查Oracle Instant Client（如果配置了Oracle数据源）
         await this.checkOracleClientIfNeeded(config);
 
+        // 声明类路径结果变量，用于确保在异常情况下也能清理类路径文件
+        let classpathResult: { classpath: string, classpathFile?: string } | undefined;
+        
+        // 重置当前类路径文件引用
+        this.currentClasspathFile = null;
+
         try {
             this.setStatus(HomeStatus.STARTING);
             this.outputChannel.clear();
@@ -726,6 +733,11 @@ export class HomeService {
             // 构建类路径
             const classpathResult = this.buildClasspath(config, coreJarPath, workspaceFolder);
             const classpath = classpathResult.classpath;
+            
+            // 如果构建类路径时创建了类路径文件，保存引用以便后续清理
+            if (classpathResult.classpathFile) {
+                this.currentClasspathFile = classpathResult.classpathFile;
+            }
 
             // 检查必要的配置文件
             const propDir = path.join(config.homePath, 'ierp', 'bin');
@@ -806,17 +818,49 @@ export class HomeService {
             const customClassLoaderPath = path.join(this.context.extensionPath, 'resources', 'custom-classloader', 'bin');
             const customClassLoaderJar = path.join(customClassLoaderPath, 'CustomClassLoader.class');
             
+            // 计算实际类路径长度
+            let actualClasspath = classpath;
+            if (classpath.startsWith('@')) {
+                // 如果是类路径文件引用，读取文件内容计算实际长度
+                try {
+                    const classpathFileContent = fs.readFileSync(classpath.substring(1), 'utf8');
+                    actualClasspath = classpathFileContent;
+                } catch (e) {
+                    // 如果无法读取文件，使用估计值
+                    this.outputChannel.appendLine('⚠️ 无法读取类路径文件，使用估计长度');
+                }
+            }
+            
             let javaArgs: string[];
-            if (classpath.length > 7000 && fs.existsSync(customClassLoaderJar)) {
+            if (actualClasspath.length > 7000 && fs.existsSync(customClassLoaderJar)) {
                 // 使用自定义类加载器处理超长类路径
                 this.outputChannel.appendLine('📚 类路径过长，使用自定义类加载器');
+                
+                let classpathToUse = classpath; // 默认使用原始类路径（可能是@file引用）
+                
+                // 检查当前类路径是否已经是文件引用格式
+                if (!classpath.startsWith('@')) {
+                    // 如果不是文件引用格式且类路径非常长，考虑创建类路径文件
+                    if (actualClasspath.length > 15000) {
+                        // 创建临时类路径文件
+                        const tempDir = os.tmpdir();
+                        const classpathFile = path.join(tempDir, `classpath_${Date.now()}.txt`);
+                        fs.writeFileSync(classpathFile, actualClasspath, 'utf8');
+                        classpathToUse = `@${classpathFile}`;
+                        this.outputChannel.appendLine(`📄 创建类路径文件: ${classpathFile}`);
+                        
+                        // 保存类路径文件引用以便后续清理
+                        this.currentClasspathFile = classpathFile;
+                    }
+                }
+                
                 javaArgs = [
                     ...vmParameters,
                     '-cp',
                     customClassLoaderPath,  // 只包含自定义类加载器的路径
                     'CustomClassLoader',      // 自定义类加载器主类
-                    classpath,                // 原始类路径作为第一个参数
-                    mainClass                 // 原始主类作为第二个参数
+                    classpathToUse,          // 类路径或@file引用作为第一个参数
+                    mainClass                // 原始主类作为第二个参数
                 ];
             } else {
                 // 使用标准方式
@@ -965,6 +1009,9 @@ export class HomeService {
                         this.outputChannel.appendLine(`⚠️ 清理类路径文件失败: ${e}`);
                     }
                 }
+                
+                // 同时清理当前类路径文件引用（如果存在）
+                this.cleanupClasspathFile();
 
                 this.process = null;
                 this.setStatus(HomeStatus.STOPPED);
@@ -1030,6 +1077,17 @@ export class HomeService {
             this.outputChannel.appendLine(`❌ 启动过程中出现异常: ${error.message}`);
             this.outputChannel.appendLine(error.stack);
             this.setStatus(HomeStatus.ERROR);
+            
+            // 确保清理类路径文件（如果已创建）
+            if (classpathResult?.classpathFile && fs.existsSync(classpathResult.classpathFile)) {
+                try {
+                    fs.unlinkSync(classpathResult.classpathFile);
+                    this.outputChannel.appendLine(`🧹 已清理类路径文件: ${classpathResult.classpathFile}`);
+                } catch (cleanupError) {
+                    this.outputChannel.appendLine(`⚠️ 清理类路径文件失败: ${cleanupError}`);
+                }
+            }
+            
             vscode.window.showErrorMessage(`启动NC HOME服务时出现异常: ${error.message}`);
         }
     }
@@ -1307,8 +1365,10 @@ export class HomeService {
             }
             
             // JDK 1.8 (版本号为8) 或检测失败时，不使用@文件引用方式
+            // 但会在startHomeService方法中使用自定义类加载器处理
             if (javaVersion <= 8) {
                 this.outputChannel.appendLine(`JDK ${javaVersion} 检测到，不使用@文件引用方式以避免兼容性问题`);
+                this.outputChannel.appendLine(`类路径长度: ${classpathString.length}，将在启动时使用自定义类加载器处理`);
                 return { classpath: classpathString };
             } else {
                 // JDK 9+ 使用@文件引用方式
@@ -1844,82 +1904,8 @@ export class HomeService {
 
             const config = this.configService.getConfig();
 
-            // 确定停止脚本路径
-            let stopScriptPath = '';
-            if (process.platform === 'win32') {
-                stopScriptPath = path.join(config.homePath, 'bin', 'stop.bat');
-            } else {
-                stopScriptPath = path.join(config.homePath, 'bin', 'stop.sh');
-            }
-
-            // 检查停止脚本是否存在
-            if (fs.existsSync(stopScriptPath)) {
-                this.outputChannel.appendLine(`🔍 找到停止脚本: ${stopScriptPath}`);
-
-                // 在Unix系统（macOS/Linux）上添加执行权限
-                if (process.platform !== 'win32') {
-                    try {
-                        fs.chmodSync(stopScriptPath, 0o755);
-                        this.outputChannel.appendLine(`已为脚本添加执行权限: ${stopScriptPath}`);
-                    } catch (chmodError: any) {
-                        this.outputChannel.appendLine(`添加执行权限失败: ${chmodError.message}`);
-                    }
-                }
-
-                // 执行停止脚本
-                this.outputChannel.appendLine(`正在执行停止脚本: ${stopScriptPath}`);
-                const stopProcess = spawn(stopScriptPath, {
-                    cwd: path.dirname(stopScriptPath),
-                    stdio: ['pipe', 'pipe', 'pipe'],
-                    detached: false
-                });
-
-                // // 监听标准输出
-                // stopProcess.stdout?.on('data', (data: Buffer) => {
-                //     const output = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
-                //     this.outputChannel.appendLine(`[STDOUT] ${output}`);
-                // });
-
-                // // 监听标准错误输出
-                // stopProcess.stderr?.on('data', (data: Buffer) => {
-                //     const stderrOutput = data.toString().replace(/\u001b\[.*?m/g, ''); // 移除ANSI转义序列
-                //     this.outputChannel.appendLine(`[STDERR] ${stderrOutput}`);
-                // });
-
-                stopProcess.on('close', (code: any) => {
-                    this.outputChannel.appendLine(`停止脚本执行完成，退出码: ${code}`);
-                    if (code === 0) {
-                        this.setStatus(HomeStatus.STOPPED);
-                        this.isManualStop = false;
-                        this.outputChannel.appendLine('✅ HOME服务已成功停止');
-                    } else if (code === 127) {
-                        // 对于退出码127，我们已经尝试了修复但仍失败，直接kill进程
-                        this.outputChannel.appendLine('⚠️ 停止脚本执行失败(退出码127)，直接终止进程');
-                        this.killProcess();
-                    } else if (code === 143) {
-                        // 退出码143表示进程被SIGTERM信号终止，这是正常停止的结果
-                        this.setStatus(HomeStatus.STOPPED);
-                        this.isManualStop = false;
-                        this.outputChannel.appendLine('✅ HOME服务已成功停止');
-                    } else {
-                        this.outputChannel.appendLine(`⚠️ 停止脚本执行完成，但退出码为: ${code}`);
-                        // 脚本执行失败，强制终止进程
-                        this.killProcess();
-                    }
-                });
-
-                stopProcess.on('error', (error: any) => {
-                    this.outputChannel.appendLine(`执行停止脚本失败: ${error.message}`);
-                    this.outputChannel.appendLine(`错误代码: ${error.code}`);
-                    this.outputChannel.appendLine(`错误路径: ${error.path}`);
-                    // 如果脚本执行失败，则强制终止进程
-                    this.killProcess();
-                });
-            } else {
-                // 如果没有停止脚本，则直接终止进程
-                this.outputChannel.appendLine(`停止脚本不存在: ${stopScriptPath}，直接终止进程`);
-                this.killProcess();
-            }
+            // 终止进程
+           this.killProcess();
 
             // 设置超时，如果一段时间后进程仍未停止则强制终止
             setTimeout(() => {
@@ -1933,6 +1919,10 @@ export class HomeService {
             this.outputChannel.appendLine(`停止NC HOME服务失败: ${error.message}`);
             this.setStatus(HomeStatus.ERROR);
             this.isManualStop = false;
+            
+            // 清理可能存在的类路径文件
+            this.cleanupClasspathFile();
+            
             vscode.window.showErrorMessage(`停止NC HOME服务失败: ${error.message}`);
         }
     }
@@ -1965,7 +1955,26 @@ export class HomeService {
         // 设置状态为已停止
         this.setStatus(HomeStatus.STOPPED);
         // 注意：这里不重置isManualStop标志，因为它在stopHomeService方法中管理
+        
+        // 清理类路径文件
+        this.cleanupClasspathFile();
+        
         this.outputChannel.appendLine('✅ HOME服务已停止');
+    }
+
+    /**
+     * 清理类路径文件
+     */
+    private cleanupClasspathFile(): void {
+        if (this.currentClasspathFile && fs.existsSync(this.currentClasspathFile)) {
+            try {
+                fs.unlinkSync(this.currentClasspathFile);
+                this.outputChannel.appendLine(`🧹 已清理类路径文件: ${this.currentClasspathFile}`);
+                this.currentClasspathFile = null; // 重置引用
+            } catch (e) {
+                this.outputChannel.appendLine(`⚠️ 清理类路径文件失败: ${e}`);
+            }
+        }
     }
 
     /**
