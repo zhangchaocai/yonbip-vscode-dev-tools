@@ -1157,9 +1157,26 @@ export class NCHomeConfigService {
         if (index !== -1) {
             // 保存旧的数据源信息用于回滚
             oldDataSource = { ...this.config.dataSources[index] };
-            // 如果密码为空，表示不修改密码，保留原来的密码
+            
+            // 检查密码是否需要保留原始加密值
+            // 如果用户没有修改密码（即新密码与解密后的旧密码相同），则使用解密后的密码，避免重复加密
             if (!dataSource.password || dataSource.password.trim() === '') {
-                dataSource.password = oldDataSource.password;
+                // 密码为空，使用解密后的旧密码
+                if (oldDataSource.password && this.config.homePath) {
+                    dataSource.password = PasswordEncryptor.getSecurePassword(this.config.homePath, oldDataSource.password);
+                } else {
+                    dataSource.password = oldDataSource.password;
+                }
+            } else {
+                // 密码不为空，需要判断是否与解密后的旧密码相同
+                if (oldDataSource.password && this.config.homePath) {
+                    // 获取解密后的旧密码
+                    const decryptedOldPassword = PasswordEncryptor.getSecurePassword(this.config.homePath, oldDataSource.password);
+                    // 如果新输入的密码与解密后的旧密码相同，说明用户没有真正修改密码，应使用解密后的密码
+                    if (dataSource.password === decryptedOldPassword) {
+                        dataSource.password = decryptedOldPassword;
+                    }
+                }
             }
             this.config.dataSources[index] = dataSource;
         } else {

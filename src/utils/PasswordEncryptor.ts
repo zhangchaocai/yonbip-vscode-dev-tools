@@ -121,25 +121,25 @@ export class PasswordEncryptor {
         if (!password || password.length === 0) {
             return false;
         }
-
-        // 检查prop.xml文件中的isEncode标签来判断密码是否加密
+    
+        // 检查prop.xml文件中的isEncode标签来判断是否启用加密功能
         try {
             const fs = require('fs');
             const path = require('path');
             const iconv = require('iconv-lite');
-            
+                
             const propXmlPath = path.join(homePath, 'ierp', 'bin', 'prop.xml');
-            
+                
             // 检查文件是否存在
             if (!fs.existsSync(propXmlPath)) {
                 // 如果prop.xml不存在，默认认为密码未加密
                 return false;
             }
-            
+                
             // 读取文件内容，文件编码为gb2312
             const buffer = fs.readFileSync(propXmlPath);
             const content = iconv.decode(buffer, 'gb2312');
-            
+                
             // 查找isEncode标签
             const isEncodeMatch = content.match(/<isEncode>([^<]*)<\/isEncode>/);
             let isEncodeEnabled = false;
@@ -147,30 +147,49 @@ export class PasswordEncryptor {
                 // 如果isEncode为true，则启用加密功能
                 isEncodeEnabled = isEncodeMatch[1].trim().toLowerCase() === 'true';
             }
-            
+                
             // 如果加密功能未启用，直接返回false
             if (!isEncodeEnabled) {
                 return false;
             }
-            
-            // 查找design数据源的密码
-            const dataSourceMatches = content.match(/<dataSource>([\s\S]*?)<\/dataSource>/g);
-            if (dataSourceMatches) {
-                for (const dataSourceMatch of dataSourceMatches) {
-                    const dataSourceNameMatch = dataSourceMatch.match(/<dataSourceName>(.*?)<\/dataSourceName>/);
-                    const passwordMatch = dataSourceMatch.match(/<password>(.*?)<\/password>/);
+                
+            // 通过尝试解密来判断密码是否已加密
+            // 如果密码是加密的，解密后应该得到有意义的明文
+            // 如果密码是明文，解密后会得到乱码
+            try {
+                const decryptedPassword = PasswordEncryptor.decrypt(homePath, password);
                     
-                    // 找到design数据源并且有密码字段
-                    if (dataSourceNameMatch && dataSourceNameMatch[1] === 'design' && passwordMatch) {
-                        const designPassword = passwordMatch[1];
-                        // 如果传入的密码与prop.xml中design数据源的密码一致，则认为是加密的
-                        return password === designPassword;
-                    }
+                // 检查解密结果是否包含大量乱码字符
+                // 如果解密后包含多个连续的替换字符，说明原密码可能是明文
+                const replacementCharCount = (decryptedPassword.match(/\uFFFD/g) || []).length;
+                    
+                // 如果乱码字符数量超过一定阈值（比如2个），则原密码很可能是明文
+                if (replacementCharCount > 2) {
+                    return false; // 原密码是明文
                 }
+                    
+                // 如果解密后没有大量乱码，且与原密码不同，则原密码是加密的
+                if (decryptedPassword !== password) {
+                    return true; // 原密码是加密的
+                }
+                    
+                // 如果解密后与原密码相同，需要进一步判断
+                // 检查解密结果是否看起来像明文
+                // 通常加密结果包含更多特殊字符，而明文更可能是普通字符
+                const specialCharCount = (decryptedPassword.match(/[^a-zA-Z0-9\s]/g) || []).length;
+                const totalLength = decryptedPassword.length;
+                    
+                // 如果特殊字符比例较高，可能是加密的
+                if (totalLength > 0 && specialCharCount / totalLength > 0.3) {
+                    return true;
+                }
+                    
+                // 默认情况下，如果启用了加密且能成功解密，认为是加密的
+                return true;
+            } catch (decryptError) {
+                // 如果解密失败，说明原密码可能就是明文
+                return false;
             }
-            
-            // 如果找不到design数据源或密码不匹配，默认认为密码未加密
-            return false;
         } catch (error) {
             // 如果读取文件出错，默认认为密码未加密
             console.error('检查密码加密状态时出错:', error);
