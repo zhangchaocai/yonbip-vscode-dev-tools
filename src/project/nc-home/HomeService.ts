@@ -803,9 +803,6 @@ export class HomeService {
             // 自动切换到YonBIP NC HOME服务任务栏
             this.outputChannel.show();
 
-            // 添加控制台乱码补丁逻辑
-            //await this.applyConsoleEncodingPatch(config.homePath);
-
             // 检查端口占用情况
             const portsAndDataSourcesFromProp = this.configService.getPortFromPropXml();
             const serverPort = portsAndDataSourcesFromProp.port || config.port || 8077;
@@ -2589,69 +2586,7 @@ export class HomeService {
             });
         });
     }
-
-    /**
-     * 应用控制台编码补丁
-     * @param homePath NC HOME路径
-     */
-    private async applyConsoleEncodingPatch(homePath: string): Promise<void> {
-        return new Promise((resolve) => {
-            this.outputChannel.appendLine('🔧 应用控制台编码补丁...');
-
-            try {
-                // 检查JDK版本并应用DirectJDKLog补丁
-                const jdkVersion = this.getJDKVersion(homePath);
-                this.outputChannel.appendLine(`🔍 检测到JDK版本: ${jdkVersion}`);
-
-                if (jdkVersion >= 50) {
-                    this.outputChannel.appendLine('🔧 JDK版本 >= 50，应用DirectJDKLog补丁...');
-
-                    // 目标文件路径
-                    const targetFile = path.join(
-                        homePath,
-                        'middleware',
-                        'classes',
-                        'org',
-                        'apache',
-                        'juli',
-                        'logging',
-                        'DirectJDKLog.class'
-                    );
-
-                    // 确保目标目录存在
-                    const targetDir = path.dirname(targetFile);
-                    if (!fs.existsSync(targetDir)) {
-                        fs.mkdirSync(targetDir, { recursive: true });
-                    }
-
-                    // 尝试从resources目录获取补丁文件
-                    const patchFile = path.join(
-                        this.context.extensionPath,
-                        'resources',
-                        'replacement',
-                        'DirectJDKLog.class'
-                    );
-
-                    if (fs.existsSync(patchFile)) {
-                        // 复制补丁文件到目标位置
-                        fs.copyFileSync(patchFile, targetFile);
-                        this.outputChannel.appendLine(`✅ DirectJDKLog补丁已应用: ${targetFile}`);
-                    } else {
-                        this.outputChannel.appendLine(`⚠️ 未找到DirectJDKLog补丁文件: ${patchFile}`);
-                    }
-                } else {
-                    this.outputChannel.appendLine('✅ JDK版本 < 50，无需应用DirectJDKLog补丁');
-                }
-
-                this.outputChannel.appendLine('✅ 控制台编码补丁应用完成');
-                resolve();
-            } catch (error: any) {
-                this.outputChannel.appendLine(`⚠️ 应用控制台编码补丁时出现错误: ${error.message}`);
-                // 不要让补丁应用失败阻止服务启动
-                resolve();
-            }
-        });
-    }
+            
 
     /**
      * 获取JDK版本
