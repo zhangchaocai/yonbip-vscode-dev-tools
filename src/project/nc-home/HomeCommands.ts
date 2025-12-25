@@ -265,12 +265,13 @@ export class HomeCommands {
     private findFirstProjectDirectory(rootPath: string): string | null {
         const findProjectFile = (dir: string): string | null => {
             try {
-                const items = fs.readdirSync(dir);
-                
-                // 首先检查当前目录是否有.project文件
-                if (items.includes('.project')) {
+                // 首先直接检查当前目录是否存在.project文件（解决Windows环境下隐藏文件问题）
+                const projectFilePath = path.join(dir, '.project');
+                if (fs.existsSync(projectFilePath)) {
                     return dir;
                 }
+                
+                const items = fs.readdirSync(dir);
                 
                 // 递归查找子目录
                 for (const item of items) {
