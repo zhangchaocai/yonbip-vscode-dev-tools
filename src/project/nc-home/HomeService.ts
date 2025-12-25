@@ -1611,15 +1611,6 @@ export class HomeService {
         defaultVmParameters.push('-Dconsole.encoding=UTF-8');
         defaultVmParameters.push('-Dsun.jnu.encoding=UTF-8');
         defaultVmParameters.push('-Dclient.encoding.override=UTF-8');
-        
-        // Windows平台特殊处理：设置控制台编码为GBK以避免乱码
-        if (process.platform === 'win32') {
-            defaultVmParameters.push('-Dfile.encoding=GBK');
-            defaultVmParameters.push('-Dstdout.encoding=GBK');
-            defaultVmParameters.push('-Dstderr.encoding=GBK');
-        } else {
-            defaultVmParameters.push('-Dfile.encoding=UTF-8');
-        }
 
         // 添加XML解析器配置
         defaultVmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
