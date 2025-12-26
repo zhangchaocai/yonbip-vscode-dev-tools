@@ -1382,6 +1382,8 @@ export class HomeService {
         // 注意：这里仍然添加特定的jar包，因为需要确保ws相关类能被正确加载
         this.checkAndAddWSJars(config.homePath, classpathEntries);
 
+        this.resolveOracleJarCompatibility(config.homePath, classpathEntries);
+
         // 在所有jar包添加完成后，保守地添加resources目录（避免类加载冲突）
         const resourcesDir = path.join(config.homePath, 'resources');
         if (fs.existsSync(resourcesDir)) {
@@ -1490,6 +1492,70 @@ export class HomeService {
         }
 
         return { classpath: classpathString };
+    }
+
+    private resolveOracleJarCompatibility(homePath: string, classpathEntries: string[]): void {
+        try {
+            const dirs = [
+                path.join(homePath, 'driver'),
+                path.join(homePath, 'middleware', 'lib'),
+                path.join(homePath, 'lib'),
+                path.join(homePath, 'external', 'lib'),
+                path.join(homePath, 'webapps', 'uapws', 'WEB-INF', 'lib'),
+                path.join(homePath, 'webapps', 'nccloud', 'WEB-INF', 'lib')
+            ];
+            const jars: Array<{ path: string; name: string; folder: string }> = [];
+            const walk = (d: string) => {
+                if (!fs.existsSync(d)) return;
+                let items: string[] = [];
+                try {
+                    items = fs.readdirSync(d);
+                } catch {
+                    return;
+                }
+                for (const it of items) {
+                    const p = path.join(d, it);
+                    let s: fs.Stats;
+                    try {
+                        s = fs.statSync(p);
+                    } catch {
+                        continue;
+                    }
+                    if (s.isDirectory()) {
+                        walk(p);
+                    } else if (it.endsWith('.jar')) {
+                        jars.push({ path: p, name: it.toLowerCase(), folder: path.dirname(p) });
+                    }
+                }
+            };
+            for (const d of dirs) walk(d);
+            const ojdbcJars = jars.filter(j => j.name.includes('ojdbc'));
+            const orai18nJars = jars.filter(j => j.name.includes('orai18n'));
+            if (ojdbcJars.length === 0) return;
+            const preferFolders = ['oracle_23c', 'oracle_21c', 'oracle_19c', 'oracle_18c', 'oracle_12c', 'oracle_11g', 'oracle_10g'];
+            const sortedByFolder = [...ojdbcJars].sort((a, b) => {
+                const ia = preferFolders.findIndex(k => a.path.includes(k));
+                const ib = preferFolders.findIndex(k => b.path.includes(k));
+                return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+            });
+            let primaryOjdbc = sortedByFolder.find(j => j.name.includes('ojdbc8')) || sortedByFolder[0] || ojdbcJars[0];
+            let candidateOrai = orai18nJars.find(j => j.folder === primaryOjdbc.folder) || orai18nJars.find(j => j.path.includes('oracle_19c')) || orai18nJars[0];
+            if (!candidateOrai) {
+                this.outputChannel.appendLine('⚠️ 未找到orai18n.jar，可能导致Oracle字符集转换异常');
+                return;
+            }
+            const ensureFront = (p: string) => {
+                const idx = classpathEntries.indexOf(p);
+                if (idx >= 0) classpathEntries.splice(idx, 1);
+                classpathEntries.splice(1, 0, p);
+            };
+            ensureFront(candidateOrai.path);
+            ensureFront(primaryOjdbc.path);
+            this.outputChannel.appendLine(`🔧 优先使用Oracle JDBC: ${path.basename(primaryOjdbc.path)}`);
+            this.outputChannel.appendLine(`🔧 优先使用orai18n: ${path.basename(candidateOrai.path)}`);
+        } catch (e: any) {
+            this.outputChannel.appendLine(`⚠️ Oracle兼容性检查失败: ${e.message || e}`);
+        }
     }
 
     /**
