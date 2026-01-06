@@ -180,6 +180,9 @@ export class PropXmlUpdater {
                     break;
                 case 'sqlserver':
                 case 'mssql':
+                case 'sqlserver2016':
+                case 'sqlserver2017':
+                case 'sqlserver2019':
                     databaseUrl = `jdbc:sqlserver://${dataSource.host}:${dataSource.port};database=${dataSource.databaseName}`;
                     break;
                 case 'postgresql':

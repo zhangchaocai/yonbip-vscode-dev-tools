@@ -55,23 +55,6 @@ export async function activate(context: vscode.ExtensionContext) {
 			}
 		});
 
-	// 初始化版本检测服务
-	ExtensionVersionService.initialize(context);
-
-	// 检查更新（延迟执行以避免影响插件启动速度）
-	setTimeout(async () => {
-		try {
-			const updateInfo = await ExtensionVersionService.checkForUpdates();
-			if (updateInfo) {
-				await ExtensionVersionService.showUpdateNotification(updateInfo.latestVersion, updateInfo.releaseNotes);
-			}
-			
-			// 检查是否存在旧版本插件
-			await ExtensionVersionService.suggestUninstallOldVersions();
-		} catch (error) {
-			console.error('检查更新失败:', error);
-		}
-	}, 5000); // 延迟5秒执行
 
 	// 设置PasswordEncryptor的扩展路径
 	PasswordEncryptor.setExtensionPath(context.extensionPath);

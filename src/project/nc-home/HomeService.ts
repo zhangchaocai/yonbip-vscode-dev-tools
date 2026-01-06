@@ -2450,6 +2450,9 @@ export class HomeService {
             case 'sqlserver':
             case 'mssql':
             case 'microsoft sql server':
+            case 'sqlserver2016':
+            case 'sqlserver2017':
+            case 'sqlserver2019':
                 return 'com.microsoft.sqlserver.jdbc.SQLServerDriver';
             case 'postgresql':
             case 'pg':

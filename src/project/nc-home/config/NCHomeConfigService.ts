@@ -418,6 +418,9 @@ export class NCHomeConfigService {
                     break;
                 case 'sqlserver':
                 case 'mssql':
+                case 'sqlserver2016':
+                case 'sqlserver2017':
+                case 'sqlserver2019':
                     connectionResult = await this.testSQLServerConnection(secureDataSource);
                     break;
                 case 'postgresql':

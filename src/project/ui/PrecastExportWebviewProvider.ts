@@ -1553,7 +1553,7 @@ checkXmlSelection();
             await client.end();
             return result.rows as any[];
         }
-        if (['sqlserver', 'mssql'].includes(type)) {
+        if (['sqlserver', 'mssql', 'sqlserver2016', 'sqlserver2017', 'sqlserver2019'].includes(type)) {
             const mssql = await import('mssql');
             const pool = await mssql.connect({ user: ds.username, password: ds.password || '', server: ds.host, port: ds.port, database: ds.databaseName, options: { trustServerCertificate: true, enableArithAbort: true } });
             const result = await pool.request().query(sql);

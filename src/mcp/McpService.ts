@@ -876,6 +876,9 @@ export class McpService {
                                 break;
                             case 'sqlserver':
                             case 'mssql':
+                            case 'sqlserver2016':
+                            case 'sqlserver2017':
+                            case 'sqlserver2019':
                                 url = `jdbc:sqlserver://${designDataSource.host}:${designDataSource.port};database=${designDataSource.databaseName}`;
                                 driver = 'com.microsoft.sqlserver.jdbc.SQLServerDriver';
                                 break;
