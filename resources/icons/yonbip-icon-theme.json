@@ -23,10 +23,20 @@
   "folderExpanded": "_yonbip_open_folder",
   "folderNames": {
     "patches": "_yonbip_patch",
-    ".vscode": "_yonbip_vscode"
+    ".vscode": "_yonbip_vscode",
+    "zcctest": "_yonbip_project",
+    "zcc9998": "_yonbip_project",
+    "zcc8899": "_yonbip_project",
+    "1210test": "_yonbip_project",
+    "new-yonbip-project": "_yonbip_project"
   },
   "folderNamesExpanded": {
     "patches": "_yonbip_patch",
-    ".vscode": "_yonbip_vscode"
+    ".vscode": "_yonbip_vscode",
+    "zcctest": "_yonbip_project",
+    "zcc9998": "_yonbip_project",
+    "zcc8899": "_yonbip_project",
+    "1210test": "_yonbip_project",
+    "new-yonbip-project": "_yonbip_project"
   }
 }

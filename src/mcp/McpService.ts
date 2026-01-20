@@ -15,6 +15,10 @@ export interface McpConfig {
     jarPath: string;
     javaPath: string;
     maxMemory: string;
+    apiAppKey?: string;
+    apiAppSecret?: string;
+    apiUrl?: string;
+    apiMetadataUri?: string;
 }
 
 /**
@@ -89,7 +93,11 @@ export class McpService {
             port: (config && config.port) || 9000,
             jarPath: (config && config.jarPath) || '',
             javaPath: (config && config.javaPath) || 'java',
-            maxMemory: (config && config.maxMemory) || '512m'
+            maxMemory: (config && config.maxMemory) || '512m',
+            apiAppKey: (config && config.apiAppKey) || undefined,
+            apiAppSecret: (config && config.apiAppSecret) || undefined,
+            apiUrl: (config && config.apiUrl) || undefined,
+            apiMetadataUri: (config && config.apiMetadataUri) || undefined
         };
     }
 
@@ -101,7 +109,11 @@ export class McpService {
             port: 9000,
             jarPath: '',
             javaPath: 'java',
-            maxMemory: '512m'
+            maxMemory: '512m',
+            apiAppKey: undefined,
+            apiAppSecret: undefined,
+            apiUrl: undefined,
+            apiMetadataUri: undefined
         };
     }
 
@@ -114,7 +126,11 @@ export class McpService {
             port: config.port || 9000,
             jarPath: config.jarPath || '',
             javaPath: config.javaPath || 'java',
-            maxMemory: config.maxMemory || '512m'
+            maxMemory: config.maxMemory || '512m',
+            apiAppKey: config.apiAppKey,
+            apiAppSecret: config.apiAppSecret,
+            apiUrl: config.apiUrl,
+            apiMetadataUri: config.apiMetadataUri
         };
         
         this.config = configWithDefaults;
@@ -130,7 +146,11 @@ export class McpService {
             port: this.config.port || 9000,
             jarPath: this.config.jarPath || '',
             javaPath: this.config.javaPath || 'java',
-            maxMemory: this.config.maxMemory || '512m'
+            maxMemory: this.config.maxMemory || '512m',
+            apiAppKey: this.config.apiAppKey,
+            apiAppSecret: this.config.apiAppSecret,
+            apiUrl: this.config.apiUrl,
+            apiMetadataUri: this.config.apiMetadataUri
         };
     }
 
@@ -819,6 +839,36 @@ export class McpService {
             this.outputChannel.appendLine('⚠️ 未找到有效的数据源配置，将不传递数据源参数');
         }
 
+        // 添加API相关参数
+        if (this.config.apiAppKey) {
+            args.push('--api.appKey=' + this.config.apiAppKey);
+        }
+        if (this.config.apiAppSecret) {
+            args.push('--api.appSecret=' + this.config.apiAppSecret);
+        }
+        if (this.config.apiUrl) {
+            args.push('--api.url=' + this.config.apiUrl);
+        }
+        if (this.config.apiMetadataUri) {
+            args.push('--api.metadata_uri=' + this.config.apiMetadataUri);
+        }
+
+        if (this.config.apiAppKey || this.config.apiAppSecret || this.config.apiUrl || this.config.apiMetadataUri) {
+            this.outputChannel.appendLine('✅ API参数已添加到命令行:');
+            if (this.config.apiAppKey) {
+                this.outputChannel.appendLine(`   AppKey: ${this.config.apiAppKey}`);
+            }
+            if (this.config.apiAppSecret) {
+                this.outputChannel.appendLine(`   AppSecret: ******`); // 不显示敏感信息
+            }
+            if (this.config.apiUrl) {
+                this.outputChannel.appendLine(`   API URL: ${this.config.apiUrl}`);
+            }
+            if (this.config.apiMetadataUri) {
+                this.outputChannel.appendLine(`   Metadata URI: ${this.config.apiMetadataUri}`);
+            }
+        }
+
         return args;
     }
 
@@ -833,7 +883,7 @@ export class McpService {
             // 从配置中获取数据源
             const config = configService.getConfig();
             
-            this.outputChannel.appendLine(`🔍 检查数据源配置...`);
+            //this.outputChannel.appendLine(`🔍 检查数据源配置...`);
             
             // 检查是否有数据源配置
             if (config.dataSources && config.dataSources.length > 0) {
@@ -978,7 +1028,7 @@ export class McpService {
                     }
                 }
             } else {
-                this.outputChannel.appendLine(`⚠️ 未配置任何数据源`);
+                //this.outputChannel.appendLine(`⚠️ 未配置任何数据源`);
             }
         } catch (error: any) {
             this.outputChannel.appendLine(`获取design数据源信息失败: ${error.message}`);

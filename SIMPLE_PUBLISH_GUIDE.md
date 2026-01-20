@@ -21,7 +21,7 @@ VSCode插件发布**100%免费**，不需要Azure DevOps付费账号！
 
 ```
 Publisher ID: zhang-chaocai        (已在您的package.json中设置)
-Display Name: 张超才的开发工具
+Display Name: 张朝才的开发工具
 Description: YonBIP开发工具插件
 ```
 

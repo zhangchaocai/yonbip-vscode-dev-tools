@@ -890,6 +890,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
         <div class="tabs">
             <button class="tab active" onclick="switchTab('status')">📊 服务状态</button>
             <button class="tab" onclick="switchTab('config')">⚙️ 配置管理</button>
+            <button class="tab" onclick="switchTab('advanced')">🚀 旗舰版配置信息</button>
         </div>
 
         <!-- 服务状态选项卡 -->
@@ -960,6 +961,44 @@ export class McpProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
+        <!-- 旗舰版配置信息选项卡 -->
+        <div id="advanced-tab" class="tab-content">
+            <div class="section">
+                <div class="section-title">旗舰版配置信息</div>
+                
+                <div class="form-group">
+                    <label for="apiAppKey">API应用密钥(AppKey):</label>
+                    <input type="text" id="apiAppKey" placeholder="请输入API应用密钥">
+                    <div class="help-text">用于API身份验证的应用密钥</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiAppSecret">API应用密钥(AppSecret):</label>
+                    <input type="password" id="apiAppSecret" placeholder="请输入API应用密钥">
+                    <div class="help-text">用于API身份验证的应用密钥，此字段加密存储</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiUrl">API服务地址(URL):</label>
+                    <input type="text" id="apiUrl" placeholder="请输入API服务地址">
+                    <div class="help-text">API服务的基础URL地址</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiMetadataUri">元数据URI(Metadata URI):</label>
+                    <input type="text" id="apiMetadataUri" placeholder="请输入元数据URI">
+                    <div class="help-text">元数据服务的URI地址</div>
+                </div>
+                
+                <div class="form-group">
+                    <div id="advancedConfigActions" class="sticky-actions">
+                        <button onclick="saveConfig()">💾 保存配置</button>
+                        <button onclick="resetToDefaults()" class="secondary">🔄 重置为默认</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
 
     </div>
 
@@ -977,7 +1016,20 @@ export class McpProvider implements vscode.WebviewViewProvider {
             tabButtons.forEach(button => button.classList.remove('active'));
             
             document.getElementById(tabName + '-tab').classList.add('active');
-            event.target.classList.add('active');
+            
+            // 确保触发的按钮存在后再添加active类
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 如果找不到event.target，尝试通过tabName找到对应的按钮
+                const tabButton = Array.from(tabButtons).find(btn => {
+                    const onclickAttr = btn.getAttribute('onclick');
+                    return onclickAttr && onclickAttr.indexOf('switchTab("' + tabName + '")') !== -1;
+                });
+                if (tabButton) {
+                    tabButton.classList.add('active');
+                }
+            }
         }
         
         // 启动MCP服务
@@ -1022,7 +1074,11 @@ export class McpProvider implements vscode.WebviewViewProvider {
         function saveConfig() {
             const config = {
                 port: parseInt(document.getElementById('port').value) || 9000,
-                javaPath: document.getElementById('javaPath').value || 'java'
+                javaPath: document.getElementById('javaPath').value || 'java',
+                apiAppKey: document.getElementById('apiAppKey').value || undefined,
+                apiAppSecret: document.getElementById('apiAppSecret').value || undefined,
+                apiUrl: document.getElementById('apiUrl').value || undefined,
+                apiMetadataUri: document.getElementById('apiMetadataUri').value || undefined
             };
             
             vscode.postMessage({
@@ -1046,6 +1102,10 @@ export class McpProvider implements vscode.WebviewViewProvider {
             
             document.getElementById('port').value = config.port || 9000;
             document.getElementById('javaPath').value = config.javaPath || 'java';
+            document.getElementById('apiAppKey').value = config.apiAppKey || '';
+            document.getElementById('apiAppSecret').value = config.apiAppSecret || '';
+            document.getElementById('apiUrl').value = config.apiUrl || '';
+            document.getElementById('apiMetadataUri').value = config.apiMetadataUri || '';
             
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;
