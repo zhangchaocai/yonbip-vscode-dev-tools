@@ -967,9 +967,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 <div class="section-title">旗舰版配置信息</div>
                 
                 <div class="form-group">
-                    <label for="apiAppKey">API应用密钥(AppKey):</label>
-                    <input type="text" id="apiAppKey" placeholder="请输入API应用密钥">
-                    <div class="help-text">用于API身份验证的应用密钥</div>
+                    <label for="apiAppKey">API应用Key(AppKey):</label>
+                    <input type="text" id="apiAppKey" placeholder="请输入API应用Key">
+                    <div class="help-text">用于API身份验证的应用Key</div>
                 </div>
                 
                 <div class="form-group">
