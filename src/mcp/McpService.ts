@@ -250,22 +250,41 @@ export class McpService {
             this.outputChannel.appendLine('🏃 正在创建Java进程...');
 
             // 添加环境变量确保Java进程独立运行
-            const env = {
+            const env: NodeJS.ProcessEnv = {
                 ...process.env,
-                JAVA_OPTS: '-Dfile.encoding=UTF-8',
+                JAVA_OPTS: '-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8',
                 // 避免Java进程继承VSCode的一些环境变量
                 ELECTRON_RUN_AS_NODE: undefined
             };
 
+            // 在Windows系统中设置控制台编码为UTF-8
+            if (process.platform === 'win32') {
+                env.CHCP = '65001'; // 设置Windows控制台代码页为UTF-8
+                env.PATHEXT = '.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.CPL'; // Windows特有的环境变量
+            }
+
             // 确保在独立的会话中运行进程
-            this.process = spawn(this.config.javaPath, args, {
-                stdio: ['pipe', 'pipe', 'pipe'],
+            const spawnOptions: any = {
+                stdio: ['pipe', 'pipe', 'pipe'] as const,
                 detached: true, // 独立进程
                 env: env,
                 cwd: path.dirname(this.config.jarPath) // 设置工作目录为JAR文件所在目录
-            });
+            };
 
-            if (!this.process.pid) {
+            // 在Windows平台上设置额外的选项以支持UTF-8编码
+            if (process.platform === 'win32') {
+                (spawnOptions as any).windowsHide = false; // 显示控制台窗口以便于调试
+                
+                // 在Windows上设置编码选项以确保正确处理中文字符
+                (spawnOptions as any).encoding = 'utf8';
+                
+                // 在Windows上，添加额外的环境变量来确保字符编码
+                env.JAVA_TOOL_OPTIONS = env.JAVA_TOOL_OPTIONS ? `${env.JAVA_TOOL_OPTIONS} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8` : '-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8';
+            }
+
+            this.process = spawn(this.config.javaPath, args, spawnOptions);
+
+            if (!this.process || !this.process.pid) {
                 throw new Error('Java进程创建失败，无法获取进程ID');
             }
 
@@ -278,9 +297,16 @@ export class McpService {
 
             // 处理进程输出
             this.process.stdout?.on('data', (data) => {
-                const output = data.toString();
+                // 在Windows平台上，使用专门的编码处理函数
+                let output;
+                if (process.platform === 'win32' && Buffer.isBuffer(data)) {
+                    output = this.handleWindowsEncoding(data);
+                } else {
+                    output = data.toString();
+                }
+                            
                 this.outputChannel.appendLine(`[STDOUT] ${output}`);
-
+            
                 // 检查启动成功标识（更准确的匹配）
                 if (output.includes('yonyou-mcp应用启动成功') ||
                     output.includes('Server started') ||
@@ -290,13 +316,13 @@ export class McpService {
                     output.includes('MCP服务启动完成') ||
                     output.includes('Started YonBipMcpApplication')) {
                     this.outputChannel.appendLine('🎉 检测到MCP服务启动成功标识');
-                    
+                                
                     // 延迟一段时间再检查服务是否真正可用
                     setTimeout(async () => {
-                        const isAvailable = await this.checkHttpServiceAvailability();
+                        const isAvailable = await this.checkHttpServiceAvailability(); 
                         if (isAvailable) {
                             this.setStatus(McpStatus.RUNNING);
-                            
+                                        
                             // 获取数据源信息用于显示
                             const dataSourceInfo = this.getDesignDataSourceInfo();
                             if (dataSourceInfo) {
@@ -307,20 +333,20 @@ export class McpService {
                             } else {
                                 vscode.window.showInformationMessage(`MCP服务已启动，端口: ${this.config.port}`);
                             }
-
+            
                             // 启动成功后自动切换到MCP服务面板
                             vscode.commands.executeCommand('workbench.view.extension.yonbip-view');
-                            
+                                        
                             // 记录MCP启动统计
                             StatisticsService.incrementCount(StatisticsService.MCP_START_COUNT);
-
+            
                         } else {
                             this.outputChannel.appendLine('❌ 虽然检测到启动成功标识，但服务健康检查失败');
                             this.setStatus(McpStatus.ERROR);
                         }
                     }, 2000); // 等待2秒确保服务完全启动
                 }
-
+            
                 // 检查常见错误模式
                 if (output.includes('Address already in use') ||
                     output.includes('端口已被占用') ||
@@ -332,11 +358,18 @@ export class McpService {
                     this.setStatus(McpStatus.ERROR);
                 }
             });
-
+            
             this.process.stderr?.on('data', (data) => {
-                const output = data.toString();
+                // 在Windows平台上，使用专门的编码处理函数
+                let output;
+                if (process.platform === 'win32' && Buffer.isBuffer(data)) {
+                    output = this.handleWindowsEncoding(data);
+                } else {
+                    output = data.toString();
+                }
+                            
                 this.outputChannel.appendLine(`[STDERR] ${output}`);
-
+            
                 if (output.includes('Error') || output.includes('Exception')) {
                     this.setStatus(McpStatus.ERROR);
                 }
@@ -806,7 +839,11 @@ export class McpService {
     private buildCommandArgs(): string[] {
         const args = [
             `-Xmx${this.config.maxMemory}`,
-            '-Dfile.encoding=UTF-8'
+            '-Dfile.encoding=UTF-8',
+            '-Dsun.jnu.encoding=UTF-8',
+            '-Dclient.encoding.override=UTF-8',
+            '-Dsun.stdout.encoding=UTF-8',
+            '-Dsun.stderr.encoding=UTF-8'
         ];
 
         args.push(
@@ -1111,6 +1148,31 @@ export class McpService {
     /**
      * 启动前预检查
      */
+    /**
+     * 在Windows平台上处理可能的编码问题
+     * @param data Buffer类型的原始数据
+     * @returns 解码后的字符串
+     */
+    private handleWindowsEncoding(data: Buffer): string {
+        try {
+            // 首先尝试UTF-8解码
+            let decoded = new TextDecoder('utf-8', { fatal: false }).decode(data);
+            
+            // 检查解码结果是否包含大量替换字符（可能表示编码不正确）
+            const replacementCharCount = (decoded.split('').filter(char => char === '').length);
+            
+            // 如果替换字符过多，尝试使用GBK解码（中文Windows系统常用）
+            if (replacementCharCount > data.length / 4) {
+                decoded = new TextDecoder('gbk', { fatal: false }).decode(data);
+            }
+            
+            return decoded;
+        } catch (e) {
+            // 如果TextDecoder失败，回退到默认toString
+            return data.toString();
+        }
+    }
+
     private async preStartCheck(): Promise<boolean> {
         this.outputChannel.appendLine('────────────────────────────────────────────────────────');
         this.outputChannel.appendLine('🧰 MCP 服务启动前预检查');

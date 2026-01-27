@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Tools",
   "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.1.27",
+  "version": "2.1.28",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -43,7 +43,7 @@
     "onView:explorer",
     "workspaceContains:.classpath"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -561,8 +561,9 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "npm run build-webpack",
+    "build-webpack": "webpack --mode production",
+    "watch": "webpack --mode development --watch",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -588,7 +589,10 @@
     "glob": "^11.0.3",
     "mocha": "^11.7.2",
     "sinon": "^21.0.0",
-    "typescript": "^5.9.3"
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "@types/adm-zip": "^0.5.7",

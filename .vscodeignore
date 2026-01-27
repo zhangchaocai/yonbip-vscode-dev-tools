@@ -1,8 +1,9 @@
 # 排除源代码文件
 src/**
 *.ts
-!out/**/*.js
-!out/**/*.js.map
+!dist/**/*.js
+!dist/**/*.js.map
+out/**
 .vscode-test/**
 .vscode/**
 
@@ -23,6 +24,7 @@ tests/**
 *.vsix
 .DS_Store
 Thumbs.db
+node_modules/**
 
 # 排除文档（保留主要文档）
 docs/**
