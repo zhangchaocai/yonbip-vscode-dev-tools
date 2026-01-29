@@ -623,7 +623,7 @@ export class NCHomeConfigService {
         } catch (error: any) {
             return {
                 success: false,
-                message: `SQL Server连接失败: ${error.message}`,
+                message: `SQL Server连接失败: ${error.stack}`,
                 error: error.message
             };
         }
@@ -671,35 +671,42 @@ export class NCHomeConfigService {
                 } catch (initError: any) {
                     this.outputChannel.appendLine(`⚠️ Oracle Thick模式初始化失败: ${initError.message}`);
 
+                    // 处理NJS-045错误：无法加载Thick模式的本机模块，直接回退到Thin模式
+                    if (initError.message && initError.message.includes('NJS-045')) {
+                        this.outputChannel.appendLine(`💡 检测到NJS-045错误，回退使用Thin模式进行连接...`);
+                        return await this.testOracleThinMode(dataSource);
+                    }
+
                     // 检查是否是DPI-1047错误（无法找到Oracle客户端库）
                     if (initError.message && initError.message.includes('DPI-1047')) {
                         // 尝试使用常见的Oracle Instant Client安装路径
                         const commonPaths = [
-                            '/opt/oracle/instantclient_23_3',  // 你的实际安装路径
+                            '/opt/oracle/instantclient_23_3',
                             '/opt/oracle/instantclient_21_8',
                             '/opt/oracle/instantclient_19_17',
                             '/usr/local/oracle/instantclient_23_3',
                             '/usr/local/oracle/instantclient_21_8',
                             '/usr/local/oracle/instantclient_19_17',
-                            '/opt/homebrew/lib',  // Homebrew库路径
+                            '/opt/homebrew/lib',
                             path.join(this.context.globalStoragePath, 'oracle_client')
                         ];
 
                         // 添加从环境变量中获取的路径
                         if (process.env.DYLD_LIBRARY_PATH) {
                             const dyldPaths = process.env.DYLD_LIBRARY_PATH.split(':');
-                            commonPaths.unshift(...dyldPaths);  // 将环境变量路径放在最前面
+                            commonPaths.unshift(...dyldPaths);
+                        }
+                        
+                        // 添加从ORACLE_HOME环境变量获取的路径
+                        if (process.env.ORACLE_HOME) {
+                            commonPaths.unshift(path.join(process.env.ORACLE_HOME, 'lib'));
                         }
 
                         let initialized = false;
                         for (const clientPath of commonPaths) {
                             if (clientPath && fs.existsSync(clientPath)) {
                                 try {
-                                    // 检查是否已经初始化过Oracle客户端
-                                    // 修复NJS-090错误：在调用initOracleClient前检查oracleClientVersion是否存在
-                                    if (!oracledb.oracleClientVersion) {
-                                        oracledb.initOracleClient({ libDir: clientPath });
-                                    }
+                                    oracledb.initOracleClient({ libDir: clientPath });
                                     this.outputChannel.appendLine(`✅ Oracle Thick模式使用路径初始化成功: ${clientPath}`);
                                     initialized = true;
                                     NCHomeConfigService.oracleClientInitialized = true;
@@ -712,14 +719,13 @@ export class NCHomeConfigService {
 
                         // 如果所有常见路径都失败了，返回详细的错误信息
                         if (!initialized) {
-                            return {
-                                success: false,
-                                message: this.getOracleClientInstallationGuide(initError.message)
-                            };
+                            this.outputChannel.appendLine(`❌ 所有Oracle客户端路径初始化失败，尝试使用Thin模式...`);
+                            // 尝试使用Thin模式连接
+                            return await this.testOracleThinMode(dataSource);
                         }
                     } else {
                         this.outputChannel.appendLine(`💡 提示: 请确保已安装Oracle Instant Client`);
-                        NCHomeConfigService.oracleClientInitialized = true;
+                        // 不标记为已初始化，避免后续误用Thick模式
                     }
                 }
             } else {
@@ -750,6 +756,42 @@ export class NCHomeConfigService {
         } catch (error: any) {
             this.outputChannel.appendLine(`❌ Oracle连接测试出现未处理的错误: ${error.message}`);
             return await this.handleOracleConnectionError(error, dataSource);
+        }
+    }
+
+    /**
+     * 使用Thin模式测试Oracle连接（当Thick模式不可用时的备选方案）
+     */
+    private async testOracleThinMode(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
+        try {
+            // 动态导入oracledb驱动
+            const oracledb = await import('oracledb');
+            
+            // 构建连接字符串
+            const connectString = `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`;
+            
+            this.outputChannel.appendLine(`🔄 尝试使用Thin模式连接: ${connectString}`);
+            
+            // 尝试使用Thin模式连接
+            const connection = await oracledb.getConnection({
+                user: dataSource.username,
+                password: dataSource.password || '',
+                connectString: connectString
+            });
+
+            const result = await connection.execute('SELECT 1 as test FROM dual');
+            await connection.close();
+
+            return {
+                success: true,
+                message: `✅ Oracle Thin模式连接成功 - 使用格式: ${connectString}`
+            };
+        } catch (thinError: any) {
+            this.outputChannel.appendLine(`❌ Thin模式连接失败: ${thinError.message}`);
+            return {
+                success: false,
+                message: `Oracle连接失败: ${thinError.message}`
+            };
         }
     }
 
@@ -835,6 +877,17 @@ export class NCHomeConfigService {
         // 检查版本兼容性
         if (errorMessage.includes('NJS-138') || errorMessage.includes('Thin mode') || errorMessage.includes('version')) {
             return this.testOracleLegacyCompatibility(dataSource);
+        }
+
+        // 检查是否是DPI-1047错误（Oracle客户端库未找到）
+        if (errorMessage.includes('DPI-1047')) {
+            this.outputChannel.appendLine(`💡 检测到DPI-1047错误，尝试使用Thin模式连接...`);
+            return await this.testOracleThinMode(dataSource);
+        }
+        // 处理NJS-045错误（Thick模式本机模块不可用）
+        if (errorMessage.includes('NJS-045')) {
+            this.outputChannel.appendLine(`💡 检测到NJS-045错误，回退使用Thin模式连接...`);
+            return await this.testOracleThinMode(dataSource);
         }
 
         // 处理ORA错误
