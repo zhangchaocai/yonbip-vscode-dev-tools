@@ -1,9 +1,8 @@
 # 排除源代码文件
 src/**
 *.ts
-!dist/**/*.js
-!dist/**/*.js.map
-out/**
+!out/**/*.js
+!out/**/*.js.map
 .vscode-test/**
 .vscode/**
 
@@ -24,7 +23,7 @@ tests/**
 *.vsix
 .DS_Store
 Thumbs.db
-node_modules/**
+
 
 # 排除文档（保留主要文档）
 docs/**
@@ -45,3 +44,5 @@ FEATURES.md
 !LICENSE
 !package.json
 !out/**
+!dist/**
+!dist/**/*.js.map
