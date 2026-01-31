@@ -89312,6 +89312,7 @@ class PatchExportWebviewProvider {
     _view;
     _resolvePromise;
     configService;
+    _classpathSrcRootsCache = new Map();
     constructor(_extensionUri, _context) {
         this._extensionUri = _extensionUri;
         this._context = _context;
@@ -89701,6 +89702,69 @@ class PatchExportWebviewProvider {
             includeJavaSource: true,
             outputPath: config.get('patchOutputDir') || './patches'
         };
+    }
+    async _checkInnerClassFilesExist(mainClassPath) {
+        const fs = __webpack_require__(79896);
+        const path = __webpack_require__(16928);
+        const classDir = path.dirname(mainClassPath);
+        const classBaseName = path.basename(mainClassPath, '.class');
+        let hasInnerClass = false;
+        try {
+            const dirFiles = await fs.promises.readdir(classDir);
+            for (const file of dirFiles) {
+                if (file.startsWith(classBaseName + '$') && file.endsWith('.class')) {
+                    hasInnerClass = true;
+                    break;
+                }
+            }
+        }
+        catch (error) {
+            console.warn(`无法读取目录 ${classDir}:`, error);
+        }
+        return hasInnerClass;
+    }
+    async _addInnerClassFiles(archive, mainClassPath, mainTargetPath, classDir) {
+        const fs = __webpack_require__(79896);
+        const path = __webpack_require__(16928);
+        const classBaseName = path.basename(mainClassPath, '.class');
+        try {
+            const dirFiles = await fs.promises.readdir(path.dirname(mainClassPath));
+            for (const file of dirFiles) {
+                if (file.startsWith(classBaseName + '$') && file.endsWith('.class')) {
+                    const innerClassPath = path.join(path.dirname(mainClassPath), file);
+                    const innerTargetPath = mainTargetPath.replace(`${classBaseName}.class`, file);
+                    const innerClassDir = path.dirname(innerTargetPath);
+                    if (innerClassDir !== classDir) {
+                        this._ensureDirectoryExists(archive, innerClassDir);
+                    }
+                    const innerClassStat = fs.statSync(innerClassPath);
+                    archive.file(innerClassPath, {
+                        name: innerTargetPath,
+                        date: innerClassStat.mtime
+                    });
+                    console.log(`添加内部类文件: ${innerClassPath} -> ${innerTargetPath}`);
+                }
+            }
+        }
+        catch (error) {
+            console.warn(`无法读取目录以查找内部类文件 ${path.dirname(mainClassPath)}:`, error);
+        }
+    }
+    _ensureDirectoryExists(archive, dirPath) {
+        const path = __webpack_require__(16928);
+        const unixDirPath = dirPath.replace(/\\/g, '/');
+        const parts = unixDirPath.split('/');
+        let currentPath = '';
+        for (const part of parts) {
+            if (part) {
+                currentPath = currentPath ? `${currentPath}/${part}` : part;
+                try {
+                    archive.append('', { name: currentPath + '/' });
+                }
+                catch (e) {
+                }
+            }
+        }
     }
     getHtmlForWebview(webview) {
         return this._getHtmlForWebview(webview);
@@ -90982,6 +91046,7 @@ class PatchExportWebviewProvider {
                             name: targetPath,
                             date: classStat.mtime
                         });
+                        await this._addInnerClassFiles(archive, fullClassPath, targetPath, classDir);
                         if (patchInfo.includeJavaSource !== false) {
                             const javaStat = fs.statSync(file.path);
                             archive.file(file.path, {
@@ -91008,7 +91073,7 @@ class PatchExportWebviewProvider {
                             `   • 确保编译成功且无错误\n\n` +
                             `3. 📂 源码路径配置问题\n` +
                             `   • 检查源文件是否在正确的源码目录下\n` +
-                            `   • 支持的源码目录: src/public/, src/private/, src/client/, src/\n` +
+                            `   • 支持的源码目录: ${await this._getFriendlySrcRootsText(projectPath)}\n` +
                             `   • 当前源文件路径: ${file.path}\n\n` +
                             `4. 🏗️ 项目结构问题\n` +
                             `   • 确认项目是标准的Java项目结构\n` +
@@ -91284,55 +91349,114 @@ class PatchExportWebviewProvider {
             return 'build/classes';
         }
     }
+    async _getClasspathSourceRoots(projectPath) {
+        const fs = __webpack_require__(79896);
+        const path = __webpack_require__(16928);
+        const xml2js = __webpack_require__(38805);
+        const classpathFile = path.join(projectPath, '.classpath');
+        if (this._classpathSrcRootsCache.has(projectPath)) {
+            return this._classpathSrcRootsCache.get(projectPath) || [];
+        }
+        if (!fs.existsSync(classpathFile)) {
+            return [];
+        }
+        try {
+            const xmlContent = fs.readFileSync(classpathFile, 'utf8');
+            const parser = new xml2js.Parser();
+            const result = await this._parseXml(parser, xmlContent);
+            const entries = result && result.classpath && result.classpath.classpathentry ? result.classpath.classpathentry : [];
+            const srcRoots = [];
+            for (const entry of entries) {
+                if (entry.$ && entry.$.kind === 'src' && entry.$.path) {
+                    srcRoots.push(String(entry.$.path).replace(/\\/g, '/'));
+                }
+            }
+            this._classpathSrcRootsCache.set(projectPath, srcRoots);
+            return srcRoots;
+        }
+        catch (error) {
+            console.error('解析.classpath源码路径失败:', error);
+            return [];
+        }
+    }
+    async _getFriendlySrcRootsText(projectPath) {
+        const path = __webpack_require__(16928);
+        const proj = projectPath.replace(/\\/g, '/');
+        const roots = await this._getClasspathSourceRoots(projectPath);
+        const normalized = roots.map(r => {
+            let s = String(r).replace(/\\/g, '/');
+            if (s.startsWith('./'))
+                s = s.substring(2);
+            if (s.startsWith(proj + '/'))
+                s = s.substring(proj.length + 1);
+            if (s.startsWith('/'))
+                s = s.substring(1);
+            return s;
+        }).filter(Boolean);
+        return normalized.length > 0 ? normalized.join(', ') : 'src/*';
+    }
     async _getCompiledClassPath(javaFilePath, projectPath) {
         const fs = __webpack_require__(79896);
         const path = __webpack_require__(16928);
         const outputPath = await this._getClasspathOutputPath(projectPath);
-        let sourceRoot = '';
         let relativePath = '';
-        if (javaFilePath.includes('/src/public/')) {
-            const parts = javaFilePath.split('/src/public/');
-            sourceRoot = path.join(parts[0], 'src/public');
-            relativePath = parts[1];
-        }
-        else if (javaFilePath.includes('\\src\\public\\')) {
-            const parts = javaFilePath.split('\\src\\public\\');
-            sourceRoot = path.join(parts[0], 'src/public');
-            relativePath = parts[1];
-        }
-        else if (javaFilePath.includes('/src/private/')) {
-            const parts = javaFilePath.split('/src/private/');
-            sourceRoot = path.join(parts[0], 'src/private');
-            relativePath = parts[1];
-        }
-        else if (javaFilePath.includes('\\src\\private\\')) {
-            const parts = javaFilePath.split('\\src\\private\\');
-            sourceRoot = path.join(parts[0], 'src/private');
-            relativePath = parts[1];
-        }
-        else if (javaFilePath.includes('/src/client/')) {
-            const parts = javaFilePath.split('/src/client/');
-            sourceRoot = path.join(parts[0], 'src/client');
-            relativePath = parts[1];
-        }
-        else if (javaFilePath.includes('\\src\\client\\')) {
-            const parts = javaFilePath.split('\\src\\client\\');
-            sourceRoot = path.join(parts[0], 'src/client');
-            relativePath = parts[1];
-        }
-        else {
-            const srcIndexUnix = javaFilePath.indexOf('/src/');
-            const srcIndexWin = javaFilePath.indexOf('\\src\\');
-            if (srcIndexUnix !== -1) {
-                sourceRoot = javaFilePath.substring(0, srcIndexUnix + 4);
-                relativePath = javaFilePath.substring(srcIndexUnix + 5);
+        let matchedByClasspath = false;
+        const srcRoots = await this._getClasspathSourceRoots(projectPath);
+        if (srcRoots.length > 0) {
+            const projectRelative = path.relative(projectPath, javaFilePath).replace(/\\/g, '/');
+            for (let root of srcRoots) {
+                let normalizedRoot = String(root).replace(/\\/g, '/');
+                const proj = projectPath.replace(/\\/g, '/');
+                if (normalizedRoot.startsWith(proj + '/')) {
+                    normalizedRoot = normalizedRoot.substring(proj.length + 1);
+                }
+                const withSlash = normalizedRoot.endsWith('/') ? normalizedRoot : normalizedRoot + '/';
+                if (projectRelative.startsWith(withSlash) || projectRelative === normalizedRoot) {
+                    relativePath = projectRelative.startsWith(withSlash)
+                        ? projectRelative.substring(withSlash.length)
+                        : '';
+                    matchedByClasspath = true;
+                    break;
+                }
             }
-            else if (srcIndexWin !== -1) {
-                sourceRoot = javaFilePath.substring(0, srcIndexWin + 4);
-                relativePath = javaFilePath.substring(srcIndexWin + 5);
+        }
+        if (!matchedByClasspath) {
+            if (javaFilePath.includes('/src/public/')) {
+                const parts = javaFilePath.split('/src/public/');
+                relativePath = parts[1];
+            }
+            else if (javaFilePath.includes('\\src\\public\\')) {
+                const parts = javaFilePath.split('\\src\\public\\');
+                relativePath = parts[1];
+            }
+            else if (javaFilePath.includes('/src/private/')) {
+                const parts = javaFilePath.split('/src/private/');
+                relativePath = parts[1];
+            }
+            else if (javaFilePath.includes('\\src\\private\\')) {
+                const parts = javaFilePath.split('\\src\\private\\');
+                relativePath = parts[1];
+            }
+            else if (javaFilePath.includes('/src/client/')) {
+                const parts = javaFilePath.split('/src/client/');
+                relativePath = parts[1];
+            }
+            else if (javaFilePath.includes('\\src\\client\\')) {
+                const parts = javaFilePath.split('\\src\\client\\');
+                relativePath = parts[1];
             }
             else {
-                relativePath = path.relative(projectPath, javaFilePath);
+                const srcIndexUnix = javaFilePath.indexOf('/src/');
+                const srcIndexWin = javaFilePath.indexOf('\\src\\');
+                if (srcIndexUnix !== -1) {
+                    relativePath = javaFilePath.substring(srcIndexUnix + 5);
+                }
+                else if (srcIndexWin !== -1) {
+                    relativePath = javaFilePath.substring(srcIndexWin + 5);
+                }
+                else {
+                    relativePath = path.relative(projectPath, javaFilePath);
+                }
             }
         }
         const classRelativePath = relativePath.replace(/\.java$/, '.class');
@@ -91600,6 +91724,10 @@ class PatchExportWebviewProvider {
                 if (!fs.existsSync(fullClassPath)) {
                     console.log(`编译文件不存在: ${fullClassPath}`);
                     return false;
+                }
+                const innerClassExists = await this._checkInnerClassFilesExist(fullClassPath);
+                if (!innerClassExists) {
+                    console.log(`部分内部类文件不存在，但继续处理主类文件: ${fullClassPath}`);
                 }
                 const javaStat = fs.statSync(javaFile);
                 const classStat = fs.statSync(fullClassPath);

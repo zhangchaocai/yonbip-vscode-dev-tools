@@ -13,6 +13,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _resolvePromise?: (value: PatchInfo | null) => void;
     private configService: NCHomeConfigService;
+    private _classpathSrcRootsCache = new Map<string, string[]>();
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -524,6 +525,103 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
             includeJavaSource: true, // 默认包含Java源码
             outputPath: config.get('patchOutputDir') || './patches'
         };
+    }
+    
+    /**
+     * 检查是否存在相关的内部类文件
+     */
+    private async _checkInnerClassFilesExist(mainClassPath: string): Promise<boolean> {
+        const fs = require('fs');
+        const path = require('path');
+        
+        // 获取class文件的目录和基础名称
+        const classDir = path.dirname(mainClassPath);
+        const classBaseName = path.basename(mainClassPath, '.class');
+        
+        // 检查是否存在相关的内部类文件（$1.class, $2.class等）
+        let hasInnerClass = false;
+        
+        try {
+            const dirFiles = await fs.promises.readdir(classDir);
+            
+            for (const file of dirFiles) {
+                if (file.startsWith(classBaseName + '$') && file.endsWith('.class')) {
+                    hasInnerClass = true;
+                    break;
+                }
+            }
+        } catch (error) {
+            console.warn(`无法读取目录 ${classDir}:`, error);
+        }
+        
+        return hasInnerClass;
+    }
+    
+    /**
+     * 添加相关的内部类文件到归档
+     */
+    private async _addInnerClassFiles(archive: any, mainClassPath: string, mainTargetPath: string, classDir: string): Promise<void> {
+        const fs = require('fs');
+        const path = require('path');
+        
+        // 获取class文件的基础名称
+        const classBaseName = path.basename(mainClassPath, '.class');
+        
+        try {
+            const dirFiles = await fs.promises.readdir(path.dirname(mainClassPath));
+            
+            for (const file of dirFiles) {
+                // 检查是否为相关的内部类文件（如BaseClass$1.class, BaseClass$2.class等）
+                if (file.startsWith(classBaseName + '$') && file.endsWith('.class')) {
+                    const innerClassPath = path.join(path.dirname(mainClassPath), file);
+                    const innerTargetPath = mainTargetPath.replace(`${classBaseName}.class`, file);
+                    
+                    // 确保目录存在
+                    const innerClassDir = path.dirname(innerTargetPath);
+                    if (innerClassDir !== classDir) {
+                        // 如果内部类在不同的子目录中，创建相应目录
+                        this._ensureDirectoryExists(archive, innerClassDir);
+                    }
+                    
+                    // 添加内部类文件到归档
+                    const innerClassStat = fs.statSync(innerClassPath);
+                    archive.file(innerClassPath, { 
+                        name: innerTargetPath,
+                        date: innerClassStat.mtime // 确保使用正确的修改时间
+                    });
+                    
+                    console.log(`添加内部类文件: ${innerClassPath} -> ${innerTargetPath}`);
+                }
+            }
+        } catch (error) {
+            console.warn(`无法读取目录以查找内部类文件 ${path.dirname(mainClassPath)}:`, error);
+        }
+    }
+    
+    /**
+     * 确保归档中存在指定的目录
+     */
+    private _ensureDirectoryExists(archive: any, dirPath: string): void {
+        const path = require('path');
+        
+        // 将路径转换为Unix风格
+        const unixDirPath = dirPath.replace(/\\/g, '/');
+        
+        // 分割路径并逐级添加目录
+        const parts = unixDirPath.split('/');
+        let currentPath = '';
+        
+        for (const part of parts) {
+            if (part) {
+                currentPath = currentPath ? `${currentPath}/${part}` : part;
+                // 尝试添加目录（如果不存在）
+                try {
+                    archive.append('', { name: currentPath + '/' });
+                } catch (e) {
+                    // 如果目录已存在，会抛出异常，忽略即可
+                }
+            }
+        }
     }
 
     public getHtmlForWebview(webview: vscode.Webview): string {
@@ -1848,6 +1946,9 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                             date: classStat.mtime // 确保使用正确的修改时间
                         });
                         
+                        // 同时收集和添加相关的内部类文件（如$1.class, $2.class等）
+                        await this._addInnerClassFiles(archive, fullClassPath, targetPath, classDir);
+                        
                         // 如果包含源码，则添加源码文件
                         if ((patchInfo as any).includeJavaSource !== false) {
                             const javaStat = fs.statSync(file.path);
@@ -1876,7 +1977,7 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                             `   • 确保编译成功且无错误\n\n` +
                             `3. 📂 源码路径配置问题\n` +
                             `   • 检查源文件是否在正确的源码目录下\n` +
-                            `   • 支持的源码目录: src/public/, src/private/, src/client/, src/\n` +
+                            `   • 支持的源码目录: ${await this._getFriendlySrcRootsText(projectPath)}\n` +
                             `   • 当前源文件路径: ${file.path}\n\n` +
                             `4. 🏗️ 项目结构问题\n` +
                             `   • 确认项目是标准的Java项目结构\n` +
@@ -2266,6 +2367,53 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     /**
+     * 解析.classpath文件获取所有源码根路径(kind='src')
+     */
+    private async _getClasspathSourceRoots(projectPath: string): Promise<string[]> {
+        const fs = require('fs');
+        const path = require('path');
+        const xml2js = require('xml2js');
+        const classpathFile = path.join(projectPath, '.classpath');
+        if (this._classpathSrcRootsCache.has(projectPath)) {
+            return this._classpathSrcRootsCache.get(projectPath) || [];
+        }
+        if (!fs.existsSync(classpathFile)) {
+            return [];
+        }
+        try {
+            const xmlContent = fs.readFileSync(classpathFile, 'utf8');
+            const parser = new xml2js.Parser();
+            const result = await this._parseXml(parser, xmlContent);
+            const entries = result && result.classpath && result.classpath.classpathentry ? result.classpath.classpathentry : [];
+            const srcRoots: string[] = [];
+            for (const entry of entries) {
+                if (entry.$ && entry.$.kind === 'src' && entry.$.path) {
+                    srcRoots.push(String(entry.$.path).replace(/\\/g, '/'));
+                }
+            }
+            this._classpathSrcRootsCache.set(projectPath, srcRoots);
+            return srcRoots;
+        } catch (error) {
+            console.error('解析.classpath源码路径失败:', error);
+            return [];
+        }
+    }
+    
+    private async _getFriendlySrcRootsText(projectPath: string): Promise<string> {
+        const path = require('path');
+        const proj = projectPath.replace(/\\/g, '/');
+        const roots = await this._getClasspathSourceRoots(projectPath);
+        const normalized = roots.map(r => {
+            let s = String(r).replace(/\\/g, '/');
+            if (s.startsWith('./')) s = s.substring(2);
+            if (s.startsWith(proj + '/')) s = s.substring(proj.length + 1);
+            if (s.startsWith('/')) s = s.substring(1);
+            return s;
+        }).filter(Boolean);
+        return normalized.length > 0 ? normalized.join(', ') : 'src/*';
+    }
+
+    /**
      * 获取Java文件的编译后class文件路径
      */
     private async _getCompiledClassPath(javaFilePath: string, projectPath: string): Promise<string> {
@@ -2275,49 +2423,57 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
         // 获取输出路径
         const outputPath = await this._getClasspathOutputPath(projectPath);
 
-        // 查找src目录的位置并确定源码根目录
-        let sourceRoot = '';
         let relativePath = '';
-
-        // 查找src目录的位置
-        if (javaFilePath.includes('/src/public/')) {
-            const parts = javaFilePath.split('/src/public/');
-            sourceRoot = path.join(parts[0], 'src/public');
-            relativePath = parts[1];
-        } else if (javaFilePath.includes('\\src\\public\\')) {
-            const parts = javaFilePath.split('\\src\\public\\');
-            sourceRoot = path.join(parts[0], 'src/public');
-            relativePath = parts[1];
-        } else if (javaFilePath.includes('/src/private/')) {
-            const parts = javaFilePath.split('/src/private/');
-            sourceRoot = path.join(parts[0], 'src/private');
-            relativePath = parts[1];
-        } else if (javaFilePath.includes('\\src\\private\\')) {
-            const parts = javaFilePath.split('\\src\\private\\');
-            sourceRoot = path.join(parts[0], 'src/private');
-            relativePath = parts[1];
-        } else if (javaFilePath.includes('/src/client/')) {
-            const parts = javaFilePath.split('/src/client/');
-            sourceRoot = path.join(parts[0], 'src/client');
-            relativePath = parts[1];
-        } else if (javaFilePath.includes('\\src\\client\\')) {
-            const parts = javaFilePath.split('\\src\\client\\');
-            sourceRoot = path.join(parts[0], 'src/client');
-            relativePath = parts[1];
-        } else {
-            // 默认情况，查找src目录
-            const srcIndexUnix = javaFilePath.indexOf('/src/');
-            const srcIndexWin = javaFilePath.indexOf('\\src\\');
-
-            if (srcIndexUnix !== -1) {
-                sourceRoot = javaFilePath.substring(0, srcIndexUnix + 4); // +4 是 '/src' 的长度
-                relativePath = javaFilePath.substring(srcIndexUnix + 5); // +5 是 '/src/' 的长度
-            } else if (srcIndexWin !== -1) {
-                sourceRoot = javaFilePath.substring(0, srcIndexWin + 4); // +4 是 '\src' 的长度
-                relativePath = javaFilePath.substring(srcIndexWin + 5); // +5 是 '\src\' 的长度
+        let matchedByClasspath = false;
+        const srcRoots = await this._getClasspathSourceRoots(projectPath);
+        if (srcRoots.length > 0) {
+            const projectRelative = path.relative(projectPath, javaFilePath).replace(/\\/g, '/');
+            for (let root of srcRoots) {
+                let normalizedRoot = String(root).replace(/\\/g, '/');
+                const proj = projectPath.replace(/\\/g, '/');
+                if (normalizedRoot.startsWith(proj + '/')) {
+                    normalizedRoot = normalizedRoot.substring(proj.length + 1);
+                }
+                const withSlash = normalizedRoot.endsWith('/') ? normalizedRoot : normalizedRoot + '/';
+                if (projectRelative.startsWith(withSlash) || projectRelative === normalizedRoot) {
+                    relativePath = projectRelative.startsWith(withSlash)
+                        ? projectRelative.substring(withSlash.length)
+                        : '';
+                    matchedByClasspath = true;
+                    break;
+                }
+            }
+        }
+        if (!matchedByClasspath) {
+            // 回退：根据常见目录或/src/拆分
+            if (javaFilePath.includes('/src/public/')) {
+                const parts = javaFilePath.split('/src/public/');
+                relativePath = parts[1];
+            } else if (javaFilePath.includes('\\src\\public\\')) {
+                const parts = javaFilePath.split('\\src\\public\\');
+                relativePath = parts[1];
+            } else if (javaFilePath.includes('/src/private/')) {
+                const parts = javaFilePath.split('/src/private/');
+                relativePath = parts[1];
+            } else if (javaFilePath.includes('\\src\\private\\')) {
+                const parts = javaFilePath.split('\\src\\private\\');
+                relativePath = parts[1];
+            } else if (javaFilePath.includes('/src/client/')) {
+                const parts = javaFilePath.split('/src/client/');
+                relativePath = parts[1];
+            } else if (javaFilePath.includes('\\src\\client\\')) {
+                const parts = javaFilePath.split('\\src\\client\\');
+                relativePath = parts[1];
             } else {
-                // 如果找不到src目录，使用相对于项目根目录的路径
-                relativePath = path.relative(projectPath, javaFilePath);
+                const srcIndexUnix = javaFilePath.indexOf('/src/');
+                const srcIndexWin = javaFilePath.indexOf('\\src\\');
+                if (srcIndexUnix !== -1) {
+                    relativePath = javaFilePath.substring(srcIndexUnix + 5);
+                } else if (srcIndexWin !== -1) {
+                    relativePath = javaFilePath.substring(srcIndexWin + 5);
+                } else {
+                    relativePath = path.relative(projectPath, javaFilePath);
+                }
             }
         }
 
@@ -2664,6 +2820,12 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 if (!fs.existsSync(fullClassPath)) {
                     console.log(`编译文件不存在: ${fullClassPath}`);
                     return false;
+                }
+                
+                // 检查相关的内部类文件是否存在
+                const innerClassExists = await this._checkInnerClassFilesExist(fullClassPath);
+                if (!innerClassExists) {
+                    console.log(`部分内部类文件不存在，但继续处理主类文件: ${fullClassPath}`);
                 }
                 
                 // 额外检查：确保class文件是最新的（修改时间应该在java文件之后）
