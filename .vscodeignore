@@ -46,3 +46,11 @@ FEATURES.md
 !out/**
 !dist/**
 !dist/**/*.js.map
+
+# 排除 node_modules，但保留数据库驱动
+node_modules/**
+!node_modules/mysql2/**
+!node_modules/pg/**
+!node_modules/mssql/**
+!node_modules/oracledb/**
+!node_modules/dmdb/**
