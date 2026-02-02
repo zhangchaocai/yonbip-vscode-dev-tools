@@ -1925,9 +1925,103 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                     // 构造完整的class文件路径
                     // 获取输出路径
                     const outputPath = await this._getClasspathOutputPath(projectPath);
-                    const fullClassPath = path.join(projectPath, outputPath, compiledClassPath);
+                    let fullClassPath = path.join(projectPath, outputPath, compiledClassPath);
 
                     // 检查编译后的class文件是否存在
+                    if (!fs.existsSync(fullClassPath)) {
+                        const parentProjectPath = path.dirname(projectPath);
+                        if (parentProjectPath && parentProjectPath !== projectPath) {
+                            const parentCompiledClassPath = await this._getCompiledClassPath(filePath, parentProjectPath);
+                            const parentOutputPath = await this._getClasspathOutputPath(parentProjectPath);
+                            const parentFullClassPath = path.join(parentProjectPath, parentOutputPath, parentCompiledClassPath);
+                            if (fs.existsSync(parentFullClassPath)) {
+                                fullClassPath = parentFullClassPath;
+                            } else {
+                                // 如果编译后的文件不存在，生成详细的错误信息
+                                const outputPathMsg = await this._getClasspathOutputPath(projectPath);
+                                const projectRelativePath = path.relative(projectPath, file.path);
+                                
+                                const errorMessage = `❌ 编译文件未找到\n\n` +
+                                    `源文件: ${projectRelativePath}\n` +
+                                    `期望的编译文件路径: ${path.join(outputPathMsg, compiledClassPath)}\n` +
+                                    `完整路径: ${path.join(projectPath, outputPathMsg, compiledClassPath)}\n` +
+                                    `已尝试上一层路径: ${parentFullClassPath}\n\n` +
+                                    `可能的问题和解决方案:\n\n` +
+                                    `1. 📁 编译输出目录配置问题\n` +
+                                    `   • 当前配置的输出目录: ${outputPathMsg}\n` +
+                                    `   • 检查项目根目录下的 .classpath 文件\n` +
+                                    `   • 确认 <classpathentry kind="output" path=\"...\"/> 配置正确\n\n` +
+                                    `2. 🔨 代码尚未编译\n` +
+                                    `   • 请在IDE中编译项目 (Build Project)\n` +
+                                    `   • 或使用命令行: javac 编译Java文件\n` +
+                                    `   • 确保编译成功且无错误\n\n` +
+                                    `3. 📂 源码路径配置问题\n` +
+                                    `   • 检查源文件是否在正确的源码目录下\n` +
+                                    `   • 支持的源码目录: ${await this._getFriendlySrcRootsText(projectPath)}\n` +
+                                    `   • 当前源文件路径: ${file.path}\n\n` +
+                                    `4. 🏗️ 项目结构问题\n` +
+                                    `   • 确认项目是标准的Java项目结构\n` +
+                                    `   • 检查包名与目录结构是否匹配\n` +
+                                    `   • 验证Java文件的package声明\n\n` +
+                                    `请按照上述步骤检查并解决问题后重新导出补丁。`;
+                                
+                                console.warn(`编译后的class文件不存在: ${path.join(projectPath, outputPathMsg, compiledClassPath)}`);
+                                console.warn(`输出目录: ${outputPathMsg}`);
+                                console.warn(`编译后的class路径: ${compiledClassPath}`);
+                                console.warn(`上一层尝试路径: ${parentFullClassPath}`);
+                                
+                                // 向用户显示详细的错误消息
+                                console.log('准备发送详细错误消息到Webview');
+                                this._view?.webview.postMessage({
+                                    type: 'showMessage',
+                                    level: 'error',
+                                    message: errorMessage
+                                });
+                                console.log('详细错误消息已发送到Webview');
+                                
+                                // 抛出错误以阻断整个导出流程
+                                throw new Error(`编译文件未找到: ${path.join(projectPath, outputPathMsg, compiledClassPath)}`);
+                            }
+                        } else {
+                            // 如果没有父级目录或父级目录相同，直接报错
+                            const outputPathMsg = await this._getClasspathOutputPath(projectPath);
+                            const projectRelativePath = path.relative(projectPath, file.path);
+                            const fullPathMsg = path.join(projectPath, outputPathMsg, compiledClassPath);
+                            const errorMessage = `❌ 编译文件未找到\n\n` +
+                                `源文件: ${projectRelativePath}\n` +
+                                `期望的编译文件路径: ${path.join(outputPathMsg, compiledClassPath)}\n` +
+                                `完整路径: ${fullPathMsg}\n\n` +
+                                `可能的问题和解决方案:\n\n` +
+                                `1. 📁 编译输出目录配置问题\n` +
+                                `   • 当前配置的输出目录: ${outputPathMsg}\n` +
+                                `   • 检查项目根目录下的 .classpath 文件\n` +
+                                `   • 确认 <classpathentry kind=\"output\" path=\"...\"/> 配置正确\n\n` +
+                                `2. 🔨 代码尚未编译\n` +
+                                `   • 请在IDE中编译项目 (Build Project)\n` +
+                                `   • 或使用命令行: javac 编译Java文件\n` +
+                                `   • 确保编译成功且无错误\n\n` +
+                                `3. 📂 源码路径配置问题\n` +
+                                `   • 检查源文件是否在正确的源码目录下\n` +
+                                `   • 支持的源码目录: ${await this._getFriendlySrcRootsText(projectPath)}\n` +
+                                `   • 当前源文件路径: ${file.path}\n\n` +
+                                `4. 🏗️ 项目结构问题\n` +
+                                `   • 确认项目是标准的Java项目结构\n` +
+                                `   • 检查包名与目录结构是否匹配\n` +
+                                `   • 验证Java文件的package声明\n\n` +
+                                `请按照上述步骤检查并解决问题后重新导出补丁。`;
+                            console.warn(`编译后的class文件不存在: ${fullPathMsg}`);
+                            console.warn(`输出目录: ${outputPathMsg}`);
+                            console.warn(`编译后的class路径: ${compiledClassPath}`);
+                            this._view?.webview.postMessage({
+                                type: 'showMessage',
+                                level: 'error',
+                                message: errorMessage
+                            });
+                            throw new Error(`编译文件未找到: ${fullPathMsg}`);
+                        }
+                    }
+
+                    // 走正常的归档逻辑
                     if (fs.existsSync(fullClassPath)) {
                         // 获取目标文件的目录路径
                         const classDir = path.dirname(targetPath);
@@ -2814,12 +2908,26 @@ export class PatchExportWebviewProvider implements vscode.WebviewViewProvider {
                 
                 // 获取输出路径
                 const outputPath = await this._getClasspathOutputPath(projectPath);
-                const fullClassPath = path.join(projectPath, outputPath, compiledClassPath);
+                let fullClassPath = path.join(projectPath, outputPath, compiledClassPath);
 
                 // 检查编译后的class文件是否存在
                 if (!fs.existsSync(fullClassPath)) {
-                    console.log(`编译文件不存在: ${fullClassPath}`);
-                    return false;
+                    const parentProjectPath = path.dirname(projectPath);
+                    if (parentProjectPath && parentProjectPath !== projectPath) {
+                        const parentCompiledClassPath = await this._getCompiledClassPath(javaFile, parentProjectPath);
+                        const parentOutputPath = await this._getClasspathOutputPath(parentProjectPath);
+                        const parentFullClassPath = path.join(parentProjectPath, parentOutputPath, parentCompiledClassPath);
+                        if (fs.existsSync(parentFullClassPath)) {
+                            fullClassPath = parentFullClassPath;
+                        } else {
+                            console.log(`编译文件不存在: ${fullClassPath}`);
+                            console.log(`已尝试上一层路径: ${parentFullClassPath}`);
+                            return false;
+                        }
+                    } else {
+                        console.log(`编译文件不存在: ${fullClassPath}`);
+                        return false;
+                    }
                 }
                 
                 // 检查相关的内部类文件是否存在
