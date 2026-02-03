@@ -857,6 +857,75 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 padding: 16px;
             }
         }
+        /* 旗舰版配置页面（advanced）专业化样式与布局 */
+        #advanced-tab .section {
+            display: grid;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 16px 20px;
+            padding: 28px;
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 14px;
+            background:
+                linear-gradient(180deg, color-mix(in srgb, var(--vscode-editor-background) 92%, transparent) 0%, var(--vscode-input-background) 100%);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+        #advanced-tab .section-title {
+            grid-column: 1 / -1;
+            font-size: 17px;
+            letter-spacing: 0.2px;
+            color: var(--vscode-foreground);
+        }
+        #advanced-tab .form-group {
+            grid-column: span 6;
+            margin: 0;
+        }
+        #advanced-tab .form-group label {
+            font-weight: 600;
+            color: var(--vscode-descriptionForeground);
+        }
+        #advanced-tab .form-group input {
+            border: 1.5px solid var(--vscode-input-border);
+            background: color-mix(in srgb, var(--vscode-input-background) 88%, transparent);
+            border-radius: 10px;
+        }
+        #advanced-tab .form-group input:focus {
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.12);
+        }
+        #advanced-tab .help-text {
+            margin-top: 6px;
+            color: var(--vscode-descriptionForeground);
+        }
+        /* 操作条占满整行 */
+        #advanced-tab .form-group:last-of-type {
+            grid-column: 1 / -1;
+        }
+        #advanced-tab .sticky-actions {
+            justify-content: flex-end;
+            gap: 12px;
+            border-top: 1px solid var(--vscode-widget-border);
+            box-shadow: none;
+            background: transparent;
+            padding: 12px 0 0 0;
+            margin: 0;
+        }
+        #advanced-tab .sticky-actions button {
+            min-width: 140px;
+        }
+        /* 响应式：中屏两列、小屏一列 */
+        @media (max-width: 900px) {
+            #advanced-tab .form-group {
+                grid-column: 1 / -1;
+            }
+        }
+        @media (min-width: 901px) {
+            #advanced-tab .form-group:nth-child(odd) {
+                grid-column: span 6;
+            }
+            #advanced-tab .form-group:nth-child(even) {
+                grid-column: span 6;
+            }
+        }
         /* 中等屏幕优化 */
         @media (max-width: 800px) and (min-width: 601px) {
             .form-row {
