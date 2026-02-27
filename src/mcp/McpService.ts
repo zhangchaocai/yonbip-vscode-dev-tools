@@ -19,6 +19,7 @@ export interface McpConfig {
     apiAppSecret?: string;
     apiUrl?: string;
     apiMetadataUri?: string;
+    metadataByname?: string;
 }
 
 /**
@@ -97,7 +98,8 @@ export class McpService {
             apiAppKey: (config && config.apiAppKey) || undefined,
             apiAppSecret: (config && config.apiAppSecret) || undefined,
             apiUrl: (config && config.apiUrl) || undefined,
-            apiMetadataUri: (config && config.apiMetadataUri) || undefined
+            apiMetadataUri: (config && config.apiMetadataUri) || undefined,
+            metadataByname: (config && config.metadataByname) || undefined
         };
     }
 
@@ -113,7 +115,8 @@ export class McpService {
             apiAppKey: undefined,
             apiAppSecret: undefined,
             apiUrl: undefined,
-            apiMetadataUri: undefined
+            apiMetadataUri: undefined,
+            metadataByname: undefined
         };
     }
 
@@ -130,7 +133,8 @@ export class McpService {
             apiAppKey: config.apiAppKey,
             apiAppSecret: config.apiAppSecret,
             apiUrl: config.apiUrl,
-            apiMetadataUri: config.apiMetadataUri
+            apiMetadataUri: config.apiMetadataUri,
+            metadataByname: config.metadataByname
         };
         
         this.config = configWithDefaults;
@@ -150,7 +154,8 @@ export class McpService {
             apiAppKey: this.config.apiAppKey,
             apiAppSecret: this.config.apiAppSecret,
             apiUrl: this.config.apiUrl,
-            apiMetadataUri: this.config.apiMetadataUri
+            apiMetadataUri: this.config.apiMetadataUri,
+            metadataByname: this.config.metadataByname
         };
     }
 
@@ -889,8 +894,11 @@ export class McpService {
         if (this.config.apiMetadataUri) {
             args.push('--api.metadata_uri=' + this.config.apiMetadataUri);
         }
+        if (this.config.metadataByname) {
+            args.push('--api.metadata_byname=' + this.config.metadataByname);
+        }
 
-        if (this.config.apiAppKey || this.config.apiAppSecret || this.config.apiUrl || this.config.apiMetadataUri) {
+        if (this.config.apiAppKey || this.config.apiAppSecret || this.config.apiUrl || this.config.apiMetadataUri || this.config.metadataByname) {
             this.outputChannel.appendLine('✅ API参数已添加到命令行:');
             if (this.config.apiAppKey) {
                 this.outputChannel.appendLine(`   AppKey: ${this.config.apiAppKey}`);
@@ -903,6 +911,9 @@ export class McpService {
             }
             if (this.config.apiMetadataUri) {
                 this.outputChannel.appendLine(`   Metadata URI: ${this.config.apiMetadataUri}`);
+            }
+            if (this.config.metadataByname) {
+                this.outputChannel.appendLine(`   Metadata Byname: ${this.config.metadataByname}`);
             }
         }
 

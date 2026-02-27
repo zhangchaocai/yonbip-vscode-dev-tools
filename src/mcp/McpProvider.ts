@@ -1038,25 +1038,26 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 <div class="form-group">
                     <label for="apiAppKey">API应用Key(AppKey):</label>
                     <input type="text" id="apiAppKey" placeholder="请输入API应用Key">
-                    <div class="help-text">用于API身份验证的应用Key</div>
                 </div>
                 
                 <div class="form-group">
                     <label for="apiAppSecret">API应用密钥(AppSecret):</label>
                     <input type="password" id="apiAppSecret" placeholder="请输入API应用密钥">
-                    <div class="help-text">用于API身份验证的应用密钥，此字段加密存储</div>
                 </div>
                 
                 <div class="form-group">
                     <label for="apiUrl">API服务地址(URL):</label>
                     <input type="text" id="apiUrl" placeholder="请输入API服务地址">
-                    <div class="help-text">API服务的基础URL地址</div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="apiMetadataUri">元数据URI(Metadata URI):</label>
-                    <input type="text" id="apiMetadataUri" placeholder="请输入元数据URI">
-                    <div class="help-text">元数据服务的URI地址</div>
+                    <label for="apiMetadataUri">通过URL查询元数据详细信息地址(Metadata URI):</label>
+                    <input type="text" id="apiMetadataUri" placeholder="通过URL查询元数据详细信息地址">
+                </div>
+                
+                <div class="form-group">
+                    <label for="metadataByname">根据业务对象名称查询URL地址(Metadata Byname):</label>
+                    <input type="text" id="metadataByname" placeholder="根据业务对象名称查询URL地址">
                 </div>
                 
                 <div class="form-group">
@@ -1147,7 +1148,8 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 apiAppKey: document.getElementById('apiAppKey').value || undefined,
                 apiAppSecret: document.getElementById('apiAppSecret').value || undefined,
                 apiUrl: document.getElementById('apiUrl').value || undefined,
-                apiMetadataUri: document.getElementById('apiMetadataUri').value || undefined
+                apiMetadataUri: document.getElementById('apiMetadataUri').value || undefined,
+                metadataByname: document.getElementById('metadataByname').value || undefined
             };
             
             vscode.postMessage({
@@ -1175,6 +1177,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
             document.getElementById('apiAppSecret').value = config.apiAppSecret || '';
             document.getElementById('apiUrl').value = config.apiUrl || '';
             document.getElementById('apiMetadataUri').value = config.apiMetadataUri || '';
+            document.getElementById('metadataByname').value = config.metadataByname || '';
             
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;
