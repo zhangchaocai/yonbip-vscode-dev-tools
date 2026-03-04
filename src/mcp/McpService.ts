@@ -775,38 +775,20 @@ export class McpService {
         if (!isPortAvailable) {
             this.outputChannel.appendLine(`警告: 端口 ${this.config.port} 已被占用`);
 
-            // 尝试找到并杀死占用端口的进程
+            // 尝试找到并处理占用端口的进程（支持 macOS / Linux / Windows）
             try {
-                const { exec } = require('child_process');
-                const result = await new Promise<string>((resolve) => {
-                    exec(`lsof -ti:${this.config.port}`, (error: any, stdout: string) => {
-                        if (error) {
-                            resolve('');
-                        } else {
-                            resolve(stdout.trim());
-                        }
-                    });
-                });
+                const pids = await this.getPortPids(this.config.port);
 
-                if (result) {
-                    this.outputChannel.appendLine(`发现占用端口的进程PID: ${result}`);
+                if (pids.length > 0) {
+                    const pidList = pids.join(', ');
+                    this.outputChannel.appendLine(`发现占用端口的进程PID: ${pidList}`);
                     const choice = await vscode.window.showWarningMessage(
-                        `端口${this.config.port}被进程${result}占用，需要先停止该进程`,
+                        `端口${this.config.port}被进程${pidList}占用，需要先停止这些进程`,
                         '自动停止', '取消'
                     );
 
                     if (choice === '自动停止') {
-                        await new Promise<void>((resolve, reject) => {
-                            exec(`kill -TERM ${result}`, (error: any) => {
-                                if (error) {
-                                    this.outputChannel.appendLine(`停止进程失败: ${error.message}`);
-                                    reject(error);
-                                } else {
-                                    this.outputChannel.appendLine(`已停止占用端口的进程: ${result}`);
-                                    resolve();
-                                }
-                            });
-                        });
+                        await this.killPortPids(pids);
 
                         // 等待进程完全停止
                         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1143,6 +1125,96 @@ export class McpService {
     }
 
     /**
+     * 获取占用指定端口的进程 PID 列表（跨平台）
+     */
+    private async getPortPids(port: number): Promise<string[]> {
+        const { exec } = require('child_process');
+
+        return new Promise((resolve) => {
+            // Windows 使用 netstat + findstr
+            if (process.platform === 'win32') {
+                exec(`netstat -ano | findstr :${port}`, (error: any, stdout: string) => {
+                    if (error || !stdout) {
+                        this.outputChannel.appendLine(`在 Windows 上查询端口占用失败: ${error?.message ?? '无输出'}`);
+                        resolve([]);
+                        return;
+                    }
+
+                    const lines = stdout.split(/\r?\n/).filter(line => line.trim() !== '');
+                    const pidSet = new Set<string>();
+
+                    for (const line of lines) {
+                        const parts = line.trim().split(/\s+/);
+                        if (parts.length === 0) {
+                            continue;
+                        }
+                        const pid = parts[parts.length - 1];
+                        if (/^\d+$/.test(pid)) {
+                            pidSet.add(pid);
+                        }
+                    }
+
+                    resolve(Array.from(pidSet));
+                });
+            } else {
+                // macOS / Linux 使用 lsof
+                exec(`lsof -ti:${port}`, (error: any, stdout: string) => {
+                    if (error || !stdout) {
+                        // 在某些精简系统上可能没有 lsof，记录日志后返回空
+                        if (error) {
+                            this.outputChannel.appendLine(`使用 lsof 查询端口占用失败: ${error.message}`);
+                        }
+                        resolve([]);
+                        return;
+                    }
+
+                    const pids = stdout
+                        .split(/\r?\n/)
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0);
+
+                    resolve(pids);
+                });
+            }
+        });
+    }
+
+    /**
+     * 根据 PID 列表结束进程（跨平台）
+     */
+    private async killPortPids(pids: string[]): Promise<void> {
+        if (!pids || pids.length === 0) {
+            return;
+        }
+
+        const { exec } = require('child_process');
+
+        for (const pid of pids) {
+            await new Promise<void>((resolve, reject) => {
+                let cmd: string;
+                if (process.platform === 'win32') {
+                    // Windows 使用 taskkill
+                    cmd = `taskkill /PID ${pid} /T /F`;
+                } else {
+                    // macOS / Linux 使用 kill
+                    cmd = `kill -TERM ${pid}`;
+                }
+
+                exec(cmd, (error: any) => {
+                    if (error) {
+                        this.outputChannel.appendLine(`停止进程 ${pid} 失败: ${error.message}`);
+                        // 不中断整个流程，继续尝试其它 PID
+                        resolve();
+                    } else {
+                        this.outputChannel.appendLine(`已停止占用端口的进程: ${pid}`);
+                        resolve();
+                    }
+                });
+            });
+        }
+    }
+
+    /**
      * 获取扩展上下文
      */
     public getContext(): vscode.ExtensionContext {
@@ -1196,16 +1268,12 @@ export class McpService {
         if (!portAvailable) {
             this.outputChannel.appendLine(`❌ 端口${this.config.port}不可用`);
 
-            // 尝试找到并清理占用端口的进程
+            // 尝试找到并清理占用端口的进程（支持 macOS / Linux / Windows）
             try {
-                const { exec } = require('child_process');
-                const pids = await new Promise<string>((resolve) => {
-                    exec(`lsof -ti:${this.config.port}`, (error: any, stdout: string) => {
-                        resolve(error ? '' : stdout.trim());
-                    });
-                });
+                const pidList = await this.getPortPids(this.config.port);
 
-                if (pids) {
+                if (pidList.length > 0) {
+                    const pids = pidList.join(' ');
                     this.outputChannel.appendLine(`发现占用端口的进程: ${pids}`);
                     const choice = await vscode.window.showWarningMessage(
                         `端口${this.config.port}被进程${pids}占用，是否自动清理？`,
@@ -1213,17 +1281,8 @@ export class McpService {
                     );
 
                     if (choice === '清理') {
-                        await new Promise<void>((resolve, reject) => {
-                            exec(`kill -TERM ${pids}`, (error: any) => {
-                                if (error) {
-                                    this.outputChannel.appendLine(`清理失败: ${error.message}`);
-                                    reject(error);
-                                } else {
-                                    this.outputChannel.appendLine('✓ 端口清理成功');
-                                    resolve();
-                                }
-                            });
-                        });
+                        await this.killPortPids(pidList);
+                        this.outputChannel.appendLine('✓ 端口清理命令已执行');
 
                         // 等待端口释放
                         await new Promise(resolve => setTimeout(resolve, 3000));
