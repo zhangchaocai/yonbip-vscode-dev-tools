@@ -28612,13 +28612,18 @@ class McpProvider {
                 </div>
                 
                 <div class="form-group">
-                    <label for="apiMetadataUri">通过URL查询元数据详细信息地址(Metadata URI):</label>
-                    <input type="text" id="apiMetadataUri" placeholder="通过URL查询元数据详细信息地址">
+                    <label for="metadataByname">根据业务对象名称查询URL地址(Metadata Byname):</label>
+                    <input type="text" id="metadataByname" placeholder="根据业务对象名称查询URL地址">
                 </div>
                 
                 <div class="form-group">
-                    <label for="metadataByname">根据业务对象名称查询URL地址(Metadata Byname):</label>
-                    <input type="text" id="metadataByname" placeholder="根据业务对象名称查询URL地址">
+                    <label for="metadataByboid">根据业务对象ID查询URL地址(Metadata Byboid):</label>
+                    <input type="text" id="metadataByboid" placeholder="根据业务对象ID查询URL地址">
+                </div>
+                
+                <div class="form-group">
+                    <label for="metadataEntityid">根据实体ID查询URL地址(Metadata Entityid):</label>
+                    <input type="text" id="metadataEntityid" placeholder="根据实体ID查询URL地址">
                 </div>
                 
                 <div class="form-group">
@@ -28709,8 +28714,9 @@ class McpProvider {
                 apiAppKey: document.getElementById('apiAppKey').value || undefined,
                 apiAppSecret: document.getElementById('apiAppSecret').value || undefined,
                 apiUrl: document.getElementById('apiUrl').value || undefined,
-                apiMetadataUri: document.getElementById('apiMetadataUri').value || undefined,
-                metadataByname: document.getElementById('metadataByname').value || undefined
+                metadataByname: document.getElementById('metadataByname').value || undefined,
+                metadataByboid: document.getElementById('metadataByboid').value || undefined,
+                metadataEntityid: document.getElementById('metadataEntityid').value || undefined
             };
             
             vscode.postMessage({
@@ -28737,8 +28743,9 @@ class McpProvider {
             document.getElementById('apiAppKey').value = config.apiAppKey || '';
             document.getElementById('apiAppSecret').value = config.apiAppSecret || '';
             document.getElementById('apiUrl').value = config.apiUrl || '';
-            document.getElementById('apiMetadataUri').value = config.apiMetadataUri || '';
             document.getElementById('metadataByname').value = config.metadataByname || '';
+            document.getElementById('metadataByboid').value = config.metadataByboid || '';
+            document.getElementById('metadataEntityid').value = config.metadataEntityid || '';
             
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;
@@ -93846,8 +93853,9 @@ class McpService {
             apiAppKey: (config && config.apiAppKey) || undefined,
             apiAppSecret: (config && config.apiAppSecret) || undefined,
             apiUrl: (config && config.apiUrl) || undefined,
-            apiMetadataUri: (config && config.apiMetadataUri) || undefined,
-            metadataByname: (config && config.metadataByname) || undefined
+            metadataByname: (config && config.metadataByname) || undefined,
+            metadataByboid: (config && config.metadataByboid) || undefined,
+            metadataEntityid: (config && config.metadataEntityid) || undefined
         };
     }
     getDefaultConfig() {
@@ -93859,8 +93867,9 @@ class McpService {
             apiAppKey: undefined,
             apiAppSecret: undefined,
             apiUrl: undefined,
-            apiMetadataUri: undefined,
-            metadataByname: undefined
+            metadataByname: undefined,
+            metadataByboid: undefined,
+            metadataEntityid: undefined
         };
     }
     async saveConfig(config) {
@@ -93872,8 +93881,9 @@ class McpService {
             apiAppKey: config.apiAppKey,
             apiAppSecret: config.apiAppSecret,
             apiUrl: config.apiUrl,
-            apiMetadataUri: config.apiMetadataUri,
-            metadataByname: config.metadataByname
+            metadataByname: config.metadataByname,
+            metadataByboid: config.metadataByboid,
+            metadataEntityid: config.metadataEntityid
         };
         this.config = configWithDefaults;
         await this.context.globalState.update('mcp.config', configWithDefaults);
@@ -93887,8 +93897,9 @@ class McpService {
             apiAppKey: this.config.apiAppKey,
             apiAppSecret: this.config.apiAppSecret,
             apiUrl: this.config.apiUrl,
-            apiMetadataUri: this.config.apiMetadataUri,
-            metadataByname: this.config.metadataByname
+            metadataByname: this.config.metadataByname,
+            metadataByboid: this.config.metadataByboid,
+            metadataEntityid: this.config.metadataEntityid
         };
     }
     getStatus() {
@@ -94351,33 +94362,13 @@ class McpService {
         if (!isPortAvailable) {
             this.outputChannel.appendLine(`警告: 端口 ${this.config.port} 已被占用`);
             try {
-                const { exec } = __webpack_require__(35317);
-                const result = await new Promise((resolve) => {
-                    exec(`lsof -ti:${this.config.port}`, (error, stdout) => {
-                        if (error) {
-                            resolve('');
-                        }
-                        else {
-                            resolve(stdout.trim());
-                        }
-                    });
-                });
-                if (result) {
-                    this.outputChannel.appendLine(`发现占用端口的进程PID: ${result}`);
-                    const choice = await vscode.window.showWarningMessage(`端口${this.config.port}被进程${result}占用，需要先停止该进程`, '自动停止', '取消');
+                const pids = await this.getPortPids(this.config.port);
+                if (pids.length > 0) {
+                    const pidList = pids.join(', ');
+                    this.outputChannel.appendLine(`发现占用端口的进程PID: ${pidList}`);
+                    const choice = await vscode.window.showWarningMessage(`端口${this.config.port}被进程${pidList}占用，需要先停止这些进程`, '自动停止', '取消');
                     if (choice === '自动停止') {
-                        await new Promise((resolve, reject) => {
-                            exec(`kill -TERM ${result}`, (error) => {
-                                if (error) {
-                                    this.outputChannel.appendLine(`停止进程失败: ${error.message}`);
-                                    reject(error);
-                                }
-                                else {
-                                    this.outputChannel.appendLine(`已停止占用端口的进程: ${result}`);
-                                    resolve();
-                                }
-                            });
-                        });
+                        await this.killPortPids(pids);
                         await new Promise(resolve => setTimeout(resolve, 2000));
                     }
                     else {
@@ -94442,29 +94433,14 @@ class McpService {
         if (this.config.apiUrl) {
             args.push('--api.url=' + this.config.apiUrl);
         }
-        if (this.config.apiMetadataUri) {
-            args.push('--api.metadata_uri=' + this.config.apiMetadataUri);
-        }
         if (this.config.metadataByname) {
             args.push('--api.metadata_byname=' + this.config.metadataByname);
         }
-        if (this.config.apiAppKey || this.config.apiAppSecret || this.config.apiUrl || this.config.apiMetadataUri || this.config.metadataByname) {
-            this.outputChannel.appendLine('✅ API参数已添加到命令行:');
-            if (this.config.apiAppKey) {
-                this.outputChannel.appendLine(`   AppKey: ${this.config.apiAppKey}`);
-            }
-            if (this.config.apiAppSecret) {
-                this.outputChannel.appendLine(`   AppSecret: ******`);
-            }
-            if (this.config.apiUrl) {
-                this.outputChannel.appendLine(`   API URL: ${this.config.apiUrl}`);
-            }
-            if (this.config.apiMetadataUri) {
-                this.outputChannel.appendLine(`   Metadata URI: ${this.config.apiMetadataUri}`);
-            }
-            if (this.config.metadataByname) {
-                this.outputChannel.appendLine(`   Metadata Byname: ${this.config.metadataByname}`);
-            }
+        if (this.config.metadataByboid) {
+            args.push('--api.metadata_byboid=' + this.config.metadataByboid);
+        }
+        if (this.config.metadataEntityid) {
+            args.push('--api.metadata_entityid=' + this.config.metadataEntityid);
         }
         return args;
     }
@@ -94636,6 +94612,76 @@ class McpService {
             server.on('error', () => resolve(false));
         });
     }
+    async getPortPids(port) {
+        const { exec } = __webpack_require__(35317);
+        return new Promise((resolve) => {
+            if (process.platform === 'win32') {
+                exec(`netstat -ano | findstr :${port}`, (error, stdout) => {
+                    if (error || !stdout) {
+                        this.outputChannel.appendLine(`在 Windows 上查询端口占用失败: ${error?.message ?? '无输出'}`);
+                        resolve([]);
+                        return;
+                    }
+                    const lines = stdout.split(/\r?\n/).filter(line => line.trim() !== '');
+                    const pidSet = new Set();
+                    for (const line of lines) {
+                        const parts = line.trim().split(/\s+/);
+                        if (parts.length === 0) {
+                            continue;
+                        }
+                        const pid = parts[parts.length - 1];
+                        if (/^\d+$/.test(pid)) {
+                            pidSet.add(pid);
+                        }
+                    }
+                    resolve(Array.from(pidSet));
+                });
+            }
+            else {
+                exec(`lsof -ti:${port}`, (error, stdout) => {
+                    if (error || !stdout) {
+                        if (error) {
+                            this.outputChannel.appendLine(`使用 lsof 查询端口占用失败: ${error.message}`);
+                        }
+                        resolve([]);
+                        return;
+                    }
+                    const pids = stdout
+                        .split(/\r?\n/)
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0);
+                    resolve(pids);
+                });
+            }
+        });
+    }
+    async killPortPids(pids) {
+        if (!pids || pids.length === 0) {
+            return;
+        }
+        const { exec } = __webpack_require__(35317);
+        for (const pid of pids) {
+            await new Promise((resolve, reject) => {
+                let cmd;
+                if (process.platform === 'win32') {
+                    cmd = `taskkill /PID ${pid} /T /F`;
+                }
+                else {
+                    cmd = `kill -TERM ${pid}`;
+                }
+                exec(cmd, (error) => {
+                    if (error) {
+                        this.outputChannel.appendLine(`停止进程 ${pid} 失败: ${error.message}`);
+                        resolve();
+                    }
+                    else {
+                        this.outputChannel.appendLine(`已停止占用端口的进程: ${pid}`);
+                        resolve();
+                    }
+                });
+            });
+        }
+    }
     getContext() {
         return this.context;
     }
@@ -94664,28 +94710,14 @@ class McpService {
         if (!portAvailable) {
             this.outputChannel.appendLine(`❌ 端口${this.config.port}不可用`);
             try {
-                const { exec } = __webpack_require__(35317);
-                const pids = await new Promise((resolve) => {
-                    exec(`lsof -ti:${this.config.port}`, (error, stdout) => {
-                        resolve(error ? '' : stdout.trim());
-                    });
-                });
-                if (pids) {
+                const pidList = await this.getPortPids(this.config.port);
+                if (pidList.length > 0) {
+                    const pids = pidList.join(' ');
                     this.outputChannel.appendLine(`发现占用端口的进程: ${pids}`);
                     const choice = await vscode.window.showWarningMessage(`端口${this.config.port}被进程${pids}占用，是否自动清理？`, '清理', '更换端口', '取消');
                     if (choice === '清理') {
-                        await new Promise((resolve, reject) => {
-                            exec(`kill -TERM ${pids}`, (error) => {
-                                if (error) {
-                                    this.outputChannel.appendLine(`清理失败: ${error.message}`);
-                                    reject(error);
-                                }
-                                else {
-                                    this.outputChannel.appendLine('✓ 端口清理成功');
-                                    resolve();
-                                }
-                            });
-                        });
+                        await this.killPortPids(pidList);
+                        this.outputChannel.appendLine('✓ 端口清理命令已执行');
                         await new Promise(resolve => setTimeout(resolve, 3000));
                         const nowAvailable = await this.isPortAvailable(this.config.port);
                         if (nowAvailable) {

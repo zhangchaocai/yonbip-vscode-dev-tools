@@ -18,8 +18,9 @@ export interface McpConfig {
     apiAppKey?: string;
     apiAppSecret?: string;
     apiUrl?: string;
-    apiMetadataUri?: string;
     metadataByname?: string;
+    metadataByboid?: string;
+    metadataEntityid?: string;
 }
 
 /**
@@ -98,8 +99,9 @@ export class McpService {
             apiAppKey: (config && config.apiAppKey) || undefined,
             apiAppSecret: (config && config.apiAppSecret) || undefined,
             apiUrl: (config && config.apiUrl) || undefined,
-            apiMetadataUri: (config && config.apiMetadataUri) || undefined,
-            metadataByname: (config && config.metadataByname) || undefined
+            metadataByname: (config && config.metadataByname) || undefined,
+            metadataByboid: (config && config.metadataByboid) || undefined,
+            metadataEntityid: (config && config.metadataEntityid) || undefined
         };
     }
 
@@ -115,8 +117,9 @@ export class McpService {
             apiAppKey: undefined,
             apiAppSecret: undefined,
             apiUrl: undefined,
-            apiMetadataUri: undefined,
-            metadataByname: undefined
+            metadataByname: undefined,
+            metadataByboid: undefined,
+            metadataEntityid: undefined
         };
     }
 
@@ -133,8 +136,9 @@ export class McpService {
             apiAppKey: config.apiAppKey,
             apiAppSecret: config.apiAppSecret,
             apiUrl: config.apiUrl,
-            apiMetadataUri: config.apiMetadataUri,
-            metadataByname: config.metadataByname
+            metadataByname: config.metadataByname,
+            metadataByboid: config.metadataByboid,
+            metadataEntityid: config.metadataEntityid
         };
         
         this.config = configWithDefaults;
@@ -154,8 +158,9 @@ export class McpService {
             apiAppKey: this.config.apiAppKey,
             apiAppSecret: this.config.apiAppSecret,
             apiUrl: this.config.apiUrl,
-            apiMetadataUri: this.config.apiMetadataUri,
-            metadataByname: this.config.metadataByname
+            metadataByname: this.config.metadataByname,
+            metadataByboid: this.config.metadataByboid,
+            metadataEntityid: this.config.metadataEntityid
         };
     }
 
@@ -873,31 +878,37 @@ export class McpService {
         if (this.config.apiUrl) {
             args.push('--api.url=' + this.config.apiUrl);
         }
-        if (this.config.apiMetadataUri) {
-            args.push('--api.metadata_uri=' + this.config.apiMetadataUri);
-        }
         if (this.config.metadataByname) {
             args.push('--api.metadata_byname=' + this.config.metadataByname);
         }
-
-        if (this.config.apiAppKey || this.config.apiAppSecret || this.config.apiUrl || this.config.apiMetadataUri || this.config.metadataByname) {
-            this.outputChannel.appendLine('✅ API参数已添加到命令行:');
-            if (this.config.apiAppKey) {
-                this.outputChannel.appendLine(`   AppKey: ${this.config.apiAppKey}`);
-            }
-            if (this.config.apiAppSecret) {
-                this.outputChannel.appendLine(`   AppSecret: ******`); // 不显示敏感信息
-            }
-            if (this.config.apiUrl) {
-                this.outputChannel.appendLine(`   API URL: ${this.config.apiUrl}`);
-            }
-            if (this.config.apiMetadataUri) {
-                this.outputChannel.appendLine(`   Metadata URI: ${this.config.apiMetadataUri}`);
-            }
-            if (this.config.metadataByname) {
-                this.outputChannel.appendLine(`   Metadata Byname: ${this.config.metadataByname}`);
-            }
+        if (this.config.metadataByboid) {
+            args.push('--api.metadata_byboid=' + this.config.metadataByboid);
         }
+        if (this.config.metadataEntityid) {
+            args.push('--api.metadata_entityid=' + this.config.metadataEntityid);
+        }
+
+        // if (this.config.apiAppKey || this.config.apiAppSecret || this.config.apiUrl || this.config.metadataByname || this.config.metadataByboid || this.config.metadataEntityid) {
+        //     this.outputChannel.appendLine('✅ API参数已添加到命令行:');
+        //     if (this.config.apiAppKey) {
+        //         this.outputChannel.appendLine(`   AppKey: ${this.config.apiAppKey}`);
+        //     }
+        //     if (this.config.apiAppSecret) {
+        //         this.outputChannel.appendLine(`   AppSecret: ******`); // 不显示敏感信息
+        //     }
+        //     if (this.config.apiUrl) {
+        //         this.outputChannel.appendLine(`   API URL: ${this.config.apiUrl}`);
+        //     }
+        //     if (this.config.metadataByname) {
+        //         this.outputChannel.appendLine(`   Metadata Byname: ${this.config.metadataByname}`);
+        //     }
+        //     if (this.config.metadataByboid) {
+        //         this.outputChannel.appendLine(`   Metadata Byboid: ${this.config.metadataByboid}`);
+        //     }
+        //     if (this.config.metadataEntityid) {
+        //         this.outputChannel.appendLine(`   Metadata Entityid: ${this.config.metadataEntityid}`);
+        //     }
+        // }
 
         return args;
     }

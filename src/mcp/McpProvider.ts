@@ -1051,13 +1051,18 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 </div>
                 
                 <div class="form-group">
-                    <label for="apiMetadataUri">通过URL查询元数据详细信息地址(Metadata URI):</label>
-                    <input type="text" id="apiMetadataUri" placeholder="通过URL查询元数据详细信息地址">
+                    <label for="metadataByname">根据业务对象名称查询URL地址(Metadata Byname):</label>
+                    <input type="text" id="metadataByname" placeholder="根据业务对象名称查询URL地址">
                 </div>
                 
                 <div class="form-group">
-                    <label for="metadataByname">根据业务对象名称查询URL地址(Metadata Byname):</label>
-                    <input type="text" id="metadataByname" placeholder="根据业务对象名称查询URL地址">
+                    <label for="metadataByboid">根据业务对象ID查询URL地址(Metadata Byboid):</label>
+                    <input type="text" id="metadataByboid" placeholder="根据业务对象ID查询URL地址">
+                </div>
+                
+                <div class="form-group">
+                    <label for="metadataEntityid">根据实体ID查询URL地址(Metadata Entityid):</label>
+                    <input type="text" id="metadataEntityid" placeholder="根据实体ID查询URL地址">
                 </div>
                 
                 <div class="form-group">
@@ -1148,8 +1153,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 apiAppKey: document.getElementById('apiAppKey').value || undefined,
                 apiAppSecret: document.getElementById('apiAppSecret').value || undefined,
                 apiUrl: document.getElementById('apiUrl').value || undefined,
-                apiMetadataUri: document.getElementById('apiMetadataUri').value || undefined,
-                metadataByname: document.getElementById('metadataByname').value || undefined
+                metadataByname: document.getElementById('metadataByname').value || undefined,
+                metadataByboid: document.getElementById('metadataByboid').value || undefined,
+                metadataEntityid: document.getElementById('metadataEntityid').value || undefined
             };
             
             vscode.postMessage({
@@ -1176,8 +1182,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
             document.getElementById('apiAppKey').value = config.apiAppKey || '';
             document.getElementById('apiAppSecret').value = config.apiAppSecret || '';
             document.getElementById('apiUrl').value = config.apiUrl || '';
-            document.getElementById('apiMetadataUri').value = config.apiMetadataUri || '';
             document.getElementById('metadataByname').value = config.metadataByname || '';
+            document.getElementById('metadataByboid').value = config.metadataByboid || '';
+            document.getElementById('metadataEntityid').value = config.metadataEntityid || '';
             
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;
