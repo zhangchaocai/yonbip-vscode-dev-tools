@@ -1064,6 +1064,11 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     <label for="metadataEntityid">根据实体ID查询URL地址(Metadata Entityid):</label>
                     <input type="text" id="metadataEntityid" placeholder="根据实体ID查询URL地址">
                 </div>
+
+                <div class="form-group">
+                    <label for="metadataUri">元数据服务基础地址(Metadata Uri):</label>
+                    <input type="text" id="metadataUri" placeholder="请输入元数据服务基础地址">
+                </div>
                 
                 <div class="form-group">
                     <div id="advancedConfigActions" class="sticky-actions">
@@ -1155,7 +1160,8 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 apiUrl: document.getElementById('apiUrl').value || undefined,
                 metadataByname: document.getElementById('metadataByname').value || undefined,
                 metadataByboid: document.getElementById('metadataByboid').value || undefined,
-                metadataEntityid: document.getElementById('metadataEntityid').value || undefined
+                metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
+                metadataUri: document.getElementById('metadataUri').value || undefined
             };
             
             vscode.postMessage({
@@ -1185,6 +1191,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
             document.getElementById('metadataByname').value = config.metadataByname || '';
             document.getElementById('metadataByboid').value = config.metadataByboid || '';
             document.getElementById('metadataEntityid').value = config.metadataEntityid || '';
+            document.getElementById('metadataUri').value = config.metadataUri || '';
             
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;

@@ -21,6 +21,7 @@ export interface McpConfig {
     metadataByname?: string;
     metadataByboid?: string;
     metadataEntityid?: string;
+    metadataUri?: string;
 }
 
 /**
@@ -101,7 +102,8 @@ export class McpService {
             apiUrl: (config && config.apiUrl) || undefined,
             metadataByname: (config && config.metadataByname) || undefined,
             metadataByboid: (config && config.metadataByboid) || undefined,
-            metadataEntityid: (config && config.metadataEntityid) || undefined
+            metadataEntityid: (config && config.metadataEntityid) || undefined,
+            metadataUri: (config && config.metadataUri) || undefined
         };
     }
 
@@ -119,7 +121,8 @@ export class McpService {
             apiUrl: undefined,
             metadataByname: undefined,
             metadataByboid: undefined,
-            metadataEntityid: undefined
+            metadataEntityid: undefined,
+            metadataUri: undefined
         };
     }
 
@@ -138,7 +141,8 @@ export class McpService {
             apiUrl: config.apiUrl,
             metadataByname: config.metadataByname,
             metadataByboid: config.metadataByboid,
-            metadataEntityid: config.metadataEntityid
+            metadataEntityid: config.metadataEntityid,
+            metadataUri: config.metadataUri
         };
         
         this.config = configWithDefaults;
@@ -160,7 +164,8 @@ export class McpService {
             apiUrl: this.config.apiUrl,
             metadataByname: this.config.metadataByname,
             metadataByboid: this.config.metadataByboid,
-            metadataEntityid: this.config.metadataEntityid
+            metadataEntityid: this.config.metadataEntityid,
+            metadataUri: this.config.metadataUri
         };
     }
 
@@ -886,6 +891,9 @@ export class McpService {
         }
         if (this.config.metadataEntityid) {
             args.push('--api.metadata_entityid=' + this.config.metadataEntityid);
+        }
+        if (this.config.metadataUri) {
+            args.push('--api.metadata_uri=' + this.config.metadataUri);
         }
 
         // if (this.config.apiAppKey || this.config.apiAppSecret || this.config.apiUrl || this.config.metadataByname || this.config.metadataByboid || this.config.metadataEntityid) {
