@@ -995,6 +995,99 @@ export class McpProvider implements vscode.WebviewViewProvider {
             border-color: var(--vscode-focusBorder);
             box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.12);
         }
+        /* 自定义版本下拉框样式 */
+        .version-dropdown {
+            position: relative;
+            width: 100%;
+        }
+        .version-dropdown-trigger {
+            width: 100%;
+            padding: 12px 40px 12px 16px;
+            border: 1.5px solid var(--vscode-input-border);
+            background: color-mix(in srgb, var(--vscode-input-background) 88%, transparent);
+            color: var(--vscode-input-foreground);
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .version-dropdown-trigger:hover {
+            border-color: var(--vscode-inputOption-hoverBackground);
+        }
+        .version-dropdown-trigger.open {
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.12);
+        }
+        .version-dropdown-trigger::after {
+            content: '';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid var(--vscode-foreground);
+            opacity: 0.7;
+            transition: transform 0.2s ease;
+        }
+        .version-dropdown-trigger.open::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        .version-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: var(--vscode-dropdown-background, var(--vscode-input-background));
+            border: 1px solid var(--vscode-dropdown-border, var(--vscode-input-border));
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            z-index: 100;
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+        }
+        .version-dropdown-menu.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .version-dropdown-option {
+            padding: 12px 16px;
+            color: var(--vscode-dropdown-foreground, var(--vscode-foreground));
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.15s ease;
+        }
+        .version-dropdown-option:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+        .version-dropdown-option.selected {
+            background: var(--vscode-list-activeSelectionBackground, var(--vscode-button-background));
+            color: var(--vscode-list-activeSelectionForeground, var(--vscode-button-foreground));
+        }
+        .version-dropdown-option .check-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: inherit;
+        }
+        .version-dropdown-option:not(.selected) .check-icon {
+            visibility: hidden;
+        }
         #advanced-tab .help-text {
             margin-top: 6px;
             color: var(--vscode-descriptionForeground);
@@ -1145,10 +1238,22 @@ export class McpProvider implements vscode.WebviewViewProvider {
 
                 <div class="form-group">
                     <label for="version">版本:</label>
-                    <select id="version">
-                        <option value="BIP5">BIP5</option>
-                        <option value="BIPV3_R6">BIPV3_R6</option>
-                    </select>
+                    <div class="version-dropdown">
+                        <input type="hidden" id="version" value="BIP5">
+                        <div class="version-dropdown-trigger" id="versionTrigger" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="选择版本">
+                            <span id="versionDisplay">BIP5</span>
+                        </div>
+                        <div class="version-dropdown-menu" id="versionMenu" role="listbox">
+                            <div class="version-dropdown-option selected" data-value="BIP5" role="option">
+                                <span class="check-icon">✓</span>
+                                <span>BIP5</span>
+                            </div>
+                            <div class="version-dropdown-option" data-value="BIPV3_R6" role="option">
+                                <span class="check-icon">✓</span>
+                                <span>BIPV3_R6</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -1189,6 +1294,70 @@ export class McpProvider implements vscode.WebviewViewProvider {
         const vscode = acquireVsCodeApi();
         let currentConfig = {};
         let currentStatus = {};
+        
+        // 版本下拉框交互
+        (function initVersionDropdown() {
+            const trigger = document.getElementById('versionTrigger');
+            const menu = document.getElementById('versionMenu');
+            const hiddenInput = document.getElementById('version');
+            const display = document.getElementById('versionDisplay');
+            const options = document.querySelectorAll('.version-dropdown-option');
+            
+            function setValue(value, label) {
+                hiddenInput.value = value;
+                display.textContent = label || value;
+                options.forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.value === value);
+                });
+            }
+            
+            function closeMenu() {
+                trigger.classList.remove('open');
+                menu.classList.remove('open');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+            
+            function openMenu() {
+                trigger.classList.add('open');
+                menu.classList.add('open');
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+            
+            trigger.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (menu.classList.contains('open')) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
+            });
+            
+            trigger.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (menu.classList.contains('open')) closeMenu();
+                    else openMenu();
+                }
+            });
+            
+            options.forEach(opt => {
+                opt.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const value = this.dataset.value;
+                    const label = this.querySelector('span:last-child').textContent;
+                    setValue(value, label);
+                    closeMenu();
+                });
+            });
+            
+            document.addEventListener('click', function() {
+                closeMenu();
+            });
+            
+            menu.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        })();
         
         // 切换选项卡
         function switchTab(tabName) {
@@ -1352,7 +1521,13 @@ export class McpProvider implements vscode.WebviewViewProvider {
             document.getElementById('port').value = config.port || 9000;
             document.getElementById('javaPath').value = config.javaPath || 'java';
             document.getElementById('tenant').value = config.tenant || '';
-            document.getElementById('version').value = config.version || 'BIP5';
+            const version = config.version || 'BIP5';
+            document.getElementById('version').value = version;
+            const versionDisplay = document.getElementById('versionDisplay');
+            if (versionDisplay) versionDisplay.textContent = version;
+            document.querySelectorAll('.version-dropdown-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.value === version);
+            });
             document.getElementById('apiAppKey').value = config.apiAppKey || '';
             document.getElementById('apiAppSecret').value = config.apiAppSecret || '';
             document.getElementById('apiUrl').value = config.apiUrl || '';
