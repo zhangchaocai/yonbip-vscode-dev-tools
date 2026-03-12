@@ -47,7 +47,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	await IconThemeUpdater.initialize(context);
 
 	// 显示插件加载成功的提示信息
-	vscode.window.showInformationMessage('🚀 YonBIP高级版开发者工具加载成功', '了解更多')
+	vscode.window.showInformationMessage('🚀 YDS Premium Fusion工具加载成功', '了解更多')
 		.then(selection => {
 			if (selection === '了解更多') {
 				// 这里可以打开文档或更多信息页面
@@ -267,9 +267,9 @@ export async function activate(context: vscode.ExtensionContext) {
 		})
 	);
 	
-	// 插件激活后默认打开HOME配置界面
+	// 插件激活后默认打开MCP服务界面
 	setTimeout(() => {
-		vscode.commands.executeCommand('yonbip.function.showHomeConfig');
+		vscode.commands.executeCommand('yonbip.function.showMcp');
 	}, 1000);
 
 }

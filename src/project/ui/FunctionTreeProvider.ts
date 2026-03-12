@@ -478,6 +478,11 @@ export class FunctionTreeProvider implements vscode.TreeDataProvider<FunctionTre
                             case 'showResetConfirm':
                                 await this.mcpProvider['handleShowResetConfirm']();
                                 break;
+                            case 'downloadJson':
+                                await this.mcpProvider['handleDownloadJson'](message.tenant, message.version).catch((err: Error) => {
+                                    vscode.window.showErrorMessage(`下载 JSON 失败: ${err?.message ?? String(err)}`);
+                                });
+                                break;
                         }
                     }
                     break;

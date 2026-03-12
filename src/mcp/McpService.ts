@@ -15,6 +15,8 @@ export interface McpConfig {
     jarPath: string;
     javaPath: string;
     maxMemory: string;
+    tenant?: string;
+    version?: string;
     apiAppKey?: string;
     apiAppSecret?: string;
     apiUrl?: string;
@@ -97,6 +99,8 @@ export class McpService {
             jarPath: (config && config.jarPath) || '',
             javaPath: (config && config.javaPath) || 'java',
             maxMemory: (config && config.maxMemory) || '512m',
+            tenant: (config && config.tenant) || undefined,
+            version: (config && config.version) || 'BIP5',
             apiAppKey: (config && config.apiAppKey) || undefined,
             apiAppSecret: (config && config.apiAppSecret) || undefined,
             apiUrl: (config && config.apiUrl) || undefined,
@@ -116,6 +120,8 @@ export class McpService {
             jarPath: '',
             javaPath: 'java',
             maxMemory: '512m',
+            tenant: undefined,
+            version: 'BIP5',
             apiAppKey: undefined,
             apiAppSecret: undefined,
             apiUrl: undefined,
@@ -136,6 +142,8 @@ export class McpService {
             jarPath: config.jarPath || '',
             javaPath: config.javaPath || 'java',
             maxMemory: config.maxMemory || '512m',
+            tenant: config.tenant,
+            version: config.version || 'BIP5',
             apiAppKey: config.apiAppKey,
             apiAppSecret: config.apiAppSecret,
             apiUrl: config.apiUrl,
@@ -144,7 +152,7 @@ export class McpService {
             metadataEntityid: config.metadataEntityid,
             metadataUri: config.metadataUri
         };
-        
+
         this.config = configWithDefaults;
         await this.context.globalState.update('mcp.config', configWithDefaults);
     }
@@ -153,20 +161,60 @@ export class McpService {
      * 获取配置
      */
     public getConfig(): McpConfig {
+        // 动态生成URL（如果存在租户）- apiUrl由用户手动输入，不自动生成
+        const urls = this.generateUrls();
+
         // 确保返回的配置包含所有必要的字段
         return {
             port: this.config.port || 9000,
             jarPath: this.config.jarPath || '',
             javaPath: this.config.javaPath || 'java',
             maxMemory: this.config.maxMemory || '512m',
+            tenant: this.config.tenant,
+            version: this.config.version || 'BIP5',
             apiAppKey: this.config.apiAppKey,
             apiAppSecret: this.config.apiAppSecret,
             apiUrl: this.config.apiUrl,
-            metadataByname: this.config.metadataByname,
-            metadataByboid: this.config.metadataByboid,
-            metadataEntityid: this.config.metadataEntityid,
-            metadataUri: this.config.metadataUri
+            metadataByname: urls.metadataByname || this.config.metadataByname,
+            metadataByboid: urls.metadataByboid || this.config.metadataByboid,
+            metadataEntityid: urls.metadataEntityid || this.config.metadataEntityid,
+            metadataUri: urls.metadataUri || this.config.metadataUri
         };
+    }
+
+    /**
+     * 根据租户动态生成URL（apiUrl由用户手动输入，不自动生成）
+     */
+    private generateUrls(): { metadataByname?: string; metadataByboid?: string; metadataEntityid?: string; metadataUri?: string } {
+        const tenant = this.config.tenant;
+        if (!tenant) {
+            return {};
+        }
+
+        try {
+            const urlConfigPath = path.join(this.context.extensionPath, 'resources', 'url-config.json');
+            if (!fs.existsSync(urlConfigPath)) {
+                return {};
+            }
+
+            const urlConfig = JSON.parse(fs.readFileSync(urlConfigPath, 'utf-8'));
+            const templates = urlConfig.urlTemplates;
+
+            if (!templates) {
+                return {};
+            }
+
+            // 替换模板中的 {tenant} 占位符（apiUrl由用户手动输入）
+            return {
+                metadataByname: templates.metadataByname?.replace(/\{tenant\}/g, tenant),
+                metadataByboid: templates.metadataByboid?.replace(/\{tenant\}/g, tenant),
+                metadataEntityid: templates.metadataEntityid?.replace(/\{tenant\}/g, tenant),
+                metadataUri: templates.metadataUri?.replace(/\{tenant\}/g, tenant)
+            };
+        } catch (error) {
+            this.outputChannel.appendLine(`生成URL失败: ${error}`);
+            return {};
+        }
     }
 
     /**

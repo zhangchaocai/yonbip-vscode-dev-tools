@@ -1,0 +1,8 @@
+{
+  "urlTemplates": {
+    "metadataByname": "/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/businessobject/searchByName",
+    "metadataByboid": "/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/businessobject/getEntityListByBOId",
+    "metadataEntityid": "/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/getEntityInfoByBOIdAndEntityId",
+    "metadataUri": "/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/queryByUri"
+  }
+}

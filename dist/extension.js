@@ -27649,6 +27649,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.McpProvider = void 0;
 const vscode = __importStar(__webpack_require__(91398));
+const fs = __importStar(__webpack_require__(79896));
+const path = __importStar(__webpack_require__(16928));
+const os = __importStar(__webpack_require__(70857));
 const McpService_1 = __webpack_require__(51440);
 class McpProvider {
     _extensionUri;
@@ -27699,6 +27702,15 @@ class McpProvider {
                 case 'showResetConfirm':
                     await this.handleShowResetConfirm();
                     break;
+                case 'downloadJson':
+                    await this.handleDownloadJson(data.tenant, data.version).catch((err) => {
+                        this.outputChannel.appendLine(`downloadJson 异常: ${err?.message ?? err}`);
+                        vscode.window.showErrorMessage(`下载 JSON 失败: ${err?.message ?? String(err)}`);
+                    });
+                    break;
+                default:
+                    console.log('收到未知消息类型:', data.type);
+                    this.outputChannel.appendLine(`收到未知消息类型: ${data.type}`);
             }
         });
         this.handleLoadConfig();
@@ -27930,6 +27942,66 @@ class McpProvider {
                 error: error.message
             });
         }
+    }
+    async handleDownloadJson(tenant, version) {
+        console.log('handleDownloadJson被调用，租户:', tenant, '版本:', version);
+        this.outputChannel.show(true);
+        this.outputChannel.appendLine(`处理下载JSON文件请求 - 租户: ${tenant}, 版本: ${version}`);
+        vscode.window.setStatusBarMessage('正在准备 JSON 文件...', 3000);
+        try {
+            if (!tenant) {
+                vscode.window.showErrorMessage('租户信息不能为空');
+                return;
+            }
+            const sourceFileName = `${version}.json`;
+            const sourcePath = path.join(this._extensionUri.fsPath, 'resources', 'env', sourceFileName);
+            this.outputChannel.appendLine(`源文件路径: ${sourcePath}`);
+            if (!fs.existsSync(sourcePath)) {
+                vscode.window.showErrorMessage(`找不到配置文件: ${sourceFileName}`);
+                this.outputChannel.appendLine(`错误: 找不到配置文件 ${sourcePath}`);
+                return;
+            }
+            let fileContent = fs.readFileSync(sourcePath, 'utf-8');
+            this.outputChannel.appendLine(`成功读取文件，大小: ${fileContent.length} 字符`);
+            const tenantRegex = /XXXXXXXXX/g;
+            const matches = fileContent.match(tenantRegex);
+            this.outputChannel.appendLine(`找到 ${matches ? matches.length : 0} 个占位符需要替换`);
+            fileContent = fileContent.replace(tenantRegex, tenant);
+            const downloadsDir = this.getDefaultDownloadDir();
+            const saveFileName = `${version}_${tenant}.json`;
+            const savePath = path.join(downloadsDir, saveFileName);
+            fs.mkdirSync(downloadsDir, { recursive: true });
+            fs.writeFileSync(savePath, fileContent, 'utf-8');
+            this.outputChannel.appendLine(`JSON 文件已保存到: ${savePath}`);
+            const action = await vscode.window.showInformationMessage(`JSON 文件已保存到「下载」文件夹: ${saveFileName}\n完整路径: ${savePath}`, '在系统中显示', '打开文件');
+            if (action === '在系统中显示') {
+                await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(savePath));
+            }
+            else if (action === '打开文件') {
+                const doc = await vscode.workspace.openTextDocument(savePath);
+                await vscode.window.showTextDocument(doc);
+            }
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`下载JSON文件失败: ${error.message}`);
+            this.outputChannel.appendLine(`下载JSON文件失败: ${error.message}`);
+            console.error('下载JSON文件失败:', error);
+        }
+    }
+    getDefaultDownloadDir() {
+        const home = os.homedir();
+        const userProfile = process.platform === 'win32'
+            ? (process.env.USERPROFILE || process.env.HOMEPATH || process.env.HOME || home)
+            : home;
+        const candidate = path.join(userProfile, 'Downloads');
+        try {
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        }
+        catch {
+        }
+        return userProfile;
     }
     getHtmlForWebview(webview) {
         return this._getHtmlForWebview(webview);
@@ -28597,6 +28669,19 @@ class McpProvider {
                 <div class="section-title">旗舰版配置信息</div>
                 
                 <div class="form-group">
+                    <label for="tenant">租户:</label>
+                    <input type="text" id="tenant" placeholder="请输入租户信息" oninput="updateUrlFields()">
+                </div>
+
+                <div class="form-group">
+                    <label for="version">版本:</label>
+                    <select id="version">
+                        <option value="BIP5">BIP5</option>
+                        <option value="BIPV3_R6">BIPV3_R6</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label for="apiAppKey">API应用Key(AppKey):</label>
                     <input type="text" id="apiAppKey" placeholder="请输入API应用Key">
                 </div>
@@ -28605,35 +28690,22 @@ class McpProvider {
                     <label for="apiAppSecret">API应用密钥(AppSecret):</label>
                     <input type="password" id="apiAppSecret" placeholder="请输入API应用密钥">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="apiUrl">API服务地址(URL):</label>
                     <input type="text" id="apiUrl" placeholder="请输入API服务地址">
                 </div>
-                
-                <div class="form-group">
-                    <label for="metadataByname">根据业务对象名称查询URL地址(Metadata Byname):</label>
-                    <input type="text" id="metadataByname" placeholder="根据业务对象名称查询URL地址">
-                </div>
-                
-                <div class="form-group">
-                    <label for="metadataByboid">根据业务对象ID查询URL地址(Metadata Byboid):</label>
-                    <input type="text" id="metadataByboid" placeholder="根据业务对象ID查询URL地址">
-                </div>
-                
-                <div class="form-group">
-                    <label for="metadataEntityid">根据实体ID查询URL地址(Metadata Entityid):</label>
-                    <input type="text" id="metadataEntityid" placeholder="根据实体ID查询URL地址">
-                </div>
 
-                <div class="form-group">
-                    <label for="metadataUri">元数据服务基础地址(Metadata Uri):</label>
-                    <input type="text" id="metadataUri" placeholder="请输入元数据服务基础地址">
-                </div>
+                <!-- 隐藏的字段，用于存储动态生成的URL -->
+                <input type="hidden" id="metadataByname">
+                <input type="hidden" id="metadataByboid">
+                <input type="hidden" id="metadataEntityid">
+                <input type="hidden" id="metadataUri">
                 
                 <div class="form-group">
                     <div id="advancedConfigActions" class="sticky-actions">
                         <button onclick="saveConfig()">💾 保存配置</button>
+                        <button onclick="downloadJsonFile()" class="primary">📥 下载JSON文件</button>
                         <button onclick="resetToDefaults()" class="secondary">🔄 重置为默认</button>
                     </div>
                 </div>
@@ -28716,6 +28788,8 @@ class McpProvider {
             const config = {
                 port: parseInt(document.getElementById('port').value) || 9000,
                 javaPath: document.getElementById('javaPath').value || 'java',
+                tenant: document.getElementById('tenant').value || undefined,
+                version: document.getElementById('version').value || 'BIP5',
                 apiAppKey: document.getElementById('apiAppKey').value || undefined,
                 apiAppSecret: document.getElementById('apiAppSecret').value || undefined,
                 apiUrl: document.getElementById('apiUrl').value || undefined,
@@ -28724,11 +28798,72 @@ class McpProvider {
                 metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
                 metadataUri: document.getElementById('metadataUri').value || undefined
             };
-            
+
             vscode.postMessage({
                 type: 'saveConfig',
                 config: config
             });
+        }
+
+        // 下载JSON文件（与保存配置相同流程：直接发送消息，由后端校验并反馈）
+        function downloadJsonFile() {
+            const config = {
+                port: parseInt(document.getElementById('port').value) || 9000,
+                javaPath: document.getElementById('javaPath').value || 'java',
+                tenant: document.getElementById('tenant').value || undefined,
+                version: document.getElementById('version').value || 'BIP5',
+                apiAppKey: document.getElementById('apiAppKey').value || undefined,
+                apiAppSecret: document.getElementById('apiAppSecret').value || undefined,
+                apiUrl: document.getElementById('apiUrl').value || undefined,
+                metadataByname: document.getElementById('metadataByname').value || undefined,
+                metadataByboid: document.getElementById('metadataByboid').value || undefined,
+                metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
+                metadataUri: document.getElementById('metadataUri').value || undefined
+            };
+
+            vscode.postMessage({
+                type: 'downloadJson',
+                tenant: config.tenant,
+                version: config.version
+            });
+        }
+
+        // URL模板配置（apiUrl需要用户手动输入）
+        const urlTemplates = {
+            metadataByname: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/businessobject/searchByName',
+            metadataByboid: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/businessobject/getEntityListByBOId',
+            metadataEntityid: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/getEntityInfoByBOIdAndEntityId',
+            metadataUri: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/queryByUri'
+        };
+
+        // 根据租户动态生成URL
+        function generateUrls(tenant) {
+            if (!tenant) {
+                return {
+                    metadataByname: '',
+                    metadataByboid: '',
+                    metadataEntityid: '',
+                    metadataUri: ''
+                };
+            }
+
+            return {
+                metadataByname: urlTemplates.metadataByname.replace(/\{tenant\}/g, tenant),
+                metadataByboid: urlTemplates.metadataByboid.replace(/\{tenant\}/g, tenant),
+                metadataEntityid: urlTemplates.metadataEntityid.replace(/\{tenant\}/g, tenant),
+                metadataUri: urlTemplates.metadataUri.replace(/\{tenant\}/g, tenant)
+            };
+        }
+
+        // 更新URL字段
+        function updateUrlFields() {
+            const tenant = document.getElementById('tenant').value;
+            const urls = generateUrls(tenant);
+
+            document.getElementById('metadataByname').value = urls.metadataByname;
+            document.getElementById('metadataByboid').value = urls.metadataByboid;
+            document.getElementById('metadataEntityid').value = urls.metadataEntityid;
+            document.getElementById('metadataUri').value = urls.metadataUri;
         }
         
         // 重置为默认配置
@@ -28743,17 +28878,25 @@ class McpProvider {
         // 更新配置显示
         function updateConfigDisplay(config) {
             currentConfig = config;
-            
+
             document.getElementById('port').value = config.port || 9000;
             document.getElementById('javaPath').value = config.javaPath || 'java';
+            document.getElementById('tenant').value = config.tenant || '';
+            document.getElementById('version').value = config.version || 'BIP5';
             document.getElementById('apiAppKey').value = config.apiAppKey || '';
             document.getElementById('apiAppSecret').value = config.apiAppSecret || '';
             document.getElementById('apiUrl').value = config.apiUrl || '';
-            document.getElementById('metadataByname').value = config.metadataByname || '';
-            document.getElementById('metadataByboid').value = config.metadataByboid || '';
-            document.getElementById('metadataEntityid').value = config.metadataEntityid || '';
-            document.getElementById('metadataUri').value = config.metadataUri || '';
-            
+
+            // 根据租户动态生成URL（metadata相关的URL）
+            if (config.tenant) {
+                updateUrlFields();
+            } else {
+                document.getElementById('metadataByname').value = config.metadataByname || '';
+                document.getElementById('metadataByboid').value = config.metadataByboid || '';
+                document.getElementById('metadataEntityid').value = config.metadataEntityid || '';
+                document.getElementById('metadataUri').value = config.metadataUri || '';
+            }
+
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;
             document.getElementById('quickJavaPath').textContent = config.javaPath || 'java';
@@ -87697,6 +87840,11 @@ class FunctionTreeProvider {
                             case 'showResetConfirm':
                                 await this.mcpProvider['handleShowResetConfirm']();
                                 break;
+                            case 'downloadJson':
+                                await this.mcpProvider['handleDownloadJson'](message.tenant, message.version).catch((err) => {
+                                    vscode.window.showErrorMessage(`下载 JSON 失败: ${err?.message ?? String(err)}`);
+                                });
+                                break;
                         }
                     }
                     break;
@@ -93857,6 +94005,8 @@ class McpService {
             jarPath: (config && config.jarPath) || '',
             javaPath: (config && config.javaPath) || 'java',
             maxMemory: (config && config.maxMemory) || '512m',
+            tenant: (config && config.tenant) || undefined,
+            version: (config && config.version) || 'BIP5',
             apiAppKey: (config && config.apiAppKey) || undefined,
             apiAppSecret: (config && config.apiAppSecret) || undefined,
             apiUrl: (config && config.apiUrl) || undefined,
@@ -93872,6 +94022,8 @@ class McpService {
             jarPath: '',
             javaPath: 'java',
             maxMemory: '512m',
+            tenant: undefined,
+            version: 'BIP5',
             apiAppKey: undefined,
             apiAppSecret: undefined,
             apiUrl: undefined,
@@ -93887,6 +94039,8 @@ class McpService {
             jarPath: config.jarPath || '',
             javaPath: config.javaPath || 'java',
             maxMemory: config.maxMemory || '512m',
+            tenant: config.tenant,
+            version: config.version || 'BIP5',
             apiAppKey: config.apiAppKey,
             apiAppSecret: config.apiAppSecret,
             apiUrl: config.apiUrl,
@@ -93899,19 +94053,49 @@ class McpService {
         await this.context.globalState.update('mcp.config', configWithDefaults);
     }
     getConfig() {
+        const urls = this.generateUrls();
         return {
             port: this.config.port || 9000,
             jarPath: this.config.jarPath || '',
             javaPath: this.config.javaPath || 'java',
             maxMemory: this.config.maxMemory || '512m',
+            tenant: this.config.tenant,
+            version: this.config.version || 'BIP5',
             apiAppKey: this.config.apiAppKey,
             apiAppSecret: this.config.apiAppSecret,
             apiUrl: this.config.apiUrl,
-            metadataByname: this.config.metadataByname,
-            metadataByboid: this.config.metadataByboid,
-            metadataEntityid: this.config.metadataEntityid,
-            metadataUri: this.config.metadataUri
+            metadataByname: urls.metadataByname || this.config.metadataByname,
+            metadataByboid: urls.metadataByboid || this.config.metadataByboid,
+            metadataEntityid: urls.metadataEntityid || this.config.metadataEntityid,
+            metadataUri: urls.metadataUri || this.config.metadataUri
         };
+    }
+    generateUrls() {
+        const tenant = this.config.tenant;
+        if (!tenant) {
+            return {};
+        }
+        try {
+            const urlConfigPath = path.join(this.context.extensionPath, 'resources', 'url-config.json');
+            if (!fs.existsSync(urlConfigPath)) {
+                return {};
+            }
+            const urlConfig = JSON.parse(fs.readFileSync(urlConfigPath, 'utf-8'));
+            const templates = urlConfig.urlTemplates;
+            if (!templates) {
+                return {};
+            }
+            return {
+                metadataByname: templates.metadataByname?.replace(/\{tenant\}/g, tenant),
+                metadataByboid: templates.metadataByboid?.replace(/\{tenant\}/g, tenant),
+                metadataEntityid: templates.metadataEntityid?.replace(/\{tenant\}/g, tenant),
+                metadataUri: templates.metadataUri?.replace(/\{tenant\}/g, tenant)
+            };
+        }
+        catch (error) {
+            this.outputChannel.appendLine(`生成URL失败: ${error}`);
+            return {};
+        }
     }
     getStatus() {
         return this.status;
@@ -133540,7 +133724,7 @@ let homeService;
 let macHomeConversionService;
 async function activate(context) {
     await IconThemeUpdater_1.IconThemeUpdater.initialize(context);
-    vscode.window.showInformationMessage('🚀 YonBIP高级版开发者工具加载成功', '了解更多')
+    vscode.window.showInformationMessage('🚀 YDS Premium Fusion工具加载成功', '了解更多')
         .then(selection => {
         if (selection === '了解更多') {
             vscode.env.openExternal(vscode.Uri.parse('https://community.yonyou.com/article/detail/10786'));
@@ -133656,7 +133840,7 @@ async function activate(context) {
         });
     }));
     setTimeout(() => {
-        vscode.commands.executeCommand('yonbip.function.showHomeConfig');
+        vscode.commands.executeCommand('yonbip.function.showMcp');
     }, 1000);
 }
 function deactivate() {

@@ -1,8 +1,8 @@
 {
   "name": "yonbip-devtool",
-  "displayName": "YDS Premium Tools",
-  "description": "YonBIP高级版开发者工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.1.39",
+  "displayName": "YDS Premium Fusion",
+  "description": "YDS Premium Fusion工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
+  "version": "2.1.41",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
