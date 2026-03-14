@@ -913,7 +913,7 @@
       }
     ],
     "microServiceCode": "domain.iuap-metadata-base",
-    "connectUrl": "/metadata-designer/businessobject/tenant/search",
+    "connectUrl": "/metadata-designer/businessobject/search",
     "pathJoin": 0,
     "serviceHttpMethod": "GET",
     "timeOut": "5",
