@@ -849,6 +849,7 @@
         "children": []
       }
     ],
+    "authPluginName": "友户通token认证业务扩展插件",
     "fullName": null,
     "defineHidden": 0,
     "integrateObjectId": null,
