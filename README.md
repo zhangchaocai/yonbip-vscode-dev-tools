@@ -1,6 +1,6 @@
 # YonBIP高级版开发者工具
 
-YonBIP高级版开发者工具是一款专为用友YonBIP平台开发者设计的VS Code插件，集成了MCP服务管理、NC HOME配置、项目管理等功能，帮助开发者更高效地进行YonBIP应用开发。
+YonBIP高级版开发者工具是一款专为用友YonBIP平台开发者设计的VS Code插件，集成了MCP服务管理、NC HOME配置、项目管理等功能，帮助开发者更高效地进行YonBIP应用开发,新增融合了旗舰版配置的信息，方便用户直连私有环境进行AI Coding。
 
 ## 🌟 主要功能
 

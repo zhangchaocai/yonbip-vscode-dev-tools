@@ -477,11 +477,53 @@ export class McpProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
+        // 说明文档图片转为 data URI，避免路径 / CSP 带来的不确定性
+        const getDocImageDataUri = (fileName: string): string => {
+            try {
+                const imgPath = vscode.Uri.joinPath(
+                    this._extensionUri,
+                    'resources',
+                    'ultimate-doc-instruction',
+                    'image',
+                    'typora-user-images',
+                    fileName
+                ).fsPath;
+                if (fs.existsSync(imgPath)) {
+                    const base64 = fs.readFileSync(imgPath).toString('base64');
+                    return `data:image/png;base64,${base64}`;
+                }
+            } catch {
+                // ignore, 返回空字符串即可
+            }
+            return '';
+        };
+
+        const imgJdkCheck = getDocImageDataUri('image-20260316163347443.png');
+        const imgTenantVersion = getDocImageDataUri('image-20260316105036481.png');
+        const imgImportJson = getDocImageDataUri('image-20260316105303082.png');
+        const imgAuth1 = getDocImageDataUri('image-20260316162031805.png');
+        const imgAuth2 = getDocImageDataUri('image-20260316162113336.png');
+        const imgAuth3 = getDocImageDataUri('image-20260316162147199.png');
+        const imgAuth4 = getDocImageDataUri('image-20260316162217024.png');
+        const imgPluginSecret = getDocImageDataUri('image-20260316162334859.png');
+        const imgStartService = getDocImageDataUri('image-20260316163113094.png');
+        const imgCert1 = getDocImageDataUri('image-20260316101827786.png');
+        const imgCert2 = getDocImageDataUri('image-20260316101856238.png');
+        const imgCert3 = getDocImageDataUri('image-20260316101934289.png');
+        const imgCertOk = getDocImageDataUri('image-20260316104358418.png');
+
         return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'none';
+        img-src data: blob:;
+        script-src 'unsafe-inline' ${webview.cspSource};
+        style-src 'unsafe-inline' ${webview.cspSource};
+        font-src ${webview.cspSource} https: data:;
+    ">
     <title>MCP服务管理</title>
     <style>
         /* 全局样式优化 */
@@ -1137,6 +1179,49 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
+
+        /* 说明文档全屏预览样式 */
+        body.doc-fullscreen {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        body.doc-fullscreen #app {
+            max-width: 100%;
+            width: 100%;
+            height: 100vh;
+            margin: 0;
+            padding: 16px 24px;
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+        }
+        body.doc-fullscreen .tabs {
+            display: none;
+        }
+        body.doc-fullscreen .tab-content {
+            display: none !important;
+        }
+        body.doc-fullscreen #doc-tab {
+            display: block !important;
+        }
+        body.doc-fullscreen #doc-tab .section {
+            height: 100%;
+            margin: 0;
+        }
+        body.doc-fullscreen #doc-tab .doc-content-scroll {
+            max-height: calc(100vh - 100px);
+        }
+        .doc-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .doc-fullscreen-toggle {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 16px;
+        }
     </style>
 </head>
 <body>
@@ -1156,6 +1241,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
             <button class="tab active" onclick="switchTab('status')">📊 服务状态</button>
             <button class="tab" onclick="switchTab('config')">⚙️ 配置管理</button>
             <button class="tab" onclick="switchTab('advanced')">🚀 旗舰版配置信息</button>
+            <button class="tab" onclick="switchTab('doc')">📖 说明文档</button>
         </div>
 
         <!-- 服务状态选项卡 -->
@@ -1287,6 +1373,73 @@ export class McpProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
+        <!-- 说明文档选项卡 -->
+        <div id="doc-tab" class="tab-content">
+            <div class="section">
+                <div class="section-title">
+                    <span>YDS Premium Fusion - MCP 使用指南</span>
+                    <div class="doc-header-actions">
+                        <button class="secondary doc-fullscreen-toggle" onclick="toggleDocFullscreen()">
+                            ⛶ 全屏预览
+                        </button>
+                    </div>
+                </div>
+                <div class="doc-content-scroll" style="max-height:520px; overflow:auto; padding-right:8px;">
+                    <h3>1. 检查是否自动获取到 JDK17 以上版本</h3>
+                    <p>如果未自动识别，请在 MCP 配置中手动指定 JDK17 及以上版本的 <code>java</code> 可执行路径。</p>
+                    <p><img src="${imgJdkCheck}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+
+                    <h3>2. 配置租户与选择 BIP 版本</h3>
+                    <p>在「旗舰版配置信息」页签中填写租户并选择对应的 BIP 版本（如 BIP5、BIPV3_R6）。</p>
+                    <p><img src="${imgTenantVersion}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+
+                    <h3>3. 将下载的 JSON 文件导入到系统的 API 发布中</h3>
+                    <p>在 YonBIP 后台导入 JSON 配置后，记得<strong>全部发布</strong>。</p>
+                    <p><img src="${imgImportJson}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+
+                    <h3>4. API 调用处新增授权</h3>
+                    <p>根据文档提示在 API 调用处新增授权，确保访问权限正确。</p>
+                    <p>
+                        <img src="${imgAuth1}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" />
+                    </p>
+                    <p>
+                        <img src="${imgAuth2}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" />
+                    </p>
+                    <p>
+                        <img src="${imgAuth3}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" />
+                    </p>
+                    <p>
+                        <img src="${imgAuth4}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" />
+                    </p>
+
+                    <h3>5. 配置密钥信息到插件中</h3>
+                    <p>将 YonBIP 后台获取的 AppKey / AppSecret / API 地址等信息配置到 MCP 插件界面，然后点击保存。</p>
+                    <p><img src="${imgPluginSecret}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+
+                    <h3>6. 启动服务</h3>
+                    <p>在「服务状态」页签中点击「启动服务」，启动成功后可在 VS Code 状态栏和页面上看到运行状态。</p>
+                    <p><img src="${imgStartService}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+
+                    <h3>常见问题：证书错误</h3>
+                    <p>错误信息类似：</p>
+                    <p class="sample-text">请求业务对象信息失败: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target</p>
+
+                    <h4>1）手动导出证书（浏览器）</h4>
+                    <p>在浏览器中访问目标地址，导出证书文件（后缀修改为 <code>.crt</code>）。</p>
+                    <p><img src="${imgCert1}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+                    <p><img src="${imgCert2}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+                    <p><img src="${imgCert3}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+
+                    <h4>2）使用 keytool 导入到 JDK</h4>
+                    <p>在终端执行类似命令（路径替换为你本机 JDK 与证书路径）：</p>
+                    <pre class="sample-text">"D:\\home\\20240515\\ufjdk\\bin\\keytool.exe" -import -alias tkkfbip-cert -file "C:\\Users\\Administrator\\Desktop\\test.crt" -keystore "D:\\home\\20240515\\ufjdk\\lib\\security\\cacerts" -storepass changeit</pre>
+
+                    <h4>3）导入成功示例</h4>
+                    <p><img src="${imgCertOk}" style="max-width:100%;border-radius:6px;border:1px solid var(--vscode-widget-border);" /></p>
+                </div>
+            </div>
+        </div>
+
 
     </div>
 
@@ -1381,6 +1534,16 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 if (tabButton) {
                     tabButton.classList.add('active');
                 }
+            }
+        }
+
+        // 切换说明文档全屏预览
+        function toggleDocFullscreen() {
+            const body = document.body;
+            const btn = document.querySelector('.doc-fullscreen-toggle');
+            const isFull = body.classList.toggle('doc-fullscreen');
+            if (btn) {
+                btn.textContent = isFull ? '⤢ 退出全屏' : '⛶ 全屏预览';
             }
         }
         
