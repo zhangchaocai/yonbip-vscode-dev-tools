@@ -31998,6 +31998,9 @@ class PasswordEncryptor {
             }
             try {
                 const decryptedPassword = PasswordEncryptor.decrypt(homePath, password);
+                if (!decryptedPassword || decryptedPassword.trim() === '') {
+                    return false;
+                }
                 const replacementCharCount = (decryptedPassword.match(/\uFFFD/g) || []).length;
                 if (replacementCharCount > 2) {
                     return false;
@@ -32010,7 +32013,7 @@ class PasswordEncryptor {
                 if (totalLength > 0 && specialCharCount / totalLength > 0.3) {
                     return true;
                 }
-                return true;
+                return false;
             }
             catch (decryptError) {
                 return false;
@@ -32028,6 +32031,9 @@ class PasswordEncryptor {
         let result;
         if (PasswordEncryptor.isEncrypted(homePath, password)) {
             result = PasswordEncryptor.decrypt(homePath, password);
+            if (!result || result.trim() === '') {
+                result = password;
+            }
         }
         else {
             result = password;
@@ -159667,6 +159673,12 @@ class LibraryService {
         for (const classesPath of moduleClassesPaths) {
             const relativePath = path.relative(workspacePath, classesPath);
             const usePath = relativePath.startsWith('..') ? classesPath : relativePath;
+            classpathContent += `\n    <classpathentry kind="lib" path="${usePath}"/>`;
+        }
+        const externalClassesPath = path.join(homePath, 'external', 'classes');
+        if (fs.existsSync(externalClassesPath) && fs.statSync(externalClassesPath).isDirectory()) {
+            const relativePath = path.relative(workspacePath, externalClassesPath);
+            const usePath = relativePath.startsWith('..') ? externalClassesPath : relativePath;
             classpathContent += `\n    <classpathentry kind="lib" path="${usePath}"/>`;
         }
         for (const jarPath of jarPaths) {

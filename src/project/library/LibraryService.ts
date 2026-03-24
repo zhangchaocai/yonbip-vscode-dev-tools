@@ -866,6 +866,14 @@ export class LibraryService {
             classpathContent += `\n    <classpathentry kind="lib" path="${usePath}"/>`;
         }
 
+        // 添加 home/external/classes 路径
+        const externalClassesPath = path.join(homePath, 'external', 'classes');
+        if (fs.existsSync(externalClassesPath) && fs.statSync(externalClassesPath).isDirectory()) {
+            const relativePath = path.relative(workspacePath, externalClassesPath);
+            const usePath = relativePath.startsWith('..') ? externalClassesPath : relativePath;
+            classpathContent += `\n    <classpathentry kind="lib" path="${usePath}"/>`;
+        }
+
         // 添加所有jar文件
         for (const jarPath of jarPaths) {
             // 转换为相对路径（如果可能）

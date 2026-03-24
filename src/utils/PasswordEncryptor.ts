@@ -158,6 +158,11 @@ export class PasswordEncryptor {
             // 如果密码是明文，解密后会得到乱码
             try {
                 const decryptedPassword = PasswordEncryptor.decrypt(homePath, password);
+
+                // 解密结果为空通常说明原值不是可解密密文，按明文处理
+                if (!decryptedPassword || decryptedPassword.trim() === '') {
+                    return false;
+                }
                     
                 // 检查解密结果是否包含大量乱码字符
                 // 如果解密后包含多个连续的替换字符，说明原密码可能是明文
@@ -184,8 +189,8 @@ export class PasswordEncryptor {
                     return true;
                 }
                     
-                // 默认情况下，如果启用了加密且能成功解密，认为是加密的
-                return true;
+                // 解密结果与原值相同且未命中特征时，按明文处理，避免误判
+                return false;
             } catch (decryptError) {
                 // 如果解密失败，说明原密码可能就是明文
                 return false;
@@ -213,6 +218,10 @@ export class PasswordEncryptor {
         // 如果密码已加密，则解密
         if (PasswordEncryptor.isEncrypted(homePath, password)) {
             result = PasswordEncryptor.decrypt(homePath, password);
+            // 防御性兜底：避免明文被误判后解密成空串
+            if (!result || result.trim() === '') {
+                result = password;
+            }
         } else {
             // 否则返回原密码
             result = password;
