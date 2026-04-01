@@ -1338,6 +1338,10 @@ export class McpProvider implements vscode.WebviewViewProvider {
                                 <span class="check-icon">✓</span>
                                 <span>BIPV3_R6</span>
                             </div>
+                            <div class="version-dropdown-option" data-value="BIPV3_R5" role="option">
+                                <span class="check-icon">✓</span>
+                                <span>BIPV3_R5</span>
+                            </div>
                         </div>
                     </div>
                 </div>
