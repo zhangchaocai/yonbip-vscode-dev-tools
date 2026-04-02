@@ -16,9 +16,10 @@ export class McpProvider implements vscode.WebviewViewProvider {
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly context: vscode.ExtensionContext
+        private readonly context: vscode.ExtensionContext,
+        mcpService: McpService
     ) {
-        this.mcpService = new McpService(context);
+        this.mcpService = mcpService;
         this.outputChannel = vscode.window.createOutputChannel('MCP Provider');
     }
 

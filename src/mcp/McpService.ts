@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { spawn, ChildProcess } from 'child_process';
+import * as net from 'net';
 import * as path from 'path';
 import * as fs from 'fs';
 import { NCHomeConfigService } from '../project/nc-home/config/NCHomeConfigService';
@@ -225,16 +226,52 @@ export class McpService {
     }
 
     /**
-     * 判断服务是否存活（优先检查HTTP接口，其次检查进程）
+     * 判断服务是否存活（子进程、配置端口监听、再尝试原有 HTTP 状态逻辑）
      */
     public async isServiceAlive(): Promise<boolean> {
+        if (this.isProcessAlive()) {
+            return true;
+        }
+        // 扩展重载/窗口重载后 ChildProcess 引用会丢失，但 JVM 仍可能在本机端口监听
+        try {
+            if (await this.probeMcpPortListening()) {
+                return true;
+            }
+        } catch {
+            // 忽略探测异常
+        }
         try {
             const httpAlive = await this.checkHttpServiceAvailability();
-            if (httpAlive) return true;
-        } catch (e) {
-            // 忽略HTTP检查异常，降级到进程存活判断
+            if (httpAlive) {
+                return true;
+            }
+        } catch {
+            // 忽略HTTP检查异常
         }
-        return this.isProcessAlive();
+        return false;
+    }
+
+    /**
+     * 探测本机配置端口是否有进程在监听（用于无子进程句柄时的存活判断）
+     */
+    private probeMcpPortListening(timeoutMs = 2000): Promise<boolean> {
+        const port = this.config.port;
+        if (!Number.isFinite(port) || port < 1 || port > 65535) {
+            return Promise.resolve(false);
+        }
+        return new Promise((resolve) => {
+            const socket = net.createConnection({ port, host: '127.0.0.1' }, () => {
+                socket.destroy();
+                resolve(true);
+            });
+            const onFail = () => {
+                socket.removeAllListeners();
+                socket.destroy();
+                resolve(false);
+            };
+            socket.setTimeout(timeoutMs, onFail);
+            socket.on('error', onFail);
+        });
     }
 
     /**
@@ -635,7 +672,23 @@ export class McpService {
      * 停止MCP服务
      */
     public async stop(): Promise<void> {
-        if (this.status === McpStatus.STOPPED || this.status === McpStatus.STOPPING) {
+        if (this.status === McpStatus.STOPPING) {
+            this.outputChannel.appendLine('MCP服务正在停止中，请稍候');
+            return;
+        }
+
+        const hasChild = !!(this.process && this.process.pid);
+        let portListening = false;
+        try {
+            portListening = await this.probeMcpPortListening();
+        } catch {
+            portListening = false;
+        }
+
+        if (!hasChild && !portListening) {
+            if (this.status !== McpStatus.STOPPED) {
+                this.setStatus(McpStatus.STOPPED);
+            }
             this.outputChannel.appendLine('MCP服务已处于停止状态，跳过停止操作');
             return;
         }
@@ -716,11 +769,61 @@ export class McpService {
                 });
             });
         } else {
-            // 没有进程在运行
-            this.outputChannel.appendLine('没有发现运行中的MCP进程');
+            // 无子进程句柄（例如窗口重载后）：按配置端口结束占用进程
+            this.outputChannel.appendLine('未持有 MCP 子进程，尝试按配置端口结束占用进程...');
+            await this.killProcessesByConfiguredPort();
+            this.process = null;
             this.setStatus(McpStatus.STOPPED);
-            this.isManualStop = false; // 重置标记
+            this.isManualStop = false;
             vscode.window.showInformationMessage('MCP服务已停止');
+        }
+    }
+
+    /**
+     * 结束占用当前配置端口的进程（先 SIGTERM，仍监听则 SIGKILL / Windows 强制 taskkill）
+     */
+    private async killProcessesByConfiguredPort(): Promise<void> {
+        const port = this.config.port;
+        let pids = await this.getPortPids(port);
+        if (pids.length === 0) {
+            this.outputChannel.appendLine(`端口 ${port} 上未发现占用进程`);
+            return;
+        }
+        this.outputChannel.appendLine(`发现占用端口 ${port} 的进程: ${pids.join(', ')}`);
+        await this.killPortPids(pids);
+        await new Promise((r) => setTimeout(r, 1500));
+        if (await this.probeMcpPortListening()) {
+            pids = await this.getPortPids(port);
+            if (pids.length > 0) {
+                this.outputChannel.appendLine('端口仍被占用，正在强制结束进程...');
+                await this.killPortPidsForce(pids);
+            }
+        }
+    }
+
+    /**
+     * 强制结束进程（Unix: kill -9，Windows: taskkill /F，与 killPortPids 一致）
+     */
+    private async killPortPidsForce(pids: string[]): Promise<void> {
+        if (!pids || pids.length === 0) {
+            return;
+        }
+        const { exec } = require('child_process');
+        for (const pid of pids) {
+            await new Promise<void>((resolve) => {
+                const cmd =
+                    process.platform === 'win32'
+                        ? `taskkill /PID ${pid} /T /F`
+                        : `kill -9 ${pid}`;
+                exec(cmd, (error: any) => {
+                    if (error) {
+                        this.outputChannel.appendLine(`强制结束进程 ${pid} 失败: ${error.message}`);
+                    } else {
+                        this.outputChannel.appendLine(`已强制结束进程: ${pid}`);
+                    }
+                    resolve();
+                });
+            });
         }
     }
 

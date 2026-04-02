@@ -67,7 +67,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const mcpCommands = McpCommands.registerCommands(context, mcpService);
 
 	// 注册MCP界面
-	const mcpProvider = new McpProvider(context.extensionUri, context);
+	const mcpProvider = new McpProvider(context.extensionUri, context, mcpService);
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
 			McpProvider.viewType,
