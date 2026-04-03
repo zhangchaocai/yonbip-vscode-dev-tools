@@ -28886,6 +28886,8 @@ class McpProvider {
                 <input type="hidden" id="metadataByboid">
                 <input type="hidden" id="metadataEntityid">
                 <input type="hidden" id="metadataUri">
+                <input type="hidden" id="businessInterfaceList">
+                <input type="hidden" id="businessInterfaceDetail">
                 
                 <div class="form-group">
                     <div id="advancedConfigActions" class="sticky-actions">
@@ -29122,7 +29124,9 @@ class McpProvider {
                 metadataByname: document.getElementById('metadataByname').value || undefined,
                 metadataByboid: document.getElementById('metadataByboid').value || undefined,
                 metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
-                metadataUri: document.getElementById('metadataUri').value || undefined
+                metadataUri: document.getElementById('metadataUri').value || undefined,
+                businessInterfaceList: document.getElementById('businessInterfaceList').value || undefined,
+                businessInterfaceDetail: document.getElementById('businessInterfaceDetail').value || undefined
             };
 
             vscode.postMessage({
@@ -29144,7 +29148,9 @@ class McpProvider {
                 metadataByname: document.getElementById('metadataByname').value || undefined,
                 metadataByboid: document.getElementById('metadataByboid').value || undefined,
                 metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
-                metadataUri: document.getElementById('metadataUri').value || undefined
+                metadataUri: document.getElementById('metadataUri').value || undefined,
+                businessInterfaceList: document.getElementById('businessInterfaceList').value || undefined,
+                businessInterfaceDetail: document.getElementById('businessInterfaceDetail').value || undefined
             };
 
             vscode.postMessage({
@@ -29159,7 +29165,9 @@ class McpProvider {
             metadataByname: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/businessobject/searchByName',
             metadataByboid: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/businessobject/getEntityListByBOId',
             metadataEntityid: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/getEntityInfoByBOIdAndEntityId',
-            metadataUri: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/queryByUri'
+            metadataUri: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/queryByUri',
+            businessInterfaceList: '/iuap-api-gateway/{tenant}/yonbip/CPC/api/search',
+            businessInterfaceDetail: '/iuap-api-gateway/{tenant}/yonbip/CPC/api/detail/{apiId}'
         };
 
         // 根据租户动态生成URL
@@ -29169,7 +29177,9 @@ class McpProvider {
                     metadataByname: '',
                     metadataByboid: '',
                     metadataEntityid: '',
-                    metadataUri: ''
+                    metadataUri: '',
+                    businessInterfaceList: '',
+                    businessInterfaceDetail: ''
                 };
             }
 
@@ -29177,7 +29187,9 @@ class McpProvider {
                 metadataByname: urlTemplates.metadataByname.replace(/\{tenant\}/g, tenant),
                 metadataByboid: urlTemplates.metadataByboid.replace(/\{tenant\}/g, tenant),
                 metadataEntityid: urlTemplates.metadataEntityid.replace(/\{tenant\}/g, tenant),
-                metadataUri: urlTemplates.metadataUri.replace(/\{tenant\}/g, tenant)
+                metadataUri: urlTemplates.metadataUri.replace(/\{tenant\}/g, tenant),
+                businessInterfaceList: urlTemplates.businessInterfaceList.replace(/\{tenant\}/g, tenant),
+                businessInterfaceDetail: urlTemplates.businessInterfaceDetail.replace(/\{tenant\}/g, tenant)
             };
         }
 
@@ -29190,6 +29202,8 @@ class McpProvider {
             document.getElementById('metadataByboid').value = urls.metadataByboid;
             document.getElementById('metadataEntityid').value = urls.metadataEntityid;
             document.getElementById('metadataUri').value = urls.metadataUri;
+            document.getElementById('businessInterfaceList').value = urls.businessInterfaceList;
+            document.getElementById('businessInterfaceDetail').value = urls.businessInterfaceDetail;
         }
         
         // 重置为默认配置
@@ -29227,6 +29241,8 @@ class McpProvider {
                 document.getElementById('metadataByboid').value = config.metadataByboid || '';
                 document.getElementById('metadataEntityid').value = config.metadataEntityid || '';
                 document.getElementById('metadataUri').value = config.metadataUri || '';
+                document.getElementById('businessInterfaceList').value = config.businessInterfaceList || '';
+                document.getElementById('businessInterfaceDetail').value = config.businessInterfaceDetail || '';
             }
 
             // 更新快速信息
@@ -94352,7 +94368,9 @@ class McpService {
             metadataByname: (config && config.metadataByname) || undefined,
             metadataByboid: (config && config.metadataByboid) || undefined,
             metadataEntityid: (config && config.metadataEntityid) || undefined,
-            metadataUri: (config && config.metadataUri) || undefined
+            metadataUri: (config && config.metadataUri) || undefined,
+            businessInterfaceList: (config && config.businessInterfaceList) || undefined,
+            businessInterfaceDetail: (config && config.businessInterfaceDetail) || undefined
         };
     }
     getDefaultConfig() {
@@ -94369,7 +94387,9 @@ class McpService {
             metadataByname: undefined,
             metadataByboid: undefined,
             metadataEntityid: undefined,
-            metadataUri: undefined
+            metadataUri: undefined,
+            businessInterfaceList: undefined,
+            businessInterfaceDetail: undefined
         };
     }
     async saveConfig(config) {
@@ -94386,7 +94406,9 @@ class McpService {
             metadataByname: config.metadataByname,
             metadataByboid: config.metadataByboid,
             metadataEntityid: config.metadataEntityid,
-            metadataUri: config.metadataUri
+            metadataUri: config.metadataUri,
+            businessInterfaceList: config.businessInterfaceList,
+            businessInterfaceDetail: config.businessInterfaceDetail
         };
         this.config = configWithDefaults;
         await this.context.globalState.update('mcp.config', configWithDefaults);
@@ -94406,7 +94428,9 @@ class McpService {
             metadataByname: urls.metadataByname || this.config.metadataByname,
             metadataByboid: urls.metadataByboid || this.config.metadataByboid,
             metadataEntityid: urls.metadataEntityid || this.config.metadataEntityid,
-            metadataUri: urls.metadataUri || this.config.metadataUri
+            metadataUri: urls.metadataUri || this.config.metadataUri,
+            businessInterfaceList: urls.businessInterfaceList || this.config.businessInterfaceList,
+            businessInterfaceDetail: urls.businessInterfaceDetail || this.config.businessInterfaceDetail
         };
     }
     generateUrls() {
@@ -94428,7 +94452,9 @@ class McpService {
                 metadataByname: templates.metadataByname?.replace(/\{tenant\}/g, tenant),
                 metadataByboid: templates.metadataByboid?.replace(/\{tenant\}/g, tenant),
                 metadataEntityid: templates.metadataEntityid?.replace(/\{tenant\}/g, tenant),
-                metadataUri: templates.metadataUri?.replace(/\{tenant\}/g, tenant)
+                metadataUri: templates.metadataUri?.replace(/\{tenant\}/g, tenant),
+                businessInterfaceList: templates.businessInterfaceList?.replace(/\{tenant\}/g, tenant),
+                businessInterfaceDetail: templates.businessInterfaceDetail?.replace(/\{tenant\}/g, tenant)
             };
         }
         catch (error) {
@@ -95065,6 +95091,15 @@ class McpService {
         }
         if (this.config.metadataUri) {
             args.push('--api.metadata_uri=' + this.config.metadataUri);
+        }
+        const urlGen = this.generateUrls();
+        const businessInterfaceList = urlGen.businessInterfaceList || this.config.businessInterfaceList;
+        const businessInterfaceDetail = urlGen.businessInterfaceDetail || this.config.businessInterfaceDetail;
+        if (businessInterfaceList) {
+            args.push('--api.business_interface_list=' + businessInterfaceList);
+        }
+        if (businessInterfaceDetail) {
+            args.push('--api.business_interface_detail=' + businessInterfaceDetail);
         }
         return args;
     }

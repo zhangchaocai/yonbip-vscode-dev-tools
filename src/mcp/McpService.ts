@@ -25,6 +25,8 @@ export interface McpConfig {
     metadataByboid?: string;
     metadataEntityid?: string;
     metadataUri?: string;
+    businessInterfaceList?: string;
+    businessInterfaceDetail?: string;
 }
 
 /**
@@ -108,7 +110,9 @@ export class McpService {
             metadataByname: (config && config.metadataByname) || undefined,
             metadataByboid: (config && config.metadataByboid) || undefined,
             metadataEntityid: (config && config.metadataEntityid) || undefined,
-            metadataUri: (config && config.metadataUri) || undefined
+            metadataUri: (config && config.metadataUri) || undefined,
+            businessInterfaceList: (config && config.businessInterfaceList) || undefined,
+            businessInterfaceDetail: (config && config.businessInterfaceDetail) || undefined
         };
     }
 
@@ -129,7 +133,9 @@ export class McpService {
             metadataByname: undefined,
             metadataByboid: undefined,
             metadataEntityid: undefined,
-            metadataUri: undefined
+            metadataUri: undefined,
+            businessInterfaceList: undefined,
+            businessInterfaceDetail: undefined
         };
     }
 
@@ -151,7 +157,9 @@ export class McpService {
             metadataByname: config.metadataByname,
             metadataByboid: config.metadataByboid,
             metadataEntityid: config.metadataEntityid,
-            metadataUri: config.metadataUri
+            metadataUri: config.metadataUri,
+            businessInterfaceList: config.businessInterfaceList,
+            businessInterfaceDetail: config.businessInterfaceDetail
         };
 
         this.config = configWithDefaults;
@@ -179,14 +187,23 @@ export class McpService {
             metadataByname: urls.metadataByname || this.config.metadataByname,
             metadataByboid: urls.metadataByboid || this.config.metadataByboid,
             metadataEntityid: urls.metadataEntityid || this.config.metadataEntityid,
-            metadataUri: urls.metadataUri || this.config.metadataUri
+            metadataUri: urls.metadataUri || this.config.metadataUri,
+            businessInterfaceList: urls.businessInterfaceList || this.config.businessInterfaceList,
+            businessInterfaceDetail: urls.businessInterfaceDetail || this.config.businessInterfaceDetail
         };
     }
 
     /**
      * 根据租户动态生成URL（apiUrl由用户手动输入，不自动生成）
      */
-    private generateUrls(): { metadataByname?: string; metadataByboid?: string; metadataEntityid?: string; metadataUri?: string } {
+    private generateUrls(): {
+        metadataByname?: string;
+        metadataByboid?: string;
+        metadataEntityid?: string;
+        metadataUri?: string;
+        businessInterfaceList?: string;
+        businessInterfaceDetail?: string;
+    } {
         const tenant = this.config.tenant;
         if (!tenant) {
             return {};
@@ -210,7 +227,9 @@ export class McpService {
                 metadataByname: templates.metadataByname?.replace(/\{tenant\}/g, tenant),
                 metadataByboid: templates.metadataByboid?.replace(/\{tenant\}/g, tenant),
                 metadataEntityid: templates.metadataEntityid?.replace(/\{tenant\}/g, tenant),
-                metadataUri: templates.metadataUri?.replace(/\{tenant\}/g, tenant)
+                metadataUri: templates.metadataUri?.replace(/\{tenant\}/g, tenant),
+                businessInterfaceList: templates.businessInterfaceList?.replace(/\{tenant\}/g, tenant),
+                businessInterfaceDetail: templates.businessInterfaceDetail?.replace(/\{tenant\}/g, tenant)
             };
         } catch (error) {
             this.outputChannel.appendLine(`生成URL失败: ${error}`);
@@ -1045,6 +1064,16 @@ export class McpService {
         }
         if (this.config.metadataUri) {
             args.push('--api.metadata_uri=' + this.config.metadataUri);
+        }
+
+        const urlGen = this.generateUrls();
+        const businessInterfaceList = urlGen.businessInterfaceList || this.config.businessInterfaceList;
+        const businessInterfaceDetail = urlGen.businessInterfaceDetail || this.config.businessInterfaceDetail;
+        if (businessInterfaceList) {
+            args.push('--api.business_interface_list=' + businessInterfaceList);
+        }
+        if (businessInterfaceDetail) {
+            args.push('--api.business_interface_detail=' + businessInterfaceDetail);
         }
 
         // if (this.config.apiAppKey || this.config.apiAppSecret || this.config.apiUrl || this.config.metadataByname || this.config.metadataByboid || this.config.metadataEntityid) {

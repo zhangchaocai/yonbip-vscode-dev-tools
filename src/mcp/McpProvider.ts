@@ -1367,6 +1367,8 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 <input type="hidden" id="metadataByboid">
                 <input type="hidden" id="metadataEntityid">
                 <input type="hidden" id="metadataUri">
+                <input type="hidden" id="businessInterfaceList">
+                <input type="hidden" id="businessInterfaceDetail">
                 
                 <div class="form-group">
                     <div id="advancedConfigActions" class="sticky-actions">
@@ -1603,7 +1605,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 metadataByname: document.getElementById('metadataByname').value || undefined,
                 metadataByboid: document.getElementById('metadataByboid').value || undefined,
                 metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
-                metadataUri: document.getElementById('metadataUri').value || undefined
+                metadataUri: document.getElementById('metadataUri').value || undefined,
+                businessInterfaceList: document.getElementById('businessInterfaceList').value || undefined,
+                businessInterfaceDetail: document.getElementById('businessInterfaceDetail').value || undefined
             };
 
             vscode.postMessage({
@@ -1625,7 +1629,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 metadataByname: document.getElementById('metadataByname').value || undefined,
                 metadataByboid: document.getElementById('metadataByboid').value || undefined,
                 metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
-                metadataUri: document.getElementById('metadataUri').value || undefined
+                metadataUri: document.getElementById('metadataUri').value || undefined,
+                businessInterfaceList: document.getElementById('businessInterfaceList').value || undefined,
+                businessInterfaceDetail: document.getElementById('businessInterfaceDetail').value || undefined
             };
 
             vscode.postMessage({
@@ -1640,7 +1646,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
             metadataByname: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/businessobject/searchByName',
             metadataByboid: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/businessobject/getEntityListByBOId',
             metadataEntityid: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/getEntityInfoByBOIdAndEntityId',
-            metadataUri: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/queryByUri'
+            metadataUri: '/iuap-api-gateway/{tenant}/current_yonbip_default_sys/GDBG/queryByUri',
+            businessInterfaceList: '/iuap-api-gateway/{tenant}/yonbip/CPC/api/search',
+            businessInterfaceDetail: '/iuap-api-gateway/{tenant}/yonbip/CPC/api/detail/{apiId}'
         };
 
         // 根据租户动态生成URL
@@ -1650,7 +1658,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     metadataByname: '',
                     metadataByboid: '',
                     metadataEntityid: '',
-                    metadataUri: ''
+                    metadataUri: '',
+                    businessInterfaceList: '',
+                    businessInterfaceDetail: ''
                 };
             }
 
@@ -1658,7 +1668,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 metadataByname: urlTemplates.metadataByname.replace(/\{tenant\}/g, tenant),
                 metadataByboid: urlTemplates.metadataByboid.replace(/\{tenant\}/g, tenant),
                 metadataEntityid: urlTemplates.metadataEntityid.replace(/\{tenant\}/g, tenant),
-                metadataUri: urlTemplates.metadataUri.replace(/\{tenant\}/g, tenant)
+                metadataUri: urlTemplates.metadataUri.replace(/\{tenant\}/g, tenant),
+                businessInterfaceList: urlTemplates.businessInterfaceList.replace(/\{tenant\}/g, tenant),
+                businessInterfaceDetail: urlTemplates.businessInterfaceDetail.replace(/\{tenant\}/g, tenant)
             };
         }
 
@@ -1671,6 +1683,8 @@ export class McpProvider implements vscode.WebviewViewProvider {
             document.getElementById('metadataByboid').value = urls.metadataByboid;
             document.getElementById('metadataEntityid').value = urls.metadataEntityid;
             document.getElementById('metadataUri').value = urls.metadataUri;
+            document.getElementById('businessInterfaceList').value = urls.businessInterfaceList;
+            document.getElementById('businessInterfaceDetail').value = urls.businessInterfaceDetail;
         }
         
         // 重置为默认配置
@@ -1708,6 +1722,8 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 document.getElementById('metadataByboid').value = config.metadataByboid || '';
                 document.getElementById('metadataEntityid').value = config.metadataEntityid || '';
                 document.getElementById('metadataUri').value = config.metadataUri || '';
+                document.getElementById('businessInterfaceList').value = config.businessInterfaceList || '';
+                document.getElementById('businessInterfaceDetail').value = config.businessInterfaceDetail || '';
             }
 
             // 更新快速信息
