@@ -64,8 +64,8 @@ export class McpService {
         }
         this.outputChannel = McpService.outputChannelInstance;
 
-        // 初始化时自动设置内置JAR路径
-        this.initializeBuiltinJar();
+        // 同步纠正 jarPath：避免升级后仍指向旧安装目录下仍存在文件的内置 JAR
+        this.reconcileBuiltinMcpJarPath();
 
         // 注释掉状态栏显示，避免与WebView面板重复
         // this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -74,22 +74,54 @@ export class McpService {
     }
 
     /**
-     * 初始化内置JAR文件路径
+     * 将 MCP JAR 路径与当前扩展安装目录对齐：
+     * - 未配置或文件缺失时使用当前内置 JAR
+     * - 若仍指向本扩展旧版本安装目录下的内置 yonyou-mcp.jar，则切换到当前版本内置 JAR
      */
-    private async initializeBuiltinJar(): Promise<void> {
+    private reconcileBuiltinMcpJarPath(): void {
         const builtinJarPath = path.join(this.context.extensionPath, 'resources', 'yonyou-mcp.jar');
 
-        // 检查内置JAR文件是否存在
-        if (fs.existsSync(builtinJarPath)) {
-            // 如果未配置JAR路径或配置的路径不存在，则使用内置JAR
-            if (!this.config.jarPath || !fs.existsSync(this.config.jarPath)) {
-                this.config.jarPath = builtinJarPath;
-                await this.saveConfig(this.config);
-                this.outputChannel.appendLine(`自动设置内置MCP JAR路径: ${builtinJarPath}`);
-            }
-        } else {
+        if (!fs.existsSync(builtinJarPath)) {
             this.outputChannel.appendLine('警告: 未找到内置MCP JAR文件，请检查插件安装');
+            return;
         }
+
+        const jarPath = this.config.jarPath;
+        if (!jarPath || !fs.existsSync(jarPath)) {
+            this.config.jarPath = builtinJarPath;
+            void this.saveConfig(this.config);
+            this.outputChannel.appendLine(`自动设置内置MCP JAR路径: ${builtinJarPath}`);
+            return;
+        }
+
+        if (path.resolve(jarPath) === path.resolve(builtinJarPath)) {
+            return;
+        }
+
+        if (this.isStaleBundledMcpInstallPath(jarPath)) {
+            this.config.jarPath = builtinJarPath;
+            void this.saveConfig(this.config);
+            this.outputChannel.appendLine(`插件已更新，已切换为当前版本内置 MCP JAR: ${builtinJarPath}`);
+        }
+    }
+
+    /**
+     * 判断是否为「本扩展旧安装目录」下的内置 yonyou-mcp.jar（非用户自定义路径）
+     */
+    private isStaleBundledMcpInstallPath(jarPath: string): boolean {
+        if (path.basename(jarPath) !== 'yonyou-mcp.jar') {
+            return false;
+        }
+        if (path.basename(path.dirname(jarPath)) !== 'resources') {
+            return false;
+        }
+        const installRoot = path.dirname(path.dirname(path.resolve(jarPath)));
+        const extensionId = this.context.extension.id;
+        const folderName = path.basename(installRoot);
+        if (!folderName.startsWith(`${extensionId}-`)) {
+            return false;
+        }
+        return path.resolve(installRoot) !== path.resolve(this.context.extensionPath);
     }
 
     /**
@@ -904,6 +936,8 @@ export class McpService {
         } catch (error: any) {
             throw new Error(`Java环境验证失败: ${error.message}`);
         }
+
+        this.reconcileBuiltinMcpJarPath();
 
         // 检查JAR文件，优先使用内置JAR
         if (!this.config.jarPath) {

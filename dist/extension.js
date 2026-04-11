@@ -94338,20 +94338,44 @@ class McpService {
             McpService.outputChannelInstance = vscode.window.createOutputChannel('YonBIP MCP服务');
         }
         this.outputChannel = McpService.outputChannelInstance;
-        this.initializeBuiltinJar();
+        this.reconcileBuiltinMcpJarPath();
     }
-    async initializeBuiltinJar() {
+    reconcileBuiltinMcpJarPath() {
         const builtinJarPath = path.join(this.context.extensionPath, 'resources', 'yonyou-mcp.jar');
-        if (fs.existsSync(builtinJarPath)) {
-            if (!this.config.jarPath || !fs.existsSync(this.config.jarPath)) {
-                this.config.jarPath = builtinJarPath;
-                await this.saveConfig(this.config);
-                this.outputChannel.appendLine(`自动设置内置MCP JAR路径: ${builtinJarPath}`);
-            }
-        }
-        else {
+        if (!fs.existsSync(builtinJarPath)) {
             this.outputChannel.appendLine('警告: 未找到内置MCP JAR文件，请检查插件安装');
+            return;
         }
+        const jarPath = this.config.jarPath;
+        if (!jarPath || !fs.existsSync(jarPath)) {
+            this.config.jarPath = builtinJarPath;
+            void this.saveConfig(this.config);
+            this.outputChannel.appendLine(`自动设置内置MCP JAR路径: ${builtinJarPath}`);
+            return;
+        }
+        if (path.resolve(jarPath) === path.resolve(builtinJarPath)) {
+            return;
+        }
+        if (this.isStaleBundledMcpInstallPath(jarPath)) {
+            this.config.jarPath = builtinJarPath;
+            void this.saveConfig(this.config);
+            this.outputChannel.appendLine(`插件已更新，已切换为当前版本内置 MCP JAR: ${builtinJarPath}`);
+        }
+    }
+    isStaleBundledMcpInstallPath(jarPath) {
+        if (path.basename(jarPath) !== 'yonyou-mcp.jar') {
+            return false;
+        }
+        if (path.basename(path.dirname(jarPath)) !== 'resources') {
+            return false;
+        }
+        const installRoot = path.dirname(path.dirname(path.resolve(jarPath)));
+        const extensionId = this.context.extension.id;
+        const folderName = path.basename(installRoot);
+        if (!folderName.startsWith(`${extensionId}-`)) {
+            return false;
+        }
+        return path.resolve(installRoot) !== path.resolve(this.context.extensionPath);
     }
     loadConfig() {
         const config = this.context.globalState.get('mcp.config');
@@ -94969,6 +94993,7 @@ class McpService {
         catch (error) {
             throw new Error(`Java环境验证失败: ${error.message}`);
         }
+        this.reconcileBuiltinMcpJarPath();
         if (!this.config.jarPath) {
             const builtinJarPath = path.join(this.context.extensionPath, 'resources', 'yonyou-mcp.jar');
             if (fs.existsSync(builtinJarPath)) {
