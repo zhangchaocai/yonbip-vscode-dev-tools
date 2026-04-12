@@ -29036,7 +29036,7 @@ class McpProvider {
             backdrop-filter: blur(5px);
         }
         #flagship-modal.mcp-modal-panel {
-            max-width: 540px;
+            max-width: 580px;
             border-radius: 14px;
             border: 1px solid color-mix(in srgb, var(--vscode-widget-border) 72%, var(--vscode-textLink-foreground, var(--vscode-focusBorder)));
             background: linear-gradient(
@@ -29050,8 +29050,8 @@ class McpProvider {
         }
         #flagship-modal .mcp-modal-header {
             position: relative;
-            padding: 16px 20px 14px;
-            font-size: 16px;
+            padding: 12px 18px 12px;
+            font-size: 15px;
             font-weight: 600;
             letter-spacing: 0.03em;
             border-bottom: 1px solid color-mix(in srgb, var(--vscode-widget-border) 88%, transparent);
@@ -29084,21 +29084,76 @@ class McpProvider {
             color: var(--vscode-textLink-foreground, var(--vscode-focusBorder));
         }
         #flagship-modal .mcp-modal-body {
-            padding: 20px;
-            gap: 16px;
+            padding: 14px 16px 16px;
+            gap: 12px;
             background: color-mix(in srgb, var(--vscode-editor-background) 28%, transparent);
+        }
+        #flagship-modal .flagship-modal-step {
+            border: 1px solid color-mix(in srgb, var(--vscode-widget-border) 82%, var(--vscode-textLink-foreground, transparent));
+            border-radius: 10px;
+            padding: 10px 12px 12px;
+            background: color-mix(in srgb, var(--vscode-editor-background) 45%, var(--vscode-input-background));
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        #flagship-modal .flagship-modal-step-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--vscode-foreground);
+            letter-spacing: 0.02em;
+        }
+        #flagship-modal .flagship-modal-step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: 700;
+            background: color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 18%, transparent);
+            color: var(--vscode-textLink-foreground, var(--vscode-focusBorder));
+        }
+        #flagship-modal .flagship-modal-step-hint {
+            margin: -2px 0 0 0;
+            padding: 0 0 2px 30px;
+            font-size: 11px;
+            line-height: 1.45;
+            color: var(--vscode-descriptionForeground);
+        }
+        #flagship-modal .flagship-modal-form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 10px;
+            align-items: flex-start;
+        }
+        #flagship-modal .flagship-modal-form-row > .form-group {
+            flex: 1 1 200px;
+            min-width: 0;
+            margin-bottom: 0;
         }
         #flagship-modal .mcp-modal-body .form-group label {
             color: var(--vscode-descriptionForeground);
             font-weight: 600;
             font-size: 12px;
             letter-spacing: 0.04em;
+            margin-bottom: 5px;
         }
+        /* 弹窗内文本框与版本下拉同一高度，避免并排时上下不齐 */
         #flagship-modal .mcp-modal-body .form-group input:not([type="hidden"]) {
             border-radius: 10px;
             border: 1.5px solid var(--vscode-input-border);
             background: color-mix(in srgb, var(--vscode-input-background) 88%, transparent);
-            padding: 11px 14px;
+            box-sizing: border-box;
+            height: 38px;
+            padding: 0 12px;
+            font-size: 13px;
+            line-height: 38px;
         }
         #flagship-modal .mcp-modal-body .form-group input:not([type="hidden"]):focus {
             border-color: var(--vscode-focusBorder);
@@ -29110,13 +29165,19 @@ class McpProvider {
             border-radius: 10px;
             border-width: 1.5px;
             background: color-mix(in srgb, var(--vscode-input-background) 88%, transparent);
+            box-sizing: border-box;
+            height: 38px;
+            padding: 0 36px 0 12px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
         }
         #flagship-modal .version-dropdown-trigger.open {
             box-shadow: 0 0 0 4px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 12%, transparent);
         }
         #flagship-modal .mcp-modal-footer {
-            padding: 16px 20px;
-            gap: 12px;
+            padding: 12px 18px;
+            gap: 10px;
             border-top: 1px solid color-mix(in srgb, var(--vscode-widget-border) 88%, transparent);
             background: color-mix(in srgb, var(--vscode-editor-background) 62%, var(--vscode-input-background));
             box-shadow: 0 -10px 28px color-mix(in srgb, #000 14%, transparent);
@@ -29332,48 +29393,66 @@ class McpProvider {
                     <button type="button" class="mcp-modal-close" onclick="closeFlagshipProjectModal()" aria-label="关闭">✕</button>
                 </div>
                 <div class="mcp-modal-body">
-                    <div class="form-group">
-                        <label for="modalProjectName">显示名称（可选）:</label>
-                        <input type="text" id="modalProjectName" placeholder="默认同租户，用于列表区分">
-                    </div>
-                    <div class="form-group">
-                        <label for="modalTenant">租户:</label>
-                        <input type="text" id="modalTenant" placeholder="请输入租户信息" oninput="updateModalUrlFields()">
-                    </div>
-                    <div class="form-group">
-                        <label for="modalVersion">版本:</label>
-                        <div class="version-dropdown">
-                            <input type="hidden" id="modalVersion" value="BIP5">
-                            <div class="version-dropdown-trigger" id="modalVersionTrigger" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="选择版本">
-                                <span id="modalVersionDisplay">BIP5</span>
+                    <div class="flagship-modal-step" role="group" aria-labelledby="flagshipModalStep1Head">
+                        <div class="flagship-modal-step-head" id="flagshipModalStep1Head">
+                            <span class="flagship-modal-step-num" aria-hidden="true">1</span>
+                            <span>第一步 · 基础信息</span>
+                        </div>
+                        <p class="flagship-modal-step-hint">填写后点「确定」即保存项目与配置；将该条设为「当前启用」后，使用页签内的「下载 JSON」完成开放平台对接，再填写第二步。</p>
+                        <div class="form-group">
+                            <label for="modalProjectName">显示名称（可选）:</label>
+                            <input type="text" id="modalProjectName" placeholder="默认同租户，用于列表区分">
+                        </div>
+                        <div class="flagship-modal-form-row">
+                            <div class="form-group">
+                                <label for="modalTenant">租户:</label>
+                                <input type="text" id="modalTenant" placeholder="请输入租户信息" oninput="updateModalUrlFields()">
                             </div>
-                            <div class="version-dropdown-menu" id="modalVersionMenu" role="listbox">
-                                <div class="version-dropdown-option selected" data-value="BIP5" role="option">
-                                    <span class="check-icon">✓</span>
-                                    <span>BIP5</span>
-                                </div>
-                                <div class="version-dropdown-option" data-value="BIPV3_R6" role="option">
-                                    <span class="check-icon">✓</span>
-                                    <span>BIPV3_R6</span>
-                                </div>
-                                <div class="version-dropdown-option" data-value="BIPV3_R5" role="option">
-                                    <span class="check-icon">✓</span>
-                                    <span>BIPV3_R5</span>
+                            <div class="form-group">
+                                <label for="modalVersion">版本:</label>
+                                <div class="version-dropdown">
+                                    <input type="hidden" id="modalVersion" value="BIP5">
+                                    <div class="version-dropdown-trigger" id="modalVersionTrigger" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="选择版本">
+                                        <span id="modalVersionDisplay">BIP5</span>
+                                    </div>
+                                    <div class="version-dropdown-menu" id="modalVersionMenu" role="listbox">
+                                        <div class="version-dropdown-option selected" data-value="BIP5" role="option">
+                                            <span class="check-icon">✓</span>
+                                            <span>BIP5</span>
+                                        </div>
+                                        <div class="version-dropdown-option" data-value="BIPV3_R6" role="option">
+                                            <span class="check-icon">✓</span>
+                                            <span>BIPV3_R6</span>
+                                        </div>
+                                        <div class="version-dropdown-option" data-value="BIPV3_R5" role="option">
+                                            <span class="check-icon">✓</span>
+                                            <span>BIPV3_R5</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="modalApiAppKey">API应用Key(AppKey):</label>
-                        <input type="text" id="modalApiAppKey" placeholder="请输入API应用Key">
-                    </div>
-                    <div class="form-group">
-                        <label for="modalApiAppSecret">API应用密钥(AppSecret):</label>
-                        <input type="password" id="modalApiAppSecret" placeholder="" autocomplete="new-password">
-                    </div>
-                    <div class="form-group">
-                        <label for="modalApiUrl">API服务地址(URL):</label>
-                        <input type="text" id="modalApiUrl" placeholder="请输入API服务地址">
+                    <div class="flagship-modal-step" role="group" aria-labelledby="flagshipModalStep2Head">
+                        <div class="flagship-modal-step-head" id="flagshipModalStep2Head">
+                            <span class="flagship-modal-step-num" aria-hidden="true">2</span>
+                            <span>第二步 · API 地址与凭证</span>
+                        </div>
+                        <p class="flagship-modal-step-hint">在完成 JSON 与开放平台配置后，将控制台中的服务地址、AppKey 与密钥填入下方。</p>
+                        <div class="form-group">
+                            <label for="modalApiUrl">API服务地址(URL):</label>
+                            <input type="text" id="modalApiUrl" placeholder="请输入API服务地址">
+                        </div>
+                        <div class="flagship-modal-form-row">
+                            <div class="form-group">
+                                <label for="modalApiAppKey">API应用Key(AppKey):</label>
+                                <input type="text" id="modalApiAppKey" placeholder="请输入API应用Key">
+                            </div>
+                            <div class="form-group">
+                                <label for="modalApiAppSecret">API应用密钥(AppSecret):</label>
+                                <input type="password" id="modalApiAppSecret" placeholder="留空表示不修改已有密钥" autocomplete="new-password">
+                            </div>
+                        </div>
                     </div>
                     <input type="hidden" id="modalMetadataByname">
                     <input type="hidden" id="modalMetadataByboid">
