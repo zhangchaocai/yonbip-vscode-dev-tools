@@ -3,10 +3,31 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import * as path from 'path';
 import * as fs from 'fs';
+import { randomUUID } from 'crypto';
 import { NCHomeConfigService } from '../project/nc-home/config/NCHomeConfigService';
 import { DataSourceMeta } from '../project/nc-home/config/NCHomeConfigTypes';
 import { PasswordEncryptor } from '../utils/PasswordEncryptor';
 import { StatisticsService } from '../utils/StatisticsService';
+
+/**
+ * 旗舰版（多项目）单条配置
+ */
+export interface McpFlagshipProject {
+    id: string;
+    /** 列表展示用名称，默认可为租户 */
+    name?: string;
+    tenant?: string;
+    version?: string;
+    apiAppKey?: string;
+    apiAppSecret?: string;
+    apiUrl?: string;
+    metadataByname?: string;
+    metadataByboid?: string;
+    metadataEntityid?: string;
+    metadataUri?: string;
+    businessInterfaceList?: string;
+    businessInterfaceDetail?: string;
+}
 
 /**
  * MCP服务配置
@@ -27,6 +48,9 @@ export interface McpConfig {
     metadataUri?: string;
     businessInterfaceList?: string;
     businessInterfaceDetail?: string;
+    /** 旗舰版多项目配置（当前启用项的字段会同步到顶层 tenant/version 等，供 MCP 进程使用） */
+    flagshipProjects?: McpFlagshipProject[];
+    activeFlagshipProjectId?: string;
 }
 
 /**
@@ -124,28 +148,118 @@ export class McpService {
         return path.resolve(installRoot) !== path.resolve(this.context.extensionPath);
     }
 
+    private hasLegacyFlatFlagship(raw: Partial<McpConfig> | undefined): boolean {
+        if (!raw) {
+            return false;
+        }
+        return !!(
+            raw.tenant ||
+            raw.apiAppKey ||
+            raw.apiAppSecret ||
+            raw.apiUrl ||
+            raw.metadataByname ||
+            raw.metadataByboid ||
+            raw.metadataEntityid ||
+            raw.metadataUri ||
+            raw.businessInterfaceList ||
+            raw.businessInterfaceDetail
+        );
+    }
+
+    /**
+     * 将当前启用的旗舰版项目字段写回顶层，保证 MCP 进程与其它逻辑仍读 tenant/version 等
+     */
+    private applyActiveFlagshipProjectToTopLevel(config: McpConfig): void {
+        const projects = config.flagshipProjects || [];
+        if (projects.length === 0) {
+            config.activeFlagshipProjectId = undefined;
+            config.tenant = undefined;
+            config.version = 'BIP5';
+            config.apiAppKey = undefined;
+            config.apiAppSecret = undefined;
+            config.apiUrl = undefined;
+            config.metadataByname = undefined;
+            config.metadataByboid = undefined;
+            config.metadataEntityid = undefined;
+            config.metadataUri = undefined;
+            config.businessInterfaceList = undefined;
+            config.businessInterfaceDetail = undefined;
+            return;
+        }
+
+        let activeId = config.activeFlagshipProjectId;
+        if (projects.length === 1) {
+            activeId = projects[0].id;
+        }
+        if (!activeId || !projects.some((p) => p.id === activeId)) {
+            activeId = projects[0].id;
+        }
+        config.activeFlagshipProjectId = activeId;
+
+        const p = projects.find((x) => x.id === activeId)!;
+        config.tenant = p.tenant;
+        config.version = p.version || 'BIP5';
+        config.apiAppKey = p.apiAppKey;
+        config.apiAppSecret = p.apiAppSecret;
+        config.apiUrl = p.apiUrl;
+        config.metadataByname = p.metadataByname;
+        config.metadataByboid = p.metadataByboid;
+        config.metadataEntityid = p.metadataEntityid;
+        config.metadataUri = p.metadataUri;
+        config.businessInterfaceList = p.businessInterfaceList;
+        config.businessInterfaceDetail = p.businessInterfaceDetail;
+    }
+
     /**
      * 加载配置
      */
     private loadConfig(): McpConfig {
-        const config = this.context.globalState.get<McpConfig>('mcp.config');
-        return {
-            port: (config && config.port) || 9000,
-            jarPath: (config && config.jarPath) || '',
-            javaPath: (config && config.javaPath) || 'java',
-            maxMemory: (config && config.maxMemory) || '512m',
-            tenant: (config && config.tenant) || undefined,
-            version: (config && config.version) || 'BIP5',
-            apiAppKey: (config && config.apiAppKey) || undefined,
-            apiAppSecret: (config && config.apiAppSecret) || undefined,
-            apiUrl: (config && config.apiUrl) || undefined,
-            metadataByname: (config && config.metadataByname) || undefined,
-            metadataByboid: (config && config.metadataByboid) || undefined,
-            metadataEntityid: (config && config.metadataEntityid) || undefined,
-            metadataUri: (config && config.metadataUri) || undefined,
-            businessInterfaceList: (config && config.businessInterfaceList) || undefined,
-            businessInterfaceDetail: (config && config.businessInterfaceDetail) || undefined
+        const stored = this.context.globalState.get<McpConfig>('mcp.config');
+        const raw = stored || ({} as McpConfig);
+
+        let flagshipProjects = Array.isArray(raw.flagshipProjects) ? [...raw.flagshipProjects] : [];
+        let activeFlagshipProjectId = raw.activeFlagshipProjectId;
+        let migrated = false;
+
+        if (flagshipProjects.length === 0 && this.hasLegacyFlatFlagship(raw)) {
+            const id = randomUUID();
+            flagshipProjects = [
+                {
+                    id,
+                    name: raw.tenant || '默认项目',
+                    tenant: raw.tenant,
+                    version: raw.version || 'BIP5',
+                    apiAppKey: raw.apiAppKey,
+                    apiAppSecret: raw.apiAppSecret,
+                    apiUrl: raw.apiUrl,
+                    metadataByname: raw.metadataByname,
+                    metadataByboid: raw.metadataByboid,
+                    metadataEntityid: raw.metadataEntityid,
+                    metadataUri: raw.metadataUri,
+                    businessInterfaceList: raw.businessInterfaceList,
+                    businessInterfaceDetail: raw.businessInterfaceDetail
+                }
+            ];
+            activeFlagshipProjectId = id;
+            migrated = true;
+        }
+
+        const config: McpConfig = {
+            port: raw.port || 9000,
+            jarPath: raw.jarPath || '',
+            javaPath: raw.javaPath || 'java',
+            maxMemory: raw.maxMemory || '512m',
+            flagshipProjects,
+            activeFlagshipProjectId
         };
+
+        this.applyActiveFlagshipProjectToTopLevel(config);
+
+        if (migrated) {
+            void this.context.globalState.update('mcp.config', config);
+        }
+
+        return config;
     }
 
     /**
@@ -167,7 +281,9 @@ export class McpService {
             metadataEntityid: undefined,
             metadataUri: undefined,
             businessInterfaceList: undefined,
-            businessInterfaceDetail: undefined
+            businessInterfaceDetail: undefined,
+            flagshipProjects: [],
+            activeFlagshipProjectId: undefined
         };
     }
 
@@ -175,23 +291,62 @@ export class McpService {
      * 保存配置
      */
     public async saveConfig(config: McpConfig): Promise<void> {
-        // 确保必要的配置项有默认值
-        const configWithDefaults = {
-            port: config.port || 9000,
-            jarPath: config.jarPath || '',
-            javaPath: config.javaPath || 'java',
-            maxMemory: config.maxMemory || '512m',
-            tenant: config.tenant,
-            version: config.version || 'BIP5',
-            apiAppKey: config.apiAppKey,
-            apiAppSecret: config.apiAppSecret,
-            apiUrl: config.apiUrl,
-            metadataByname: config.metadataByname,
-            metadataByboid: config.metadataByboid,
-            metadataEntityid: config.metadataEntityid,
-            metadataUri: config.metadataUri,
-            businessInterfaceList: config.businessInterfaceList,
-            businessInterfaceDetail: config.businessInterfaceDetail
+        const merged: McpConfig = { ...this.config, ...config };
+        if (config.flagshipProjects === undefined) {
+            merged.flagshipProjects = this.config.flagshipProjects;
+        }
+        if (config.activeFlagshipProjectId === undefined) {
+            merged.activeFlagshipProjectId = this.config.activeFlagshipProjectId;
+        }
+
+        merged.flagshipProjects = Array.isArray(merged.flagshipProjects) ? merged.flagshipProjects : [];
+
+        const flagshipListUpdated = config.flagshipProjects !== undefined;
+        if (flagshipListUpdated) {
+            this.applyActiveFlagshipProjectToTopLevel(merged);
+        } else {
+            const activeId = merged.activeFlagshipProjectId;
+            if (activeId && merged.flagshipProjects.some((p) => p.id === activeId)) {
+                merged.flagshipProjects = merged.flagshipProjects.map((p) =>
+                    p.id === activeId
+                        ? {
+                              ...p,
+                              tenant: merged.tenant,
+                              version: merged.version || 'BIP5',
+                              apiAppKey: merged.apiAppKey,
+                              apiAppSecret: merged.apiAppSecret,
+                              apiUrl: merged.apiUrl,
+                              metadataByname: merged.metadataByname,
+                              metadataByboid: merged.metadataByboid,
+                              metadataEntityid: merged.metadataEntityid,
+                              metadataUri: merged.metadataUri,
+                              businessInterfaceList: merged.businessInterfaceList,
+                              businessInterfaceDetail: merged.businessInterfaceDetail
+                          }
+                        : p
+                );
+            }
+            this.applyActiveFlagshipProjectToTopLevel(merged);
+        }
+
+        const configWithDefaults: McpConfig = {
+            port: merged.port || 9000,
+            jarPath: merged.jarPath || '',
+            javaPath: merged.javaPath || 'java',
+            maxMemory: merged.maxMemory || '512m',
+            tenant: merged.tenant,
+            version: merged.version || 'BIP5',
+            apiAppKey: merged.apiAppKey,
+            apiAppSecret: merged.apiAppSecret,
+            apiUrl: merged.apiUrl,
+            metadataByname: merged.metadataByname,
+            metadataByboid: merged.metadataByboid,
+            metadataEntityid: merged.metadataEntityid,
+            metadataUri: merged.metadataUri,
+            businessInterfaceList: merged.businessInterfaceList,
+            businessInterfaceDetail: merged.businessInterfaceDetail,
+            flagshipProjects: merged.flagshipProjects,
+            activeFlagshipProjectId: merged.activeFlagshipProjectId
         };
 
         this.config = configWithDefaults;
@@ -221,7 +376,9 @@ export class McpService {
             metadataEntityid: urls.metadataEntityid || this.config.metadataEntityid,
             metadataUri: urls.metadataUri || this.config.metadataUri,
             businessInterfaceList: urls.businessInterfaceList || this.config.businessInterfaceList,
-            businessInterfaceDetail: urls.businessInterfaceDetail || this.config.businessInterfaceDetail
+            businessInterfaceDetail: urls.businessInterfaceDetail || this.config.businessInterfaceDetail,
+            flagshipProjects: this.config.flagshipProjects ? [...this.config.flagshipProjects] : [],
+            activeFlagshipProjectId: this.config.activeFlagshipProjectId
         };
     }
 

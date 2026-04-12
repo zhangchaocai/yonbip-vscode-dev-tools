@@ -458,7 +458,8 @@ export class FunctionTreeProvider implements vscode.TreeDataProvider<FunctionTre
                                 await this.mcpProvider['handleSaveConfig'](message.config);
                                 break;
                             case 'resetConfig':
-                                await this.mcpProvider['handleResetConfig']();
+                            case 'showResetConfirm':
+                                await this.mcpProvider['handleShowResetConfirm']();
                                 break;
                             case 'startMcp':
                                 await this.mcpProvider['handleStart']();
@@ -474,9 +475,6 @@ export class FunctionTreeProvider implements vscode.TreeDataProvider<FunctionTre
                                 break;
                             case 'selectJavaPath':
                                 await this.mcpProvider['handleSelectJavaPath']();
-                                break;
-                            case 'showResetConfirm':
-                                await this.mcpProvider['handleShowResetConfirm']();
                                 break;
                             case 'downloadJson':
                                 await this.mcpProvider['handleDownloadJson'](message.tenant, message.version).catch((err: Error) => {

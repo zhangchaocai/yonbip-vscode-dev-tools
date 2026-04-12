@@ -47,7 +47,8 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     await this.handleSaveConfig(data.config);
                     break;
                 case 'resetConfig':
-                    await this.handleResetConfig();
+                case 'showResetConfirm':
+                    await this.handleShowResetConfirm();
                     break;
                 case 'startMcp':
                     await this.handleStart();
@@ -63,9 +64,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'selectJavaPath':
                     await this.handleSelectJavaPath();
-                    break;
-                case 'showResetConfirm':
-                    await this.handleShowResetConfirm();
                     break;
                 case 'downloadJson':
                     await this.handleDownloadJson(data.tenant, data.version).catch((err: Error) => {
@@ -135,11 +133,15 @@ export class McpProvider implements vscode.WebviewViewProvider {
      */
     private async handleSaveConfig(config: McpConfig) {
         try {
-            await this.mcpService.saveConfig(config);
+            await this.mcpService.saveConfig({ ...this.mcpService.getConfig(), ...config });
 
             // 添加保存成功的提示
             vscode.window.showInformationMessage('MCP配置已保存');
 
+            this._view?.webview.postMessage({
+                type: 'configLoaded',
+                config: this.mcpService.getConfig()
+            });
             this._view?.webview.postMessage({
                 type: 'configSaved',
                 success: true
@@ -296,12 +298,13 @@ export class McpProvider implements vscode.WebviewViewProvider {
      */
     private async handleShowResetConfirm() {
         const result = await vscode.window.showWarningMessage(
-            '确定要重置所有配置为默认值吗？',
-            '确定',
+            '即将把 MCP 配置恢复为插件默认值：服务端口、Java 路径、旗舰版项目列表（含租户、密钥与地址等）等当前界面中的信息都会被清空，且无法通过本操作恢复。确定要继续吗？',
+            { modal: true },
+            '确定清空并重置',
             '取消'
         );
 
-        if (result === '确定') {
+        if (result === '确定清空并重置') {
             await this.handleResetConfig();
         }
     }
@@ -1003,23 +1006,37 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 padding: 16px;
             }
         }
-        /* 旗舰版配置页面（advanced）专业化样式与布局 */
+        /* 旗舰版配置页面（advanced）：深色分层 + 蓝色强调，贴近控制台配置稿 */
         #advanced-tab .section {
             display: grid;
             grid-template-columns: repeat(12, minmax(0, 1fr));
             gap: 16px 20px;
             padding: 28px;
-            border: 1px solid var(--vscode-widget-border);
+            border: 1px solid color-mix(in srgb, var(--vscode-widget-border) 72%, var(--vscode-textLink-foreground, var(--vscode-focusBorder)));
             border-radius: 14px;
-            background:
-                linear-gradient(180deg, color-mix(in srgb, var(--vscode-editor-background) 92%, transparent) 0%, var(--vscode-input-background) 100%);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            background: linear-gradient(
+                168deg,
+                color-mix(in srgb, var(--vscode-editor-background) 82%, var(--vscode-sideBar-background, var(--vscode-editor-background))) 0%,
+                color-mix(in srgb, var(--vscode-input-background) 76%, var(--vscode-editor-background)) 100%
+            );
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 9%, transparent),
+                0 14px 40px color-mix(in srgb, #000 24%, transparent);
         }
+        /* 标题下蓝条与全局 .section-title + .section-title::before 一致（服务配置等页） */
         #advanced-tab .section-title {
             grid-column: 1 / -1;
-            font-size: 17px;
-            letter-spacing: 0.2px;
+            font-weight: 700;
+            margin: 0 0 20px 0;
             color: var(--vscode-foreground);
+            font-size: 16px;
+            letter-spacing: normal;
+            border-bottom: 2px solid var(--vscode-textLink-foreground);
+            padding-bottom: 12px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         #advanced-tab .form-group {
             grid-column: span 6;
@@ -1151,10 +1168,468 @@ export class McpProvider implements vscode.WebviewViewProvider {
         #advanced-tab .sticky-actions button {
             min-width: 140px;
         }
+        #advanced-tab .sticky-actions button.primary {
+            box-shadow: 0 4px 20px color-mix(in srgb, var(--vscode-button-background) 42%, transparent);
+        }
+        #advanced-tab .section.flagship-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        /* 纵向：按钮一行、说明满宽下一行，避免与 help-text 的 margin 和 stretch/center 混用导致顶不齐 */
+        .flagship-toolbar {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+        .flagship-toolbar-hint {
+            margin: 0;
+            flex: none;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            line-height: 1.5;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-style: normal;
+            color: color-mix(in srgb, var(--vscode-descriptionForeground) 94%, var(--vscode-foreground));
+            background: color-mix(in srgb, var(--vscode-editor-background) 35%, var(--vscode-input-background));
+            border: 1px solid color-mix(in srgb, var(--vscode-widget-border) 78%, var(--vscode-textLink-foreground, transparent));
+            box-shadow: inset 0 1px 0 color-mix(in srgb, var(--vscode-foreground) 5%, transparent);
+        }
+        #advanced-tab .flagship-toolbar .flagship-toolbar-hint.help-text {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+        .flagship-toolbar .flagship-btn-add {
+            flex-shrink: 0;
+            align-self: flex-start;
+            min-width: auto;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid var(--vscode-button-border, transparent);
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            box-shadow: 0 1px 2px color-mix(in srgb, var(--vscode-widget-border) 55%, transparent);
+            transform: none !important;
+            gap: 8px;
+        }
+        .flagship-toolbar .flagship-btn-add::before {
+            content: "" !important;
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            width: 12px !important;
+            height: 12px !important;
+            margin-right: 6px;
+            flex-shrink: 0;
+            display: inline-block !important;
+            background: currentColor;
+            opacity: 0.88;
+            transition: none !important;
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' d='M7 1h2v6h6v2H9v6H7V9H1V7h6V1z'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' d='M7 1h2v6h6v2H9v6H7V9H1V7h6V1z'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+        .flagship-toolbar .flagship-btn-add:hover::before {
+            left: auto !important;
+        }
+        .flagship-toolbar .flagship-btn-add:hover {
+            filter: brightness(1.06);
+            border-color: var(--vscode-focusBorder);
+            box-shadow:
+                0 2px 12px color-mix(in srgb, var(--vscode-button-background) 35%, transparent),
+                0 0 0 1px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 22%, transparent);
+            transform: none !important;
+        }
+        .flagship-project-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .flagship-row {
+            display: flex;
+            align-items: center;
+            gap: 8px 10px;
+            padding: 5px 10px 5px 8px;
+            border: 1px solid color-mix(in srgb, var(--vscode-widget-border) 88%, transparent);
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--vscode-sideBar-background, var(--vscode-input-background)) 92%, var(--vscode-editor-background));
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+            box-shadow: 0 1px 0 color-mix(in srgb, var(--vscode-editor-foreground) 2.5%, transparent);
+        }
+        .flagship-row:hover {
+            border-color: color-mix(in srgb, var(--vscode-widget-border) 55%, var(--vscode-focusBorder));
+            background: var(--vscode-list-hoverBackground, color-mix(in srgb, var(--vscode-input-background) 94%, var(--vscode-foreground)));
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--vscode-widget-border) 45%, transparent);
+        }
+        .flagship-row--active {
+            border-color: color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 52%, var(--vscode-widget-border));
+            background: color-mix(in srgb, var(--vscode-list-inactiveSelectionBackground, var(--vscode-input-background)) 82%, var(--vscode-textLink-foreground));
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 24%, transparent),
+                0 2px 10px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 10%, transparent);
+        }
+        .flagship-row.flagship-row--active:hover {
+            border-color: color-mix(in srgb, var(--vscode-widget-border) 30%, var(--vscode-textLink-foreground));
+        }
+        .flagship-row-radio {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            align-self: center;
+        }
+        .flagship-row-radio input[type="radio"] {
+            width: 15px;
+            height: 15px;
+            margin: 0;
+            cursor: pointer;
+            accent-color: var(--vscode-textLink-foreground, var(--vscode-focusBorder));
+        }
+        .flagship-row-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px 12px;
+        }
+        .flagship-row-identity {
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px 8px;
+            min-width: 0;
+            flex-shrink: 0;
+            max-width: 100%;
+        }
+        .flagship-row-title {
+            font-weight: 600;
+            font-size: 13px;
+            letter-spacing: 0.01em;
+            color: var(--vscode-foreground);
+            word-break: break-word;
+            line-height: 1.25;
+        }
+        /* 使用主题自带的 badge 色，避免 link 色 + 淡底在部分主题上对比度不足 */
+        .flagship-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: none;
+            line-height: 1.2;
+            color: var(--vscode-badge-foreground);
+            background: var(--vscode-badge-background);
+            border: 1px solid color-mix(in srgb, var(--vscode-badge-foreground) 28%, var(--vscode-badge-background));
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
+        }
+        .flagship-row-fields {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px 2px;
+            flex: 1 1 200px;
+            min-width: 0;
+            font-size: 12px;
+            line-height: 1.25;
+            color: var(--vscode-descriptionForeground);
+        }
+        .flagship-kv {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 4px;
+            min-width: 0;
+            max-width: 100%;
+        }
+        .flagship-kv-label {
+            flex-shrink: 0;
+            color: var(--vscode-descriptionForeground);
+            font-weight: 600;
+            font-size: 11px;
+        }
+        .flagship-kv-label::after {
+            content: ":";
+        }
+        .flagship-kv-val {
+            color: var(--vscode-foreground);
+            font-family: var(--vscode-editor-font-family, var(--vscode-font-family), ui-monospace, monospace);
+            font-size: 11px;
+            opacity: 0.95;
+            word-break: break-all;
+        }
+        .flagship-kv:not(.flagship-kv-url) .flagship-kv-val {
+            white-space: nowrap;
+        }
+        .flagship-kv-url {
+            flex: 1 1 120px;
+            min-width: 0;
+        }
+        .flagship-kv-url .flagship-kv-val {
+            display: block;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            word-break: normal;
+        }
+        .flagship-kv-sep {
+            flex-shrink: 0;
+            user-select: none;
+            color: color-mix(in srgb, var(--vscode-descriptionForeground) 55%, transparent);
+            font-size: 11px;
+            padding: 0 4px;
+        }
+        .flagship-kv-sep::before {
+            content: "·";
+        }
+        .flagship-row-actions {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 5px;
+            flex-shrink: 0;
+            align-items: center;
+            margin-left: auto;
+        }
+        .flagship-row .flagship-btn {
+            position: relative;
+            overflow: visible;
+            min-width: auto;
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid color-mix(in srgb, var(--vscode-widget-border) 70%, transparent);
+            background: color-mix(in srgb, var(--vscode-toolbar-hoverBackground, var(--vscode-input-background)) 55%, transparent);
+            color: var(--vscode-textLink-foreground);
+            box-shadow: none !important;
+            transform: none !important;
+            gap: 4px;
+        }
+        .flagship-row .flagship-btn::before {
+            display: none !important;
+        }
+        .flagship-row .flagship-btn:hover {
+            background: var(--vscode-list-hoverBackground, var(--vscode-toolbar-hoverBackground));
+            border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 35%, var(--vscode-widget-border));
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .flagship-row .flagship-btn-danger {
+            color: var(--vscode-descriptionForeground);
+            border-color: color-mix(in srgb, var(--vscode-widget-border) 70%, transparent);
+        }
+        .flagship-row .flagship-btn-danger:hover {
+            color: var(--vscode-errorForeground);
+            background: color-mix(in srgb, var(--vscode-errorForeground) 12%, transparent);
+            border-color: color-mix(in srgb, var(--vscode-errorForeground) 32%, transparent);
+        }
+        .flagship-empty {
+            padding: 28px 20px;
+            text-align: center;
+            color: var(--vscode-descriptionForeground);
+            font-size: 13px;
+            line-height: 1.55;
+            border: 1px dashed color-mix(in srgb, var(--vscode-widget-border) 65%, var(--vscode-textLink-foreground, var(--vscode-descriptionForeground)));
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--vscode-editor-background) 40%, var(--vscode-input-background));
+        }
+        .mcp-modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+        .mcp-modal-backdrop.open {
+            display: flex;
+        }
+        .mcp-modal-panel {
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 12px;
+            border: 1px solid var(--vscode-widget-border);
+            background: var(--vscode-editor-background);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        }
+        .mcp-modal-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--vscode-widget-border);
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .mcp-modal-close {
+            border: none;
+            background: transparent;
+            color: var(--vscode-foreground);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .mcp-modal-close:hover {
+            background: var(--vscode-toolbar-hoverBackground);
+        }
+        .mcp-modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .mcp-modal-body .form-group {
+            margin: 0;
+        }
+        .mcp-modal-footer {
+            flex-shrink: 0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 14px 18px;
+            border-top: 1px solid var(--vscode-widget-border);
+            background: var(--vscode-editor-background);
+            box-shadow: 0 -6px 16px color-mix(in srgb, var(--vscode-widget-border) 35%, transparent);
+        }
+        /* 旗舰版编辑弹窗：与 #advanced-tab 旗舰区块同一套深色分层 + 蓝色强调 */
+        #flagshipModal.mcp-modal-backdrop {
+            background: color-mix(in srgb, #000 52%, transparent);
+            backdrop-filter: blur(5px);
+        }
+        #flagship-modal.mcp-modal-panel {
+            max-width: 540px;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, var(--vscode-widget-border) 72%, var(--vscode-textLink-foreground, var(--vscode-focusBorder)));
+            background: linear-gradient(
+                168deg,
+                color-mix(in srgb, var(--vscode-editor-background) 82%, var(--vscode-sideBar-background, var(--vscode-editor-background))) 0%,
+                color-mix(in srgb, var(--vscode-input-background) 76%, var(--vscode-editor-background)) 100%
+            );
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 9%, transparent),
+                0 16px 48px color-mix(in srgb, #000 38%, transparent);
+        }
+        #flagship-modal .mcp-modal-header {
+            position: relative;
+            padding: 16px 20px 14px;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            border-bottom: 1px solid color-mix(in srgb, var(--vscode-widget-border) 88%, transparent);
+        }
+        #flagship-modal .mcp-modal-header::after {
+            content: '';
+            position: absolute;
+            left: 20px;
+            bottom: -1px;
+            width: 36px;
+            height: 3px;
+            border-radius: 2px;
+            background: var(--vscode-textLink-foreground, var(--vscode-focusBorder));
+            box-shadow: 0 0 12px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 40%, transparent);
+        }
+        #flagship-modal .mcp-modal-close {
+            min-width: auto;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 16px;
+            line-height: 1;
+            box-shadow: none !important;
+        }
+        #flagship-modal .mcp-modal-close::before {
+            display: none !important;
+        }
+        #flagship-modal .mcp-modal-close:hover {
+            transform: none;
+            background: color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 14%, var(--vscode-toolbar-hoverBackground, transparent));
+            color: var(--vscode-textLink-foreground, var(--vscode-focusBorder));
+        }
+        #flagship-modal .mcp-modal-body {
+            padding: 20px;
+            gap: 16px;
+            background: color-mix(in srgb, var(--vscode-editor-background) 28%, transparent);
+        }
+        #flagship-modal .mcp-modal-body .form-group label {
+            color: var(--vscode-descriptionForeground);
+            font-weight: 600;
+            font-size: 12px;
+            letter-spacing: 0.04em;
+        }
+        #flagship-modal .mcp-modal-body .form-group input:not([type="hidden"]) {
+            border-radius: 10px;
+            border: 1.5px solid var(--vscode-input-border);
+            background: color-mix(in srgb, var(--vscode-input-background) 88%, transparent);
+            padding: 11px 14px;
+        }
+        #flagship-modal .mcp-modal-body .form-group input:not([type="hidden"]):focus {
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 12%, transparent);
+            outline: none;
+        }
+        #flagship-modal .version-dropdown-trigger {
+            position: relative;
+            border-radius: 10px;
+            border-width: 1.5px;
+            background: color-mix(in srgb, var(--vscode-input-background) 88%, transparent);
+        }
+        #flagship-modal .version-dropdown-trigger.open {
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--vscode-textLink-foreground, var(--vscode-focusBorder)) 12%, transparent);
+        }
+        #flagship-modal .mcp-modal-footer {
+            padding: 16px 20px;
+            gap: 12px;
+            border-top: 1px solid color-mix(in srgb, var(--vscode-widget-border) 88%, transparent);
+            background: color-mix(in srgb, var(--vscode-editor-background) 62%, var(--vscode-input-background));
+            box-shadow: 0 -10px 28px color-mix(in srgb, #000 14%, transparent);
+        }
+        #flagship-modal .mcp-modal-footer button {
+            min-width: 100px;
+        }
+        #flagship-modal .mcp-modal-footer button.primary {
+            box-shadow: 0 4px 20px color-mix(in srgb, var(--vscode-button-background) 42%, transparent);
+        }
+        #flagship-modal .mcp-modal-footer button.secondary {
+            border-width: 1.5px;
+            background: color-mix(in srgb, var(--vscode-button-secondaryBackground) 88%, var(--vscode-input-background));
+        }
         /* 响应式：中屏两列、小屏一列 */
         @media (max-width: 900px) {
             #advanced-tab .form-group {
                 grid-column: 1 / -1;
+            }
+        }
+        /* 极窄面板时才将操作区换行，避免常见侧边栏宽度下额外占高 */
+        @media (max-width: 380px) {
+            .flagship-row-main {
+                gap: 6px 8px;
+            }
+            .flagship-row-actions {
+                width: 100%;
+                margin-left: 0;
+                justify-content: flex-end;
+                padding-top: 3px;
+                border-top: 1px solid color-mix(in srgb, var(--vscode-widget-border) 65%, transparent);
             }
         }
         @media (min-width: 901px) {
@@ -1315,67 +1790,83 @@ export class McpProvider implements vscode.WebviewViewProvider {
 
         <!-- 旗舰版配置信息选项卡 -->
         <div id="advanced-tab" class="tab-content">
-            <div class="section">
+            <div class="section flagship-section">
                 <div class="section-title">旗舰版配置信息</div>
-                
-                <div class="form-group">
-                    <label for="tenant">租户:</label>
-                    <input type="text" id="tenant" placeholder="请输入租户信息" oninput="updateUrlFields()">
+                <div class="flagship-toolbar">
+                    <button type="button" class="flagship-btn-add" onclick="openFlagshipProjectModal(null)">新增项目</button>
+                    <div class="flagship-toolbar-hint help-text">支持多个项目配置；请选择一个作为<strong>当前启用</strong>（用于 MCP 服务与 JSON 下载）。仅有一个项目时会自动启用。</div>
                 </div>
-
-                <div class="form-group">
-                    <label for="version">版本:</label>
-                    <div class="version-dropdown">
-                        <input type="hidden" id="version" value="BIP5">
-                        <div class="version-dropdown-trigger" id="versionTrigger" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="选择版本">
-                            <span id="versionDisplay">BIP5</span>
-                        </div>
-                        <div class="version-dropdown-menu" id="versionMenu" role="listbox">
-                            <div class="version-dropdown-option selected" data-value="BIP5" role="option">
-                                <span class="check-icon">✓</span>
-                                <span>BIP5</span>
-                            </div>
-                            <div class="version-dropdown-option" data-value="BIPV3_R6" role="option">
-                                <span class="check-icon">✓</span>
-                                <span>BIPV3_R6</span>
-                            </div>
-                            <div class="version-dropdown-option" data-value="BIPV3_R5" role="option">
-                                <span class="check-icon">✓</span>
-                                <span>BIPV3_R5</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="apiAppKey">API应用Key(AppKey):</label>
-                    <input type="text" id="apiAppKey" placeholder="请输入API应用Key">
-                </div>
-                
-                <div class="form-group">
-                    <label for="apiAppSecret">API应用密钥(AppSecret):</label>
-                    <input type="password" id="apiAppSecret" placeholder="请输入API应用密钥">
-                </div>
-
-                <div class="form-group">
-                    <label for="apiUrl">API服务地址(URL):</label>
-                    <input type="text" id="apiUrl" placeholder="请输入API服务地址">
-                </div>
-
-                <!-- 隐藏的字段，用于存储动态生成的URL -->
-                <input type="hidden" id="metadataByname">
-                <input type="hidden" id="metadataByboid">
-                <input type="hidden" id="metadataEntityid">
-                <input type="hidden" id="metadataUri">
-                <input type="hidden" id="businessInterfaceList">
-                <input type="hidden" id="businessInterfaceDetail">
-                
-                <div class="form-group">
+                <div id="flagshipProjectList" class="flagship-project-list" aria-live="polite"></div>
+                <div id="flagshipEmptyHint" class="flagship-empty" style="display:none;">暂无项目配置，请点击「新增项目」添加。</div>
+                <div class="form-group" style="margin-top:4px;">
                     <div id="advancedConfigActions" class="sticky-actions">
-                        <button onclick="saveConfig()">💾 保存配置</button>
-                        <button onclick="downloadJsonFile()" class="primary">📥 下载JSON文件</button>
-                        <button onclick="resetToDefaults()" class="secondary">🔄 重置为默认</button>
+                        <button type="button" onclick="downloadJsonFile()" class="primary">📥 下载JSON文件</button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 旗舰版项目编辑弹层（置于 app 内，避免被非当前页签遮挡） -->
+        <div id="flagshipModal" class="mcp-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="flagshipModalTitle" onclick="if(event.target===this) closeFlagshipProjectModal()">
+            <div id="flagship-modal" class="mcp-modal-panel" onclick="event.stopPropagation()">
+                <div class="mcp-modal-header">
+                    <span id="flagshipModalTitle">项目配置</span>
+                    <button type="button" class="mcp-modal-close" onclick="closeFlagshipProjectModal()" aria-label="关闭">✕</button>
+                </div>
+                <div class="mcp-modal-body">
+                    <div class="form-group">
+                        <label for="modalProjectName">显示名称（可选）:</label>
+                        <input type="text" id="modalProjectName" placeholder="默认同租户，用于列表区分">
+                    </div>
+                    <div class="form-group">
+                        <label for="modalTenant">租户:</label>
+                        <input type="text" id="modalTenant" placeholder="请输入租户信息" oninput="updateModalUrlFields()">
+                    </div>
+                    <div class="form-group">
+                        <label for="modalVersion">版本:</label>
+                        <div class="version-dropdown">
+                            <input type="hidden" id="modalVersion" value="BIP5">
+                            <div class="version-dropdown-trigger" id="modalVersionTrigger" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="选择版本">
+                                <span id="modalVersionDisplay">BIP5</span>
+                            </div>
+                            <div class="version-dropdown-menu" id="modalVersionMenu" role="listbox">
+                                <div class="version-dropdown-option selected" data-value="BIP5" role="option">
+                                    <span class="check-icon">✓</span>
+                                    <span>BIP5</span>
+                                </div>
+                                <div class="version-dropdown-option" data-value="BIPV3_R6" role="option">
+                                    <span class="check-icon">✓</span>
+                                    <span>BIPV3_R6</span>
+                                </div>
+                                <div class="version-dropdown-option" data-value="BIPV3_R5" role="option">
+                                    <span class="check-icon">✓</span>
+                                    <span>BIPV3_R5</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalApiAppKey">API应用Key(AppKey):</label>
+                        <input type="text" id="modalApiAppKey" placeholder="请输入API应用Key">
+                    </div>
+                    <div class="form-group">
+                        <label for="modalApiAppSecret">API应用密钥(AppSecret):</label>
+                        <input type="password" id="modalApiAppSecret" placeholder="" autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="modalApiUrl">API服务地址(URL):</label>
+                        <input type="text" id="modalApiUrl" placeholder="请输入API服务地址">
+                    </div>
+                    <input type="hidden" id="modalMetadataByname">
+                    <input type="hidden" id="modalMetadataByboid">
+                    <input type="hidden" id="modalMetadataEntityid">
+                    <input type="hidden" id="modalMetadataUri">
+                    <input type="hidden" id="modalBusinessInterfaceList">
+                    <input type="hidden" id="modalBusinessInterfaceDetail">
+                </div>
+                <div class="mcp-modal-footer">
+                    <button type="button" onclick="closeFlagshipProjectModal()" class="secondary">取消</button>
+                    <button type="button" onclick="submitFlagshipProjectModal()" class="primary">确定</button>
                 </div>
             </div>
         </div>
@@ -1454,15 +1945,19 @@ export class McpProvider implements vscode.WebviewViewProvider {
         const vscode = acquireVsCodeApi();
         let currentConfig = {};
         let currentStatus = {};
-        
-        // 版本下拉框交互
-        (function initVersionDropdown() {
-            const trigger = document.getElementById('versionTrigger');
-            const menu = document.getElementById('versionMenu');
-            const hiddenInput = document.getElementById('version');
-            const display = document.getElementById('versionDisplay');
-            const options = document.querySelectorAll('.version-dropdown-option');
-            
+        let flagshipEditingId = null;
+
+        // 旗舰版弹窗内版本下拉
+        (function initModalVersionDropdown() {
+            const trigger = document.getElementById('modalVersionTrigger');
+            const menu = document.getElementById('modalVersionMenu');
+            const hiddenInput = document.getElementById('modalVersion');
+            const display = document.getElementById('modalVersionDisplay');
+            if (!trigger || !menu || !hiddenInput || !display) {
+                return;
+            }
+            const options = menu.querySelectorAll('.version-dropdown-option');
+
             function setValue(value, label) {
                 hiddenInput.value = value;
                 display.textContent = label || value;
@@ -1470,19 +1965,19 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     opt.classList.toggle('selected', opt.dataset.value === value);
                 });
             }
-            
+
             function closeMenu() {
                 trigger.classList.remove('open');
                 menu.classList.remove('open');
                 trigger.setAttribute('aria-expanded', 'false');
             }
-            
+
             function openMenu() {
                 trigger.classList.add('open');
                 menu.classList.add('open');
                 trigger.setAttribute('aria-expanded', 'true');
             }
-            
+
             trigger.addEventListener('click', function(e) {
                 e.stopPropagation();
                 if (menu.classList.contains('open')) {
@@ -1491,7 +1986,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     openMenu();
                 }
             });
-            
+
             trigger.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -1499,7 +1994,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     else openMenu();
                 }
             });
-            
+
             options.forEach(opt => {
                 opt.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -1509,14 +2004,16 @@ export class McpProvider implements vscode.WebviewViewProvider {
                     closeMenu();
                 });
             });
-            
+
             document.addEventListener('click', function() {
                 closeMenu();
             });
-            
+
             menu.addEventListener('click', function(e) {
                 e.stopPropagation();
             });
+
+            window.setModalVersionValue = setValue;
         })();
         
         // 切换选项卡
@@ -1592,22 +2089,12 @@ export class McpProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'selectJavaPath' });
         }
         
-        // 保存配置
+        // 保存配置（端口/Java 来自表单，旗舰版多项目来自 currentConfig）
         function saveConfig() {
             const config = {
+                ...currentConfig,
                 port: parseInt(document.getElementById('port').value) || 9000,
-                javaPath: document.getElementById('javaPath').value || 'java',
-                tenant: document.getElementById('tenant').value || undefined,
-                version: document.getElementById('version').value || 'BIP5',
-                apiAppKey: document.getElementById('apiAppKey').value || undefined,
-                apiAppSecret: document.getElementById('apiAppSecret').value || undefined,
-                apiUrl: document.getElementById('apiUrl').value || undefined,
-                metadataByname: document.getElementById('metadataByname').value || undefined,
-                metadataByboid: document.getElementById('metadataByboid').value || undefined,
-                metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
-                metadataUri: document.getElementById('metadataUri').value || undefined,
-                businessInterfaceList: document.getElementById('businessInterfaceList').value || undefined,
-                businessInterfaceDetail: document.getElementById('businessInterfaceDetail').value || undefined
+                javaPath: document.getElementById('javaPath').value || 'java'
             };
 
             vscode.postMessage({
@@ -1616,28 +2103,15 @@ export class McpProvider implements vscode.WebviewViewProvider {
             });
         }
 
-        // 下载JSON文件（与保存配置相同流程：直接发送消息，由后端校验并反馈）
+        // 下载JSON文件（使用当前启用项目的租户与版本）
         function downloadJsonFile() {
-            const config = {
-                port: parseInt(document.getElementById('port').value) || 9000,
-                javaPath: document.getElementById('javaPath').value || 'java',
-                tenant: document.getElementById('tenant').value || undefined,
-                version: document.getElementById('version').value || 'BIP5',
-                apiAppKey: document.getElementById('apiAppKey').value || undefined,
-                apiAppSecret: document.getElementById('apiAppSecret').value || undefined,
-                apiUrl: document.getElementById('apiUrl').value || undefined,
-                metadataByname: document.getElementById('metadataByname').value || undefined,
-                metadataByboid: document.getElementById('metadataByboid').value || undefined,
-                metadataEntityid: document.getElementById('metadataEntityid').value || undefined,
-                metadataUri: document.getElementById('metadataUri').value || undefined,
-                businessInterfaceList: document.getElementById('businessInterfaceList').value || undefined,
-                businessInterfaceDetail: document.getElementById('businessInterfaceDetail').value || undefined
-            };
+            const tenant = currentConfig.tenant;
+            const version = currentConfig.version || 'BIP5';
 
             vscode.postMessage({
                 type: 'downloadJson',
-                tenant: config.tenant,
-                version: config.version
+                tenant: tenant,
+                version: version
             });
         }
 
@@ -1674,17 +2148,235 @@ export class McpProvider implements vscode.WebviewViewProvider {
             };
         }
 
-        // 更新URL字段
-        function updateUrlFields() {
-            const tenant = document.getElementById('tenant').value;
+        function updateModalUrlFields() {
+            const tenant = document.getElementById('modalTenant').value;
             const urls = generateUrls(tenant);
 
-            document.getElementById('metadataByname').value = urls.metadataByname;
-            document.getElementById('metadataByboid').value = urls.metadataByboid;
-            document.getElementById('metadataEntityid').value = urls.metadataEntityid;
-            document.getElementById('metadataUri').value = urls.metadataUri;
-            document.getElementById('businessInterfaceList').value = urls.businessInterfaceList;
-            document.getElementById('businessInterfaceDetail').value = urls.businessInterfaceDetail;
+            document.getElementById('modalMetadataByname').value = urls.metadataByname;
+            document.getElementById('modalMetadataByboid').value = urls.metadataByboid;
+            document.getElementById('modalMetadataEntityid').value = urls.metadataEntityid;
+            document.getElementById('modalMetadataUri').value = urls.metadataUri;
+            document.getElementById('modalBusinessInterfaceList').value = urls.businessInterfaceList;
+            document.getElementById('modalBusinessInterfaceDetail').value = urls.businessInterfaceDetail;
+        }
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function escapeAttr(s) {
+            if (s == null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;');
+        }
+
+        function renderFlagshipProjectList() {
+            const listEl = document.getElementById('flagshipProjectList');
+            const emptyEl = document.getElementById('flagshipEmptyHint');
+            const projects = currentConfig.flagshipProjects || [];
+            const activeId = currentConfig.activeFlagshipProjectId;
+
+            if (!listEl || !emptyEl) {
+                return;
+            }
+
+            listEl.onchange = null;
+            listEl.onclick = null;
+
+            if (projects.length === 0) {
+                listEl.innerHTML = '';
+                emptyEl.style.display = 'block';
+                return;
+            }
+
+            emptyEl.style.display = 'none';
+            listEl.innerHTML = projects.map(function(p) {
+                const title = p.name || p.tenant || '（未命名）';
+                const ver = p.version || 'BIP5';
+                const urlLine = p.apiUrl || '—';
+                const isActive = p.id === activeId;
+                const rowClass = 'flagship-row' + (isActive ? ' flagship-row--active' : '');
+                return (
+                    '<div class="' + rowClass + '" data-flagship-id="' + escapeAttr(p.id) + '">' +
+                    '<div class="flagship-row-radio">' +
+                    '<input type="radio" name="flagshipActive" value="' + escapeAttr(p.id) + '"' +
+                    (isActive ? ' checked' : '') +
+                    ' title="设为当前启用" />' +
+                    '</div>' +
+                    '<div class="flagship-row-main">' +
+                    '<div class="flagship-row-identity">' +
+                    '<span class="flagship-row-title">' + escapeHtml(title) + '</span>' +
+                    (isActive ? '<span class="flagship-badge">当前启用</span>' : '') +
+                    '</div>' +
+                    '<div class="flagship-row-fields" role="group" aria-label="租户、版本与地址">' +
+                    '<span class="flagship-kv"><span class="flagship-kv-label">租户</span>' +
+                    '<span class="flagship-kv-val">' + escapeHtml(p.tenant || '—') + '</span></span>' +
+                    '<span class="flagship-kv-sep" aria-hidden="true"></span>' +
+                    '<span class="flagship-kv"><span class="flagship-kv-label">版本</span>' +
+                    '<span class="flagship-kv-val">' + escapeHtml(ver) + '</span></span>' +
+                    '<span class="flagship-kv-sep" aria-hidden="true"></span>' +
+                    '<span class="flagship-kv flagship-kv-url" title="' + escapeAttr(urlLine) + '">' +
+                    '<span class="flagship-kv-label">URL</span>' +
+                    '<span class="flagship-kv-val">' + escapeHtml(urlLine) + '</span></span>' +
+                    '</div>' +
+                    '<div class="flagship-row-actions">' +
+                    '<button type="button" class="flagship-btn" data-flagship-action="edit" data-flagship-id="' + escapeAttr(p.id) + '">编辑</button>' +
+                    '<button type="button" class="flagship-btn flagship-btn-danger" data-flagship-action="delete" data-flagship-id="' + escapeAttr(p.id) + '">删除</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>'
+                );
+            }).join('');
+
+            listEl.onchange = function(ev) {
+                const t = ev.target;
+                if (t && t.name === 'flagshipActive' && t.value) {
+                    currentConfig.activeFlagshipProjectId = t.value;
+                    saveConfig();
+                }
+            };
+
+            listEl.onclick = function(ev) {
+                const btn = ev.target.closest('[data-flagship-action]');
+                if (!btn) return;
+                const id = btn.getAttribute('data-flagship-id');
+                const action = btn.getAttribute('data-flagship-action');
+                if (!id) return;
+                if (action === 'edit') {
+                    openFlagshipProjectModal(id);
+                } else if (action === 'delete') {
+                    deleteFlagshipProject(id);
+                }
+            };
+        }
+
+        function deleteFlagshipProject(id) {
+            if (!confirm('确定删除该项目配置？')) {
+                return;
+            }
+            const projects = (currentConfig.flagshipProjects || []).filter(function(p) { return p.id !== id; });
+            currentConfig.flagshipProjects = projects;
+            if (currentConfig.activeFlagshipProjectId === id) {
+                currentConfig.activeFlagshipProjectId = projects[0] ? projects[0].id : undefined;
+            }
+            saveConfig();
+        }
+
+        function openFlagshipProjectModal(projectId) {
+            flagshipEditingId = projectId;
+            const modal = document.getElementById('flagshipModal');
+            const titleEl = document.getElementById('flagshipModalTitle');
+            const projects = currentConfig.flagshipProjects || [];
+            const existing = projectId ? projects.find(function(p) { return p.id === projectId; }) : null;
+
+            titleEl.textContent = projectId ? '编辑项目' : '新增项目';
+
+            const secretEl = document.getElementById('modalApiAppSecret');
+            secretEl.placeholder = existing
+                ? '留空表示不修改已有密钥'
+                : '请输入API应用密钥';
+
+            if (existing) {
+                document.getElementById('modalProjectName').value = existing.name || '';
+                document.getElementById('modalTenant').value = existing.tenant || '';
+                const ver = existing.version || 'BIP5';
+                if (window.setModalVersionValue) {
+                    window.setModalVersionValue(ver, ver);
+                } else {
+                    document.getElementById('modalVersion').value = ver;
+                    document.getElementById('modalVersionDisplay').textContent = ver;
+                }
+                document.getElementById('modalApiAppKey').value = existing.apiAppKey || '';
+                document.getElementById('modalApiAppSecret').value = '';
+                document.getElementById('modalApiUrl').value = existing.apiUrl || '';
+                if (existing.tenant) {
+                    updateModalUrlFields();
+                } else {
+                    document.getElementById('modalMetadataByname').value = existing.metadataByname || '';
+                    document.getElementById('modalMetadataByboid').value = existing.metadataByboid || '';
+                    document.getElementById('modalMetadataEntityid').value = existing.metadataEntityid || '';
+                    document.getElementById('modalMetadataUri').value = existing.metadataUri || '';
+                    document.getElementById('modalBusinessInterfaceList').value = existing.businessInterfaceList || '';
+                    document.getElementById('modalBusinessInterfaceDetail').value = existing.businessInterfaceDetail || '';
+                }
+            } else {
+                document.getElementById('modalProjectName').value = '';
+                document.getElementById('modalTenant').value = '';
+                if (window.setModalVersionValue) {
+                    window.setModalVersionValue('BIP5', 'BIP5');
+                }
+                document.getElementById('modalApiAppKey').value = '';
+                document.getElementById('modalApiAppSecret').value = '';
+                document.getElementById('modalApiUrl').value = '';
+                updateModalUrlFields();
+            }
+
+            modal.classList.add('open');
+        }
+
+        function closeFlagshipProjectModal() {
+            const modal = document.getElementById('flagshipModal');
+            modal.classList.remove('open');
+            flagshipEditingId = null;
+        }
+
+        function submitFlagshipProjectModal() {
+            const tenant = document.getElementById('modalTenant').value.trim();
+            if (!tenant) {
+                alert('租户不能为空');
+                return;
+            }
+
+            const nameRaw = document.getElementById('modalProjectName').value.trim();
+            const version = document.getElementById('modalVersion').value || 'BIP5';
+            const apiAppKey = document.getElementById('modalApiAppKey').value.trim() || undefined;
+            const secretInput = document.getElementById('modalApiAppSecret').value;
+            const apiUrl = document.getElementById('modalApiUrl').value.trim() || undefined;
+
+            const project = {
+                id: flagshipEditingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+                name: nameRaw || undefined,
+                tenant: tenant,
+                version: version,
+                apiAppKey: apiAppKey,
+                apiUrl: apiUrl,
+                metadataByname: document.getElementById('modalMetadataByname').value || undefined,
+                metadataByboid: document.getElementById('modalMetadataByboid').value || undefined,
+                metadataEntityid: document.getElementById('modalMetadataEntityid').value || undefined,
+                metadataUri: document.getElementById('modalMetadataUri').value || undefined,
+                businessInterfaceList: document.getElementById('modalBusinessInterfaceList').value || undefined,
+                businessInterfaceDetail: document.getElementById('modalBusinessInterfaceDetail').value || undefined
+            };
+
+            const projects = currentConfig.flagshipProjects ? currentConfig.flagshipProjects.slice() : [];
+            if (flagshipEditingId) {
+                const idx = projects.findIndex(function(p) { return p.id === flagshipEditingId; });
+                if (idx >= 0) {
+                    if (!secretInput && projects[idx].apiAppSecret) {
+                        project.apiAppSecret = projects[idx].apiAppSecret;
+                    } else {
+                        project.apiAppSecret = secretInput || undefined;
+                    }
+                    projects[idx] = Object.assign({}, projects[idx], project);
+                }
+            } else {
+                project.apiAppSecret = secretInput || undefined;
+                projects.push(project);
+                if (projects.length === 1) {
+                    currentConfig.activeFlagshipProjectId = project.id;
+                }
+            }
+
+            currentConfig.flagshipProjects = projects;
+            closeFlagshipProjectModal();
+            saveConfig();
         }
         
         // 重置为默认配置
@@ -1698,33 +2390,14 @@ export class McpProvider implements vscode.WebviewViewProvider {
         
         // 更新配置显示
         function updateConfigDisplay(config) {
-            currentConfig = config;
+            currentConfig = Object.assign({}, config, {
+                flagshipProjects: Array.isArray(config.flagshipProjects) ? config.flagshipProjects : []
+            });
 
             document.getElementById('port').value = config.port || 9000;
             document.getElementById('javaPath').value = config.javaPath || 'java';
-            document.getElementById('tenant').value = config.tenant || '';
-            const version = config.version || 'BIP5';
-            document.getElementById('version').value = version;
-            const versionDisplay = document.getElementById('versionDisplay');
-            if (versionDisplay) versionDisplay.textContent = version;
-            document.querySelectorAll('.version-dropdown-option').forEach(opt => {
-                opt.classList.toggle('selected', opt.dataset.value === version);
-            });
-            document.getElementById('apiAppKey').value = config.apiAppKey || '';
-            document.getElementById('apiAppSecret').value = config.apiAppSecret || '';
-            document.getElementById('apiUrl').value = config.apiUrl || '';
 
-            // 根据租户动态生成URL（metadata相关的URL）
-            if (config.tenant) {
-                updateUrlFields();
-            } else {
-                document.getElementById('metadataByname').value = config.metadataByname || '';
-                document.getElementById('metadataByboid').value = config.metadataByboid || '';
-                document.getElementById('metadataEntityid').value = config.metadataEntityid || '';
-                document.getElementById('metadataUri').value = config.metadataUri || '';
-                document.getElementById('businessInterfaceList').value = config.businessInterfaceList || '';
-                document.getElementById('businessInterfaceDetail').value = config.businessInterfaceDetail || '';
-            }
+            renderFlagshipProjectList();
 
             // 更新快速信息
             document.getElementById('quickPort').textContent = config.port || 9000;
