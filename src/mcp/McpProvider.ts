@@ -71,6 +71,14 @@ export class McpProvider implements vscode.WebviewViewProvider {
                         vscode.window.showErrorMessage(`下载 JSON 失败: ${err?.message ?? String(err)}`);
                     });
                     break;
+                case 'requestDeleteFlagshipProject':
+                    await this.handleRequestDeleteFlagshipProject(data.id);
+                    break;
+                case 'mcpWebviewAlert':
+                    if (data.message) {
+                        vscode.window.showErrorMessage(String(data.message));
+                    }
+                    break;
                 default:
                     console.log('收到未知消息类型:', data.type);
                     this.outputChannel.appendLine(`收到未知消息类型: ${data.type}`);
@@ -300,12 +308,27 @@ export class McpProvider implements vscode.WebviewViewProvider {
         const result = await vscode.window.showWarningMessage(
             '即将把 MCP 配置恢复为插件默认值：服务端口、Java 路径、旗舰版项目列表（含租户、密钥与地址等）等当前界面中的信息都会被清空，且无法通过本操作恢复。确定要继续吗？',
             { modal: true },
-            '确定清空并重置',
-            '取消'
+            '确定清空并重置'
         );
 
         if (result === '确定清空并重置') {
             await this.handleResetConfig();
+        }
+    }
+
+    /**
+     * Webview 内无法可靠使用 window.confirm（沙箱会忽略）；删除旗舰版项目在扩展端弹出原生确认框。
+     */
+    private async handleRequestDeleteFlagshipProject(id: unknown) {
+        if (typeof id !== 'string' || !id) {
+            return;
+        }
+        const result = await vscode.window.showWarningMessage('确定删除该项目配置？', { modal: true }, '确定');
+        if (result === '确定') {
+            this._view?.webview.postMessage({
+                type: 'deleteFlagshipProjectConfirm',
+                id
+            });
         }
     }
 
@@ -354,10 +377,6 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 canSelectFiles: true,
                 canSelectFolders: false,
                 canSelectMany: false,
-                filters: {
-                    'Executable Files': ['exe', 'bat', 'cmd', 'sh', 'bin'],
-                    'All Files': ['*']
-                },
                 openLabel: '选择Java可执行文件'
             });
 
@@ -2323,7 +2342,9 @@ export class McpProvider implements vscode.WebviewViewProvider {
             };
 
             listEl.onclick = function(ev) {
-                const btn = ev.target.closest('[data-flagship-action]');
+                const t = ev.target;
+                const el = t && t.nodeType === 1 ? t : t && t.parentElement;
+                const btn = el && el.closest ? el.closest('[data-flagship-action]') : null;
                 if (!btn) return;
                 const id = btn.getAttribute('data-flagship-id');
                 const action = btn.getAttribute('data-flagship-action');
@@ -2331,15 +2352,16 @@ export class McpProvider implements vscode.WebviewViewProvider {
                 if (action === 'edit') {
                     openFlagshipProjectModal(id);
                 } else if (action === 'delete') {
-                    deleteFlagshipProject(id);
+                    requestDeleteFlagshipProject(id);
                 }
             };
         }
 
-        function deleteFlagshipProject(id) {
-            if (!confirm('确定删除该项目配置？')) {
-                return;
-            }
+        function requestDeleteFlagshipProject(id) {
+            vscode.postMessage({ type: 'requestDeleteFlagshipProject', id: id });
+        }
+
+        function applyDeleteFlagshipProject(id) {
             const projects = (currentConfig.flagshipProjects || []).filter(function(p) { return p.id !== id; });
             currentConfig.flagshipProjects = projects;
             if (currentConfig.activeFlagshipProjectId === id) {
@@ -2409,7 +2431,7 @@ export class McpProvider implements vscode.WebviewViewProvider {
         function submitFlagshipProjectModal() {
             const tenant = document.getElementById('modalTenant').value.trim();
             if (!tenant) {
-                alert('租户不能为空');
+                vscode.postMessage({ type: 'mcpWebviewAlert', message: '租户不能为空' });
                 return;
             }
 
@@ -2557,6 +2579,12 @@ export class McpProvider implements vscode.WebviewViewProvider {
                         console.log('配置保存成功');
                     } else {
                         console.error('配置保存失败: ' + message.error);
+                    }
+                    break;
+
+                case 'deleteFlagshipProjectConfirm':
+                    if (message.id) {
+                        applyDeleteFlagshipProject(message.id);
                     }
                     break;
                     

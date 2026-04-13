@@ -481,6 +481,14 @@ export class FunctionTreeProvider implements vscode.TreeDataProvider<FunctionTre
                                     vscode.window.showErrorMessage(`下载 JSON 失败: ${err?.message ?? String(err)}`);
                                 });
                                 break;
+                            case 'requestDeleteFlagshipProject':
+                                await this.mcpProvider['handleRequestDeleteFlagshipProject'](message.id);
+                                break;
+                            case 'mcpWebviewAlert':
+                                if (message.message) {
+                                    vscode.window.showErrorMessage(String(message.message));
+                                }
+                                break;
                         }
                     }
                     break;
