@@ -107,7 +107,3 @@ Microsoft可能要求手机号验证，这是正常的安全流程：
 
 ovsx publish your-extension.vsix --pat <your-personal-access-token>
 
-
-
-ovsx publish /Users/zhangchaocai/Documents/project/vscode-plugin/yonbip-devtool-2.1.79.vsix --pat ovsxp_8359e233-b53b-4d58-b1c1-7a55780e1069
-
