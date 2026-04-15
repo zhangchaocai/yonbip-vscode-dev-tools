@@ -95122,6 +95122,7 @@ class McpService {
         }
         this.outputChannel = McpService.outputChannelInstance;
         this.reconcileBuiltinMcpJarPath();
+        void this.syncHyperionYtenantInfoToWorkspace(this.config);
     }
     reconcileBuiltinMcpJarPath() {
         const builtinJarPath = path.join(this.context.extensionPath, 'resources', 'yonyou-mcp.jar');
@@ -95332,6 +95333,41 @@ class McpService {
         };
         this.config = configWithDefaults;
         await this.context.globalState.update('mcp.config', configWithDefaults);
+        await this.syncHyperionYtenantInfoToWorkspace(configWithDefaults);
+    }
+    async syncHyperionYtenantInfoToWorkspace(config) {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders?.length) {
+            return;
+        }
+        const ytenantId = (config.tenant ?? '').trim();
+        for (const folder of folders) {
+            const dirUri = vscode.Uri.joinPath(folder.uri, '.hyperion', 'ytenant');
+            const fileUri = vscode.Uri.joinPath(dirUri, 'info.json');
+            try {
+                await vscode.workspace.fs.createDirectory(dirUri);
+                let merged = {};
+                try {
+                    const data = await vscode.workspace.fs.readFile(fileUri);
+                    const text = Buffer.from(data).toString('utf-8');
+                    const parsed = JSON.parse(text);
+                    if (parsed !== null &&
+                        typeof parsed === 'object' &&
+                        !Array.isArray(parsed)) {
+                        merged = parsed;
+                    }
+                }
+                catch {
+                }
+                delete merged.tenantCode;
+                merged.ytenant_id = ytenantId;
+                const out = Buffer.from(JSON.stringify(merged, null, 2) + '\n', 'utf-8');
+                await vscode.workspace.fs.writeFile(fileUri, out);
+            }
+            catch (e) {
+                this.outputChannel.appendLine(`同步租户编码到工作区失败 (${fileUri.fsPath}): ${e instanceof Error ? e.message : String(e)}`);
+            }
+        }
     }
     getConfig() {
         const urls = this.generateUrls();
