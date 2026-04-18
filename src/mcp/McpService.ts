@@ -357,8 +357,9 @@ export class McpService {
     }
 
     /**
-     * 将当前启用的旗舰版租户编码同步到各工作区文件夹下的 `.hyperion/ytenant/info.json`
+     * 将当前启用的旗舰版配置同步到各工作区文件夹下的 `.hyperion/ytenant/info.json`
      *（与切换「当前启用」项目、保存配置等行为一致；合并写入以保留文件中已有其它字段）
+     * - app_secret：仅当配置里存在非空密钥时覆盖；留空则保留文件中已有值（与 UI「留空表示不修改」一致）
      */
     private async syncHyperionYtenantInfoToWorkspace(config: McpConfig): Promise<void> {
         const folders = vscode.workspace.workspaceFolders;
@@ -367,6 +368,15 @@ export class McpService {
         }
 
         const ytenantId = (config.tenant ?? '').trim();
+        const version = (config.version ?? 'BIP5').trim();
+        const apiUrl = (config.apiUrl ?? '').trim();
+        const appKey = (config.apiAppKey ?? '').trim();
+        const appSecretTrimmed = (config.apiAppSecret ?? '').trim();
+
+        const projects = config.flagshipProjects || [];
+        const activeId = config.activeFlagshipProjectId;
+        const activeProject = activeId ? projects.find((p) => p.id === activeId) : undefined;
+        const displayName = (activeProject?.name ?? '').trim();
 
         for (const folder of folders) {
             const dirUri = vscode.Uri.joinPath(folder.uri, '.hyperion', 'ytenant');
@@ -392,12 +402,25 @@ export class McpService {
 
                 delete merged.tenantCode; // 旧字段名，与 yds-hyperion 的 ytenant_id 对齐后不再保留
                 merged.ytenant_id = ytenantId;
+                merged.display_name = displayName;
+                merged.version = version;
+                merged.api_url = apiUrl;
+                merged.app_key = appKey;
+                if (appSecretTrimmed) {
+                    merged.app_secret = appSecretTrimmed;
+                }
+                delete merged.metadata_byname;
+                delete merged.metadata_byboid;
+                delete merged.metadata_entityid;
+                delete merged.metadata_uri;
+                delete merged.business_interface_list;
+                delete merged.business_interface_detail;
 
                 const out = Buffer.from(JSON.stringify(merged, null, 2) + '\n', 'utf-8');
                 await vscode.workspace.fs.writeFile(fileUri, out);
             } catch (e) {
                 this.outputChannel.appendLine(
-                    `同步租户编码到工作区失败 (${fileUri.fsPath}): ${e instanceof Error ? e.message : String(e)}`
+                    `同步租户配置到工作区失败 (${fileUri.fsPath}): ${e instanceof Error ? e.message : String(e)}`
                 );
             }
         }
