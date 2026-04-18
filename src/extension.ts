@@ -268,9 +268,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 	
 	// 插件激活后默认打开MCP服务界面
-	setTimeout(() => {
-		vscode.commands.executeCommand('yonbip.function.showMcp');
-	}, 1000);
+	// setTimeout(() => {
+	// 	vscode.commands.executeCommand('yonbip.function.showMcp');
+	// }, 1000);
 
 }
 
