@@ -182156,7 +182156,7 @@ class HomeService {
         defaultVmParameters.push('-Djavax.xml.parsers.DocumentBuilderFactory=com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl');
         defaultVmParameters.push('-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl');
         defaultVmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
-        if (javaVersion >= 17) {
+        if (javaVersion >= 17 || javaVersion === 0) {
             defaultVmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
             defaultVmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
             defaultVmParameters.push('--add-opens=java.base/jdk.internal.reflect=ALL-UNNAMED');

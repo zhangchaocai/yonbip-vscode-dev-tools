@@ -1793,8 +1793,9 @@ export class HomeService {
         defaultVmParameters.push('-Djavax.xml.transform.TransformerFactory=com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl');
 
         // 根据Java版本添加相应的兼容性参数（与IDEA插件保持一致）
-        if (javaVersion >= 17) {
-            // JDK 17+ 需要添加--add-opens参数
+        // JDK 17+ 或无法检测版本时都需要添加--add-opens参数
+        if (javaVersion >= 17 || javaVersion === 0) {
+            // JDK 17+ 或未知版本需要添加--add-opens参数
             defaultVmParameters.push('--add-opens=java.base/java.lang=ALL-UNNAMED');
             defaultVmParameters.push('--add-opens=java.base/java.lang.reflect=ALL-UNNAMED');
             defaultVmParameters.push('--add-opens=java.base/jdk.internal.reflect=ALL-UNNAMED');
