@@ -1,3 +1,8 @@
 {
-  "ytenant_id": "bes6o00m"
+  "ytenant_id": "bes6o00m",
+  "display_name": "bes6o00m",
+  "version": "BIP5",
+  "api_url": "https://v5devkk1.yonyoucloud.com/",
+  "app_key": "de392cf7a8f5446d899a4892cc4dbbf1",
+  "app_secret": "1ba594f8c808bc81e53cca4a99de089286d10376"
 }

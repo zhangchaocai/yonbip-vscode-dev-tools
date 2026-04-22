@@ -93,7 +93,7 @@
     "rowLimit" : null
   } ],
   "microServiceCode" : "domain.iuap-metadata-base",
-  "connectUrl" : "/ext/MDD/actuator/entity/db/info",
+  "connectUrl" : "/ext/MDD/entity/db/info",
   "pathJoin" : 0,
   "serviceHttpMethod" : "GET",
   "timeOut" : "5",
