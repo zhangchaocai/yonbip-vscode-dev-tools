@@ -95122,7 +95122,6 @@ class McpService {
         }
         this.outputChannel = McpService.outputChannelInstance;
         this.reconcileBuiltinMcpJarPath();
-        void this.syncHyperionYtenantInfoToWorkspace(this.config);
     }
     reconcileBuiltinMcpJarPath() {
         const builtinJarPath = path.join(this.context.extensionPath, 'resources', 'yonyou-mcp.jar');
@@ -95333,62 +95332,6 @@ class McpService {
         };
         this.config = configWithDefaults;
         await this.context.globalState.update('mcp.config', configWithDefaults);
-        await this.syncHyperionYtenantInfoToWorkspace(configWithDefaults);
-    }
-    async syncHyperionYtenantInfoToWorkspace(config) {
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders?.length) {
-            return;
-        }
-        const ytenantId = (config.tenant ?? '').trim();
-        const version = (config.version ?? 'BIP5').trim();
-        const apiUrl = (config.apiUrl ?? '').trim();
-        const appKey = (config.apiAppKey ?? '').trim();
-        const appSecretTrimmed = (config.apiAppSecret ?? '').trim();
-        const projects = config.flagshipProjects || [];
-        const activeId = config.activeFlagshipProjectId;
-        const activeProject = activeId ? projects.find((p) => p.id === activeId) : undefined;
-        const displayName = (activeProject?.name ?? '').trim();
-        for (const folder of folders) {
-            const dirUri = vscode.Uri.joinPath(folder.uri, '.hyperion', 'ytenant');
-            const fileUri = vscode.Uri.joinPath(dirUri, 'info.json');
-            try {
-                await vscode.workspace.fs.createDirectory(dirUri);
-                let merged = {};
-                try {
-                    const data = await vscode.workspace.fs.readFile(fileUri);
-                    const text = Buffer.from(data).toString('utf-8');
-                    const parsed = JSON.parse(text);
-                    if (parsed !== null &&
-                        typeof parsed === 'object' &&
-                        !Array.isArray(parsed)) {
-                        merged = parsed;
-                    }
-                }
-                catch {
-                }
-                delete merged.tenantCode;
-                merged.ytenant_id = ytenantId;
-                merged.display_name = displayName;
-                merged.version = version;
-                merged.api_url = apiUrl;
-                merged.app_key = appKey;
-                if (appSecretTrimmed) {
-                    merged.app_secret = appSecretTrimmed;
-                }
-                delete merged.metadata_byname;
-                delete merged.metadata_byboid;
-                delete merged.metadata_entityid;
-                delete merged.metadata_uri;
-                delete merged.business_interface_list;
-                delete merged.business_interface_detail;
-                const out = Buffer.from(JSON.stringify(merged, null, 2) + '\n', 'utf-8');
-                await vscode.workspace.fs.writeFile(fileUri, out);
-            }
-            catch (e) {
-                this.outputChannel.appendLine(`同步租户配置到工作区失败 (${fileUri.fsPath}): ${e instanceof Error ? e.message : String(e)}`);
-            }
-        }
     }
     getConfig() {
         const urls = this.generateUrls();

@@ -91,8 +91,6 @@ export class McpService {
         // 同步纠正 jarPath：避免升级后仍指向旧安装目录下仍存在文件的内置 JAR
         this.reconcileBuiltinMcpJarPath();
 
-        void this.syncHyperionYtenantInfoToWorkspace(this.config);
-
         // 注释掉状态栏显示，避免与WebView面板重复
         // this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
         // this.updateStatusBar();
@@ -353,77 +351,6 @@ export class McpService {
 
         this.config = configWithDefaults;
         await this.context.globalState.update('mcp.config', configWithDefaults);
-        await this.syncHyperionYtenantInfoToWorkspace(configWithDefaults);
-    }
-
-    /**
-     * 将当前启用的旗舰版配置同步到各工作区文件夹下的 `.hyperion/ytenant/info.json`
-     *（与切换「当前启用」项目、保存配置等行为一致；合并写入以保留文件中已有其它字段）
-     * - app_secret：仅当配置里存在非空密钥时覆盖；留空则保留文件中已有值（与 UI「留空表示不修改」一致）
-     */
-    private async syncHyperionYtenantInfoToWorkspace(config: McpConfig): Promise<void> {
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders?.length) {
-            return;
-        }
-
-        const ytenantId = (config.tenant ?? '').trim();
-        const version = (config.version ?? 'BIP5').trim();
-        const apiUrl = (config.apiUrl ?? '').trim();
-        const appKey = (config.apiAppKey ?? '').trim();
-        const appSecretTrimmed = (config.apiAppSecret ?? '').trim();
-
-        const projects = config.flagshipProjects || [];
-        const activeId = config.activeFlagshipProjectId;
-        const activeProject = activeId ? projects.find((p) => p.id === activeId) : undefined;
-        const displayName = (activeProject?.name ?? '').trim();
-
-        for (const folder of folders) {
-            const dirUri = vscode.Uri.joinPath(folder.uri, '.hyperion', 'ytenant');
-            const fileUri = vscode.Uri.joinPath(dirUri, 'info.json');
-            try {
-                await vscode.workspace.fs.createDirectory(dirUri);
-
-                let merged: Record<string, unknown> = {};
-                try {
-                    const data = await vscode.workspace.fs.readFile(fileUri);
-                    const text = Buffer.from(data).toString('utf-8');
-                    const parsed: unknown = JSON.parse(text);
-                    if (
-                        parsed !== null &&
-                        typeof parsed === 'object' &&
-                        !Array.isArray(parsed)
-                    ) {
-                        merged = parsed as Record<string, unknown>;
-                    }
-                } catch {
-                    // 文件不存在或内容非 JSON 时从头写入
-                }
-
-                delete merged.tenantCode; // 旧字段名，与 yds-hyperion 的 ytenant_id 对齐后不再保留
-                merged.ytenant_id = ytenantId;
-                merged.display_name = displayName;
-                merged.version = version;
-                merged.api_url = apiUrl;
-                merged.app_key = appKey;
-                if (appSecretTrimmed) {
-                    merged.app_secret = appSecretTrimmed;
-                }
-                delete merged.metadata_byname;
-                delete merged.metadata_byboid;
-                delete merged.metadata_entityid;
-                delete merged.metadata_uri;
-                delete merged.business_interface_list;
-                delete merged.business_interface_detail;
-
-                const out = Buffer.from(JSON.stringify(merged, null, 2) + '\n', 'utf-8');
-                await vscode.workspace.fs.writeFile(fileUri, out);
-            } catch (e) {
-                this.outputChannel.appendLine(
-                    `同步租户配置到工作区失败 (${fileUri.fsPath}): ${e instanceof Error ? e.message : String(e)}`
-                );
-            }
-        }
     }
 
     /**
