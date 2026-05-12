@@ -1547,24 +1547,49 @@ export class McpService {
                     resolve(Array.from(pidSet));
                 });
             } else {
-                // macOS / Linux 使用 lsof
-                exec(`lsof -ti:${port}`, (error: any, stdout: string) => {
-                    if (error || !stdout) {
-                        // 在某些精简系统上可能没有 lsof，记录日志后返回空
-                        if (error) {
-                            this.outputChannel.appendLine(`使用 lsof 查询端口占用失败: ${error.message}`);
+                // macOS / Linux / UOS 使用 lsof，如果不可用则降级使用 netstat
+                const { execSync } = require('child_process');
+                try {
+                    execSync('which lsof', { encoding: 'utf-8' });
+                    exec(`lsof -ti:${port}`, (error: any, stdout: string) => {
+                        if (error || !stdout) {
+                            if (error) {
+                                this.outputChannel.appendLine(`使用 lsof 查询端口占用失败: ${error.message}`);
+                            }
+                            resolve([]);
+                            return;
                         }
-                        resolve([]);
-                        return;
-                    }
 
-                    const pids = stdout
-                        .split(/\r?\n/)
-                        .map(line => line.trim())
-                        .filter(line => line.length > 0);
+                        const pids = stdout
+                            .split(/\r?\n/)
+                            .map(line => line.trim())
+                            .filter(line => line.length > 0);
 
-                    resolve(pids);
-                });
+                        resolve(pids);
+                    });
+                } catch {
+                    // lsof不可用，降级使用netstat
+                    this.outputChannel.appendLine('⚠️ lsof命令不可用，降级使用netstat');
+                    exec(`netstat -tlnp 2>/dev/null | grep :${port}`, (error: any, stdout: string) => {
+                        if (error || !stdout) {
+                            resolve([]);
+                            return;
+                        }
+
+                        const pidSet = new Set<string>();
+                        const lines = stdout.split(/\r?\n/).filter(line => line.trim() !== '');
+
+                        for (const line of lines) {
+                            // netstat输出格式: Proto Recv-Q Send-Q Local Address Foreign Address State PID/Program name
+                            const match = line.match(/\s+(\d+)\/[\w\/]+$/);
+                            if (match && match[1]) {
+                                pidSet.add(match[1]);
+                            }
+                        }
+
+                        resolve(Array.from(pidSet));
+                    });
+                }
             }
         });
     }

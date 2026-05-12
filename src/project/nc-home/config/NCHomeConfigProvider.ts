@@ -290,13 +290,13 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             vscode.window.showInformationMessage('检测到sysConfig.sh文件已存在，跳过MAC HOME转换');
                         } else {
                             const convert = await vscode.window.showInformationMessage(
-                                '检测到您使用的是Mac系统，是否需要自动执行Mac HOME转换？',
+                                '检测到您使用的是Unix/Linux系统，是否需要自动执行HOME转换？',
                                 '是',
                                 '否'
                             );
 
                             if (convert === '是') {
-                                progress.report({ message: "正在执行Mac HOME转换..." });
+                                progress.report({ message: "正在执行HOME转换..." });
                                 await this.macHomeConversionService.convertToMacHome(homePath);
                             }
                         }

@@ -1007,9 +1007,9 @@ class NCHomeConfigProvider {
                             vscode.window.showInformationMessage('检测到sysConfig.sh文件已存在，跳过MAC HOME转换');
                         }
                         else {
-                            const convert = await vscode.window.showInformationMessage('检测到您使用的是Mac系统，是否需要自动执行Mac HOME转换？', '是', '否');
+                            const convert = await vscode.window.showInformationMessage('检测到您使用的是Unix/Linux系统，是否需要自动执行HOME转换？', '是', '否');
                             if (convert === '是') {
-                                progress.report({ message: "正在执行Mac HOME转换..." });
+                                progress.report({ message: "正在执行HOME转换..." });
                                 await this.macHomeConversionService.convertToMacHome(homePath);
                             }
                         }
@@ -96220,20 +96220,42 @@ class McpService {
                 });
             }
             else {
-                exec(`lsof -ti:${port}`, (error, stdout) => {
-                    if (error || !stdout) {
-                        if (error) {
-                            this.outputChannel.appendLine(`使用 lsof 查询端口占用失败: ${error.message}`);
+                const { execSync } = __webpack_require__(35317);
+                try {
+                    execSync('which lsof', { encoding: 'utf-8' });
+                    exec(`lsof -ti:${port}`, (error, stdout) => {
+                        if (error || !stdout) {
+                            if (error) {
+                                this.outputChannel.appendLine(`使用 lsof 查询端口占用失败: ${error.message}`);
+                            }
+                            resolve([]);
+                            return;
                         }
-                        resolve([]);
-                        return;
-                    }
-                    const pids = stdout
-                        .split(/\r?\n/)
-                        .map(line => line.trim())
-                        .filter(line => line.length > 0);
-                    resolve(pids);
-                });
+                        const pids = stdout
+                            .split(/\r?\n/)
+                            .map(line => line.trim())
+                            .filter(line => line.length > 0);
+                        resolve(pids);
+                    });
+                }
+                catch {
+                    this.outputChannel.appendLine('⚠️ lsof命令不可用，降级使用netstat');
+                    exec(`netstat -tlnp 2>/dev/null | grep :${port}`, (error, stdout) => {
+                        if (error || !stdout) {
+                            resolve([]);
+                            return;
+                        }
+                        const pidSet = new Set();
+                        const lines = stdout.split(/\r?\n/).filter(line => line.trim() !== '');
+                        for (const line of lines) {
+                            const match = line.match(/\s+(\d+)\/[\w\/]+$/);
+                            if (match && match[1]) {
+                                pidSet.add(match[1]);
+                            }
+                        }
+                        resolve(Array.from(pidSet));
+                    });
+                }
             }
         });
     }
@@ -161304,41 +161326,43 @@ class LibraryService {
                 requiredJavaVersion = "JavaSE-1.7";
                 requiredJavaVersionNumber = "1.7";
             }
-            try {
-                const { execSync } = __webpack_require__(35317);
-                let jdkPath = "";
+            if (process.platform === 'darwin') {
                 try {
-                    jdkPath = execSync(`/usr/libexec/java_home -F -v ${requiredJavaVersionNumber}`, { encoding: 'utf-8' }).trim();
-                }
-                catch (versionError) {
-                    this.outputChannel.appendLine(`无法找到JDK ${requiredJavaVersionNumber}: ${versionError}`);
-                }
-                if (jdkPath && fs.existsSync(jdkPath)) {
-                    const javaExecutable = path.join(jdkPath, 'bin', 'java');
-                    if (fs.existsSync(javaExecutable)) {
-                        const runtimeName = JavaVersionUtils_1.JavaVersionUtils.getJavaVersionName(javaExecutable, this.outputChannel);
-                        if (runtimeName === requiredJavaVersion) {
-                            javaRuntimes.push({
-                                "name": runtimeName,
-                                "path": jdkPath,
-                                "default": true
-                            });
-                        }
-                        else {
-                            javaRuntimes.push({
-                                "name": runtimeName,
-                                "path": jdkPath
-                            });
+                    const { execSync } = __webpack_require__(35317);
+                    let jdkPath = "";
+                    try {
+                        jdkPath = execSync(`/usr/libexec/java_home -F -v ${requiredJavaVersionNumber}`, { encoding: 'utf-8' }).trim();
+                    }
+                    catch (versionError) {
+                        this.outputChannel.appendLine(`无法找到JDK ${requiredJavaVersionNumber}: ${versionError}`);
+                    }
+                    if (jdkPath && fs.existsSync(jdkPath)) {
+                        const javaExecutable = path.join(jdkPath, 'bin', 'java');
+                        if (fs.existsSync(javaExecutable)) {
+                            const runtimeName = JavaVersionUtils_1.JavaVersionUtils.getJavaVersionName(javaExecutable, this.outputChannel);
+                            if (runtimeName === requiredJavaVersion) {
+                                javaRuntimes.push({
+                                    "name": runtimeName,
+                                    "path": jdkPath,
+                                    "default": true
+                                });
+                            }
+                            else {
+                                javaRuntimes.push({
+                                    "name": runtimeName,
+                                    "path": jdkPath
+                                });
+                            }
                         }
                     }
                 }
-            }
-            catch (error) {
-                this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
+                catch (error) {
+                    this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
+                }
             }
             if (javaRuntimes.length === 0) {
                 let jdkPath = process.env.JAVA_HOME || process.env.JDK_HOME;
-                if (!jdkPath) {
+                if (!jdkPath && process.platform === 'darwin') {
                     try {
                         const { execSync } = __webpack_require__(35317);
                         jdkPath = execSync('/usr/libexec/java_home', { encoding: 'utf-8' }).trim();
@@ -161348,16 +161372,21 @@ class LibraryService {
                     }
                 }
                 if (!jdkPath) {
-                    const commonJdkPaths = [
+                    const commonJdkPaths = process.platform === 'darwin' ? [
                         '/Library/Java/JavaVirtualMachines/default/Contents/Home',
                         '/Library/Java/JavaVirtualMachines/jdk1.8.0_281.jdk/Contents/Home',
                         '/Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home',
                         '/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home',
                         '/System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home'
+                    ] : [
+                        '/usr/lib/jvm/java-8-openjdk',
+                        '/usr/lib/jvm/default-java',
+                        '/usr/lib/jvm/java-11-openjdk',
+                        '/usr/lib/jvm/java-17-openjdk'
                     ];
-                    for (const path of commonJdkPaths) {
-                        if (fs.existsSync(path)) {
-                            jdkPath = path;
+                    for (const jdkPathItem of commonJdkPaths) {
+                        if (fs.existsSync(jdkPathItem)) {
+                            jdkPath = jdkPathItem;
                             break;
                         }
                     }
@@ -182609,8 +182638,17 @@ class HomeService {
                 args = ['-a', '-n', '-o'];
             }
             else {
-                command = 'lsof';
-                args = ['-i', `:${serverPort}`, '-t'];
+                const { execSync } = __webpack_require__(35317);
+                try {
+                    execSync('which lsof', { encoding: 'utf-8' });
+                    command = 'lsof';
+                    args = ['-i', `:${serverPort}`, '-t'];
+                }
+                catch {
+                    this.outputChannel.appendLine('⚠️ lsof命令不可用，降级使用netstat');
+                    command = 'netstat';
+                    args = ['-a', '-n', '-t'];
+                }
             }
             const processList = (0, child_process_1.spawn)(command, args);
             let output = '';

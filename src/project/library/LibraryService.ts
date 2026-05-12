@@ -1662,45 +1662,47 @@ export class LibraryService {
             }
             // 1903 <= version < 2312 的情况使用默认的 JDK8
 
-            // 尝试使用/usr/libexec/java_home命令获取特定版本的JDK
-            try {
-                const { execSync } = require('child_process');
-                
-                // 直接获取特定版本的JDK路径
-                let jdkPath = "";
+            // 仅在macOS上尝试使用/usr/libexec/java_home命令获取特定版本的JDK
+            if (process.platform === 'darwin') {
                 try {
-                    jdkPath = execSync(`/usr/libexec/java_home -F -v ${requiredJavaVersionNumber}`, { encoding: 'utf-8' }).trim();
-                } catch (versionError) {
-                    this.outputChannel.appendLine(`无法找到JDK ${requiredJavaVersionNumber}: ${versionError}`);
-                }
-                
-                // 如果找到了JDK路径，验证并添加到结果中
-                if (jdkPath && fs.existsSync(jdkPath)) {
-                    // 验证是否包含java可执行文件
-                    const javaExecutable = path.join(jdkPath, 'bin', 'java');
-                    if (fs.existsSync(javaExecutable)) {
-                        // 使用统一的方法获取Java版本名称
-                        const runtimeName = JavaVersionUtils.getJavaVersionName(javaExecutable, this.outputChannel);
-                        
-                        // 如果版本匹配，则将其设为默认
-                        if (runtimeName === requiredJavaVersion) {
-                            // 添加匹配的JDK作为默认JDK
-                            javaRuntimes.push({
-                                "name": runtimeName,
-                                "path": jdkPath,
-                                "default": true  // 将匹配的JDK设为默认
-                            });
-                        } else {
-                            // 版本不匹配，但仍添加到列表中（非默认）
-                            javaRuntimes.push({
-                                "name": runtimeName,
-                                "path": jdkPath
-                            });
+                    const { execSync } = require('child_process');
+
+                    // 直接获取特定版本的JDK路径
+                    let jdkPath = "";
+                    try {
+                        jdkPath = execSync(`/usr/libexec/java_home -F -v ${requiredJavaVersionNumber}`, { encoding: 'utf-8' }).trim();
+                    } catch (versionError) {
+                        this.outputChannel.appendLine(`无法找到JDK ${requiredJavaVersionNumber}: ${versionError}`);
+                    }
+
+                    // 如果找到了JDK路径，验证并添加到结果中
+                    if (jdkPath && fs.existsSync(jdkPath)) {
+                        // 验证是否包含java可执行文件
+                        const javaExecutable = path.join(jdkPath, 'bin', 'java');
+                        if (fs.existsSync(javaExecutable)) {
+                            // 使用统一的方法获取Java版本名称
+                            const runtimeName = JavaVersionUtils.getJavaVersionName(javaExecutable, this.outputChannel);
+
+                            // 如果版本匹配，则将其设为默认
+                            if (runtimeName === requiredJavaVersion) {
+                                // 添加匹配的JDK作为默认JDK
+                                javaRuntimes.push({
+                                    "name": runtimeName,
+                                    "path": jdkPath,
+                                    "default": true  // 将匹配的JDK设为默认
+                                });
+                            } else {
+                                // 版本不匹配，但仍添加到列表中（非默认）
+                                javaRuntimes.push({
+                                    "name": runtimeName,
+                                    "path": jdkPath
+                                });
+                            }
                         }
                     }
+                } catch (error) {
+                    this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
                 }
-            } catch (error) {
-                this.outputChannel.appendLine(`使用/usr/libexec/java_home命令获取JDK路径失败: ${error}`);
             }
             
             // 如果没有通过/usr/libexec/java_home -F -v获取到Java版本，使用原来的逻辑
@@ -1708,8 +1710,8 @@ export class LibraryService {
                 // 首先尝试从环境变量中获取JDK路径
                 let jdkPath = process.env.JAVA_HOME || process.env.JDK_HOME;
 
-                // 如果环境变量中没有找到，尝试使用/usr/libexec/java_home命令获取
-                if (!jdkPath) {
+                // 仅在macOS上尝试使用/usr/libexec/java_home命令获取
+                if (!jdkPath && process.platform === 'darwin') {
                     try {
                         const { execSync } = require('child_process');
                         jdkPath = execSync('/usr/libexec/java_home', { encoding: 'utf-8' }).trim();
@@ -1720,17 +1722,24 @@ export class LibraryService {
 
                 // 如果还是没有找到，尝试一些常见的JDK安装路径
                 if (!jdkPath) {
-                    const commonJdkPaths = [
+                    // macOS 和 Linux 各自的常见JDK路径
+                    const commonJdkPaths = process.platform === 'darwin' ? [
                         '/Library/Java/JavaVirtualMachines/default/Contents/Home',
                         '/Library/Java/JavaVirtualMachines/jdk1.8.0_281.jdk/Contents/Home',
                         '/Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home',
                         '/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home',
                         '/System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home'
+                    ] : [
+                        // Linux/UOS 常见JDK路径
+                        '/usr/lib/jvm/java-8-openjdk',
+                        '/usr/lib/jvm/default-java',
+                        '/usr/lib/jvm/java-11-openjdk',
+                        '/usr/lib/jvm/java-17-openjdk'
                     ];
 
-                    for (const path of commonJdkPaths) {
-                        if (fs.existsSync(path)) {
-                            jdkPath = path;
+                    for (const jdkPathItem of commonJdkPaths) {
+                        if (fs.existsSync(jdkPathItem)) {
+                            jdkPath = jdkPathItem;
                             break;
                         }
                     }

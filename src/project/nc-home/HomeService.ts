@@ -2487,9 +2487,18 @@ export class HomeService {
                 command = 'netstat';
                 args = ['-a', '-n', '-o'];
             } else {
-                // Unix-like平台使用lsof命令
-                command = 'lsof';
-                args = ['-i', `:${serverPort}`, '-t'];
+                // Unix-like平台（Linux/UOS/macOS）优先使用lsof，如果不可用则降级使用netstat
+                const { execSync } = require('child_process');
+                try {
+                    execSync('which lsof', { encoding: 'utf-8' });
+                    command = 'lsof';
+                    args = ['-i', `:${serverPort}`, '-t'];
+                } catch {
+                    // lsof不可用，降级使用netstat
+                    this.outputChannel.appendLine('⚠️ lsof命令不可用，降级使用netstat');
+                    command = 'netstat';
+                    args = ['-a', '-n', '-t'];
+                }
             }
 
             const processList = spawn(command, args);
