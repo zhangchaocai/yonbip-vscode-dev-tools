@@ -1,0 +1,1687 @@
+[
+  {
+    "key": "aip_scheame.iuap-aip-rpa",
+    "value": "iuap_aip_data",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "iuap-apcom-workbench",
+    "value": "iuap_apcom_benchservice",
+    "exclusiveValue": "iuap_apcom_benchservice"
+  },
+  {
+    "key": "iuap-apcom-workbench-order",
+    "value": "iuap_apcom_benchservice",
+    "exclusiveValue": "iuap_apcom_benchservice"
+  },
+  {
+    "key": "iuap-apcom-workbench-portal",
+    "value": "iuap_apcom_benchservice",
+    "exclusiveValue": "iuap_apcom_benchservice"
+  },
+  {
+    "key": "iuap-apcom-workbench-preference",
+    "value": "iuap_uuas_usercenter",
+    "exclusiveValue": "iuap_uuas_usercenter"
+  },
+  {
+    "key": "iuap-apcom-workbench-system",
+    "value": "iuap_apcom_benchservice",
+    "exclusiveValue": "iuap_apcom_benchservice"
+  },
+  {
+    "key": "iuap-apcom-workbench-widget",
+    "value": "iuap_apcom_benchservice",
+    "exclusiveValue": "iuap_apcom_benchservice"
+  },
+  {
+    "key": "mdd_schema.HR",
+    "value": "corehr",
+    "exclusiveValue": "corehr"
+  },
+  {
+    "key": "mdd_schema.IMP-AEM",
+    "value": "imp_dfm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-BASE",
+    "value": "imp_plm",
+    "exclusiveValue": "imp_plm"
+  },
+  {
+    "key": "mdd_schema.IMP-DFM",
+    "value": "imp_dfm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-DFM-EMS",
+    "value": "imp_dfm",
+    "exclusiveValue": "imp_dfm"
+  },
+  {
+    "key": "mdd_schema.IMP-DFM-TAM",
+    "value": "imp_dfm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-EMS",
+    "value": "imp_dfm",
+    "exclusiveValue": "imp_dfm"
+  },
+  {
+    "key": "mdd_schema.IMP-GDS",
+    "value": "imp_plm",
+    "exclusiveValue": "imp_plm"
+  },
+  {
+    "key": "mdd_schema.IMP-HSE",
+    "value": "imp_hse",
+    "exclusiveValue": "imp_hse"
+  },
+  {
+    "key": "mdd_schema.IMP-ILS-LES",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.IMP-ILSBD",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-PCC",
+    "value": "imp_dfm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-PLM-DECM",
+    "value": "imp_plm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-PLM-PBS",
+    "value": "imp_plm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-PLM-PSDM",
+    "value": "imp_plm",
+    "exclusiveValue": "imp_plm"
+  },
+  {
+    "key": "mdd_schema.IMP-PLM-RDPM",
+    "value": "imp_plm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-PLM-WIDGET",
+    "value": "imp_plm",
+    "exclusiveValue": "imp_plm"
+  },
+  {
+    "key": "mdd_schema.IMP-PRM",
+    "value": "imp_dfm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-QAM",
+    "value": "imp",
+    "exclusiveValue": "imp"
+  },
+  {
+    "key": "mdd_schema.IMP-SCS",
+    "value": "imp_plm",
+    "exclusiveValue": "imp_plm"
+  },
+  {
+    "key": "mdd_schema.IMP-SFC",
+    "value": "production_order",
+    "exclusiveValue": "production_order"
+  },
+  {
+    "key": "mdd_schema.IMP-TAM",
+    "value": "imp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-TBS",
+    "value": "imp_tbs",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-WIM",
+    "value": "imp",
+    "exclusiveValue": "imp"
+  },
+  {
+    "key": "mdd_schema.IMP-WJM",
+    "value": "imp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.IMP-WJMD",
+    "value": "imp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.MDDHR",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.MDDHRPUB",
+    "value": "hrcloud",
+    "exclusiveValue": "hrcloud"
+  },
+  {
+    "key": "mdd_schema.PLM-PLM-PBS",
+    "value": "imp_plm",
+    "exclusiveValue": "imp_plm"
+  },
+  {
+    "key": "mdd_schema.PLM-PLM-PSDM",
+    "value": "imp_plm",
+    "exclusiveValue": "imp_plm"
+  },
+  {
+    "key": "mdd_schema.QMS-DFM",
+    "value": "qms_dfm",
+    "exclusiveValue": "qms_dfm"
+  },
+  {
+    "key": "mdd_schema.QMS-QIT",
+    "value": "qms_qit",
+    "exclusiveValue": "qms_qit"
+  },
+  {
+    "key": "mdd_schema.aim",
+    "value": "${mdd_schema.ucf-amc-aim}",
+    "exclusiveValue": "${mdd_schema.ucf-amc-aim}"
+  },
+  {
+    "key": "mdd_schema.ambd",
+    "value": "${mdd_schema.ucf-amc-ambd}",
+    "exclusiveValue": "${mdd_schema.ucf-amc-ambd}"
+  },
+  {
+    "key": "mdd_schema.aom",
+    "value": "${mdd_schema.ucf-amc-aom}",
+    "exclusiveValue": "${mdd_schema.ucf-amc-aom}"
+  },
+  {
+    "key": "mdd_schema.apct",
+    "value": "apct",
+    "exclusiveValue": "apct"
+  },
+  {
+    "key": "mdd_schema.aum",
+    "value": "${mdd_schema.ucf-amc-aum}",
+    "exclusiveValue": "${mdd_schema.ucf-amc-aum}"
+  },
+  {
+    "key": "mdd_schema.bip-usercenter",
+    "value": "iuap_apcom_auth",
+    "exclusiveValue": "iuap_apcom_auth"
+  },
+  {
+    "key": "mdd_schema.cpu-base",
+    "value": "cpu_baseservice",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.cpu-bi-service",
+    "value": "cpu_baseservice",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.cpu-buyoffer",
+    "value": "cpu_sourcing",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.cpu-contract",
+    "value": "cpu_cooperation",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.cpu-cooperation",
+    "value": "cpu_cooperation",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.cpu-order",
+    "value": "cpu_cooperation",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.cpu-pubapp",
+    "value": "cpu_base_doc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.cpu-supplymgr",
+    "value": "cpu_suppliermgr",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.cspl",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.ctm-bam",
+    "value": "yonbip_fi_ctmpub",
+    "exclusiveValue": "yonbip_fi_ctmpub"
+  },
+  {
+    "key": "mdd_schema.ctm-cmp",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.ctm-stct",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.ctmfdma",
+    "value": "ctmfdma",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.ctmrsm",
+    "value": "yonbip_fi_ctmpub",
+    "exclusiveValue": "yonbip_fi_ctmpub"
+  },
+  {
+    "key": "mdd_schema.developplatform",
+    "value": "iuap_yonbuilder_dynamic_ds",
+    "exclusiveValue": "iuap_yonbuilder_dynamic_ds"
+  },
+  {
+    "key": "mdd_schema.dispatchCenter",
+    "value": "yilian",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.drft",
+    "value": "yonbip_fi_ctmdc",
+    "exclusiveValue": "yonbip_fi_ctmdc"
+  },
+  {
+    "key": "mdd_schema.dst",
+    "value": "omsdata",
+    "exclusiveValue": "omsdata"
+  },
+  {
+    "key": "mdd_schema.eaf",
+    "value": "idoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.engineeringdata",
+    "value": "engineering_data",
+    "exclusiveValue": "engineering_data"
+  },
+  {
+    "key": "mdd_schema.fdtr",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.fieaai",
+    "value": "fieaai",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiearap",
+    "value": "fiearap",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiearapbill",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.fiearapbill.ap_payment_b",
+    "value": "${mdd_schema.fiearapbill}.v_ap_payment_b",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiearapbill.ap_payment_h",
+    "value": "${mdd_schema.fiearapbill}.v_ap_payment_h",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiearapbill.ar_collection_b",
+    "value": "${mdd_schema.fiearapbill}.v_ar_collection_b",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiearapbill.ar_collection_h",
+    "value": "${mdd_schema.fiearapbill}.v_ar_collection_h",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiecc",
+    "value": "fiecc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fieeac",
+    "value": "fieeac",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiefa",
+    "value": "fiefa",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiegl",
+    "value": "figl",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fieia",
+    "value": "fieia",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fieis",
+    "value": "fieis",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fieml",
+    "value": "fieml",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiepca",
+    "value": "fiepca",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fiepub",
+    "value": "fiepub",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fievarc",
+    "value": "fievarc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.fima",
+    "value": "fima",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.finbd",
+    "value": "iuap_apdoc_finbd",
+    "exclusiveValue": "iuap_apdoc_finbd"
+  },
+  {
+    "key": "mdd_schema.hrcloud-attend",
+    "value": "hrattenddb",
+    "exclusiveValue": "hrattenddb"
+  },
+  {
+    "key": "mdd_schema.hrcloud-competency",
+    "value": "diwork_cpt",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.hrcloud-contract",
+    "value": "corehr",
+    "exclusiveValue": "corehr"
+  },
+  {
+    "key": "mdd_schema.hrcloud-corehr-process",
+    "value": "corehr",
+    "exclusiveValue": "corehr"
+  },
+  {
+    "key": "mdd_schema.hrcloud-recruit",
+    "value": "hr_staffing",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.hrcloud-sinsurance",
+    "value": "hr_sinsurance",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.hrcloud-staff-mgr",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.hrcloud-staffing",
+    "value": "hr_staffing",
+    "exclusiveValue": "hr_staffing"
+  },
+  {
+    "key": "mdd_schema.hrcloud-talent",
+    "value": "diwork_talent",
+    "exclusiveValue": "diwork_talent"
+  },
+  {
+    "key": "mdd_schema.hrcloud-talent-basedoc",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.hrcloud-train",
+    "value": "diwork_train",
+    "exclusiveValue": "diwork_train"
+  },
+  {
+    "key": "mdd_schema.hrcloud-wa",
+    "value": "diwork_wa",
+    "exclusiveValue": "diwork_wa"
+  },
+  {
+    "key": "mdd_schema.imppes",
+    "value": "imp_pes",
+    "exclusiveValue": "imp_pes"
+  },
+  {
+    "key": "mdd_schema.iuap-aip-console",
+    "value": "iuap_aip_data",
+    "exclusiveValue": "iuap_aip_data"
+  },
+  {
+    "key": "mdd_schema.iuap-aip-ipa",
+    "value": "iuap_aip_ipa",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-aip-kg",
+    "value": "iuap_aip_kg",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-aip-rpa",
+    "value": "iuap_aip_data",
+    "exclusiveValue": "iuap_aip_data"
+  },
+  {
+    "key": "mdd_schema.iuap-aip-search",
+    "value": "iuap_aip_search",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-aip-service",
+    "value": "iuap_aip_data",
+    "exclusiveValue": "iuap_aip_data"
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-auditlog",
+    "value": "iuap_apcom_supportcenter",
+    "exclusiveValue": "iuap_apcom_supportcenter"
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-auth",
+    "value": "iuap_apcom_auth",
+    "exclusiveValue": "iuap_apcom_auth"
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-coderule",
+    "value": "iuap_apcom_supportcenter",
+    "exclusiveValue": "iuap_apcom_supportcenter"
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-contract",
+    "value": "iuap_apcom_contract",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-file",
+    "value": "iuap_apcom_file",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-i18n",
+    "value": "iuap_apcom_supportcenter",
+    "exclusiveValue": "iuap_apcom_supportcenter"
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-messagecenter",
+    "value": "iuap_apcom_messagecenter",
+    "exclusiveValue": "iuap_apcom_messagecenter"
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-messageplatform",
+    "value": "iuap_apcom_messageservice",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-migration",
+    "value": "iuap_apcom_migration",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-prewarning",
+    "value": "iuap_apcom_supportcenter",
+    "exclusiveValue": "iuap_apcom_supportcenter"
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-print",
+    "value": "iuap_apcom_print",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-apcom-workflow",
+    "value": "iuap_apcom_workflow",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-apdoc-basedoc",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.iuap-apdoc-social",
+    "value": "iuap_apdoc_social",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-data-datafusion",
+    "value": "iuap_data_datafusion",
+    "exclusiveValue": "iuap_data_datafusion"
+  },
+  {
+    "key": "mdd_schema.iuap-dp-data",
+    "value": "iuap_dp_data",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-dp-data-dw",
+    "value": "iuap_dp_data_exec",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-ipaas-dataintegration",
+    "value": "iuap_ipaas_ydi",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-metadata-base",
+    "value": "iuap_metadata_base",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-ymdp-portal",
+    "value": "esn_portal",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-yonbuilder-businesssflow",
+    "value": "iuap_apcom_businesssflow",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-yonbuilder-mobile",
+    "value": "esn_portal",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.iuap-yyc-yontest",
+    "value": "iuap_yyc_data",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.mall",
+    "value": "upmalls",
+    "exclusiveValue": "upmalls"
+  },
+  {
+    "key": "mdd_schema.marketingbill",
+    "value": "uorders",
+    "exclusiveValue": "uorders"
+  },
+  {
+    "key": "mdd_schema.membercenter",
+    "value": "yilian",
+    "exclusiveValue": "yilian"
+  },
+  {
+    "key": "mdd_schema.metadata",
+    "value": "iuap_metadata_base",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.mf-ecn",
+    "value": "mf_ecn",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.mm-qic",
+    "value": "qms_dfm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.mm-qms",
+    "value": "qms_qit",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.performance",
+    "value": "diwork_pub",
+    "exclusiveValue": "diwork_pub"
+  },
+  {
+    "key": "mdd_schema.pm",
+    "value": "pmcloud",
+    "exclusiveValue": "pmcloud"
+  },
+  {
+    "key": "mdd_schema.pm-pmc-project",
+    "value": "pmcloud",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.pm-pmc-project-me",
+    "value": "pmcloud",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.pm-pmc-revexp",
+    "value": "pmcloud",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.pm-pmc-workhours",
+    "value": "pmcloud",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.price",
+    "value": "pricecenter",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.productcenter",
+    "value": "iuap_apdoc_coredoc",
+    "exclusiveValue": "iuap_apdoc_coredoc"
+  },
+  {
+    "key": "mdd_schema.productionorder",
+    "value": "production_order",
+    "exclusiveValue": "production_order"
+  },
+  {
+    "key": "mdd_schema.quote",
+    "value": "scmmp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.rcloud-talent",
+    "value": "diwork_talent",
+    "exclusiveValue": "diwork_talent"
+  },
+  {
+    "key": "mdd_schema.requirementsplanning",
+    "value": "requirements_planning",
+    "exclusiveValue": "requirements_planning"
+  },
+  {
+    "key": "mdd_schema.retail",
+    "value": "uretaildata",
+    "exclusiveValue": "uretaildata"
+  },
+  {
+    "key": "mdd_schema.rmm",
+    "value": "${mdd_schema.ucf-amc-rmm}",
+    "exclusiveValue": "${mdd_schema.ucf-amc-rmm}"
+  },
+  {
+    "key": "mdd_schema.sact",
+    "value": "scmmp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.scmmp",
+    "value": "scmmp",
+    "exclusiveValue": "scmmp"
+  },
+  {
+    "key": "mdd_schema.sddc",
+    "value": "sddcdata",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.sharedservicecenter",
+    "value": "shared_service",
+    "exclusiveValue": "shared_service"
+  },
+  {
+    "key": "mdd_schema.stwb",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.transtype",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.u8c-auth",
+    "value": "iuap_apcom_auth",
+    "exclusiveValue": "iuap_apcom_auth"
+  },
+  {
+    "key": "mdd_schema.u8c-userdefine",
+    "value": "iuap_metadata_extendservice",
+    "exclusiveValue": "iuap_metadata_extendservice"
+  },
+  {
+    "key": "mdd_schema.ucf-amc-aim",
+    "value": "amc_ambd",
+    "exclusiveValue": "amc_ambd"
+  },
+  {
+    "key": "mdd_schema.ucf-amc-ambd",
+    "value": "amc_ambd",
+    "exclusiveValue": "amc_ambd"
+  },
+  {
+    "key": "mdd_schema.ucf-amc-aom",
+    "value": "amc_mro",
+    "exclusiveValue": "amc_mro"
+  },
+  {
+    "key": "mdd_schema.ucf-amc-aum",
+    "value": "amc_aum",
+    "exclusiveValue": "amc_aum"
+  },
+  {
+    "key": "mdd_schema.ucf-amc-rmm",
+    "value": "amc_mro",
+    "exclusiveValue": "amc_mro"
+  },
+  {
+    "key": "mdd_schema.ucf-mdf",
+    "value": "iuap_metadata_service",
+    "exclusiveValue": "iuap_metadata_service"
+  },
+  {
+    "key": "mdd_schema.ucf-org-center",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.ucf-staff-center",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.ucfbasedoc",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.udinghuo",
+    "value": "uorders",
+    "exclusiveValue": "uorders"
+  },
+  {
+    "key": "mdd_schema.udm",
+    "value": "udm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.uhy",
+    "value": "yilian",
+    "exclusiveValue": "yilian"
+  },
+  {
+    "key": "mdd_schema.uinttrade",
+    "value": "uinttrade",
+    "exclusiveValue": "uinttrade"
+  },
+  {
+    "key": "mdd_schema.umall",
+    "value": "upmalls",
+    "exclusiveValue": "upmalls"
+  },
+  {
+    "key": "mdd_schema.uorder",
+    "value": "uorders",
+    "exclusiveValue": "uorders"
+  },
+  {
+    "key": "mdd_schema.upromotion",
+    "value": "upmalls",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.upu",
+    "value": "upurchase",
+    "exclusiveValue": "upurchase"
+  },
+  {
+    "key": "mdd_schema.uscmf",
+    "value": "ustock",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.uscmpub",
+    "value": "ustock",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.userdefine",
+    "value": "iuap_metadata_extendservice",
+    "exclusiveValue": "iuap_metadata_extendservice"
+  },
+  {
+    "key": "mdd_schema.usmp",
+    "value": "usmp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.ustock",
+    "value": "ustock",
+    "exclusiveValue": "ustock"
+  },
+  {
+    "key": "mdd_schema.yht",
+    "value": "iuap_uuas_usercenter",
+    "exclusiveValue": "iuap_uuas_usercenter"
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-baseservice",
+    "value": "cpu_base_doc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-bcprice",
+    "value": "cpu_baseservice",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-bcres",
+    "value": "cpu_baseservice",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-bcsourcing",
+    "value": "cpu_lawbid",
+    "exclusiveValue": "cpu_lawbid"
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-bcsupervision",
+    "value": "cpu_baseservice",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-bctask",
+    "value": "cpu_base_doc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-bid",
+    "value": "cpu_lawbid",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-lawbid",
+    "value": "cpu_lawbid",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-mall",
+    "value": "cpu_mall",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-portal",
+    "value": "cpu_base_doc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-sourcing",
+    "value": "cpu_sourcing",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-suppliermgr",
+    "value": "cpu_suppliermgr",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-cpu-synergy",
+    "value": "cpu_synergy",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-announce",
+    "value": "esn_portal",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-business-expansion",
+    "value": "businessexpansion",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-collaboration",
+    "value": "collaboration",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-commonapprove",
+    "value": "lightapp_ncapprove",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-conference",
+    "value": "yonbip_ec_logger",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-contract",
+    "value": "yonbip_clm_contract",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-file",
+    "value": "esn_file",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-iform",
+    "value": "iform",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-logger",
+    "value": "yonbip_ec_logger",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-meeting",
+    "value": "yonbip_ec_logger",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-metadata",
+    "value": "iform",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-ncoffline",
+    "value": "offline",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-official",
+    "value": "supervision",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-project",
+    "value": "yonbip_ec_logger",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-schedule",
+    "value": "esn_schedule",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ec-supervision",
+    "value": "supervision",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-boabaia",
+    "value": "fiercl",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmbam",
+    "value": "yonbip_fi_ctmpub",
+    "exclusiveValue": "yonbip_fi_ctmpub"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmcam",
+    "value": "yonbip_fi_ctmfm",
+    "exclusiveValue": "yonbip_fi_ctmfm"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmcmp",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmcspl",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmfa",
+    "value": "ctmfa",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmfdtr",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmgrm",
+    "value": "yonbip_fi_ctmfm",
+    "exclusiveValue": "yonbip_fi_ctmfm"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmlcm",
+    "value": "yonbip_fi_ctmdc",
+    "exclusiveValue": "yonbip_fi_ctmdc"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmlgm",
+    "value": "yonbip_fi_ctmdc",
+    "exclusiveValue": "yonbip_fi_ctmdc"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmrsm",
+    "value": "yonbip_fi_ctmpub",
+    "exclusiveValue": "yonbip_fi_ctmpub"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmstwb",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmtlm",
+    "value": "yonbip_fi_ctmfm",
+    "exclusiveValue": "yonbip_fi_ctmfm"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ctmtmsp",
+    "value": "yonbip_fi_ctmpub",
+    "exclusiveValue": "yonbip_fi_ctmpub"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eaai",
+    "value": "fieaai",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eaf",
+    "value": "idoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eafcapture",
+    "value": "idoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eafdocfile",
+    "value": "idoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eafmid",
+    "value": "idoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eafrecord",
+    "value": "idoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eafsys",
+    "value": "idoc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-earap",
+    "value": "fiearap",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-earapbill",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ecc",
+    "value": "fiecc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ecesweb",
+    "value": "fiecc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eeac",
+    "value": "fieeac",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-efa",
+    "value": "fiefa",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-egl",
+    "value": "figl",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eia",
+    "value": "fieia",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eis",
+    "value": "fieis",
+    "exclusiveValue": "fieis"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ejls",
+    "value": "yonbip_fi_ejls",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-eml",
+    "value": "fieml",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-epca",
+    "value": "fiepca",
+    "exclusiveValue": "fiepca"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-epcmweb",
+    "value": "fiecc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-epmabca",
+    "value": "yonbip_epm_abca",
+    "exclusiveValue": "yonbip_epm_abca"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-epmbcs",
+    "value": "epmp_bcs",
+    "exclusiveValue": "epmp_bcs"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-epmbill",
+    "value": "epmp_bill",
+    "exclusiveValue": "epmp_bill"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-epmer",
+    "value": "epmp_br",
+    "exclusiveValue": "epmp_br"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-epmpbf",
+    "value": "epmp_bp",
+    "exclusiveValue": "epmp_bp"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-epmplatform",
+    "value": "epmp_base",
+    "exclusiveValue": "epmp_base"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ercl",
+    "value": "fiercl",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ervn",
+    "value": "fiervn",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-escweb",
+    "value": "fiecc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-fadatr",
+    "value": "yonbip_fi_mtdrec",
+    "exclusiveValue": "yonbip_fi_mtdrec"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-loc",
+    "value": "yonbip_fi_loc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-mt",
+    "value": "mtd_base",
+    "exclusiveValue": "mtd_base"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-revenue",
+    "value": "yonbip_fi_revenue",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-sepmbcdc",
+    "value": "epmp_bcdc",
+    "exclusiveValue": "epmp_bcdc"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-sepmdcp",
+    "value": "epmp_dcp",
+    "exclusiveValue": "epmp_dcp"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxability",
+    "value": "diwork_taxability",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxbd",
+    "value": "diwork_invoice_bd",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxbillcenter",
+    "value": "diwork_billcenter",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxbuilding",
+    "value": "diwork_other_tax",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxgateway",
+    "value": "diwork_einvoice_auth",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxincome",
+    "value": "diwork_other_tax",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxinfra",
+    "value": "diwork_taxability",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxit",
+    "value": "diwork_input_tax",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxot",
+    "value": "diwork_piaoeda_client",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxoth",
+    "value": "diwork_other_tax",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxotypd",
+    "value": "diwork_piaoeda_client",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxpubdoc",
+    "value": "iuap_apdoc_basedoc",
+    "exclusiveValue": "iuap_apdoc_basedoc"
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxreturn",
+    "value": "diwork_other_tax",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-taxspec",
+    "value": "diwork_other_tax",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-fi-ypd-ctmstwb",
+    "value": "yonbip_fi_ctmfc",
+    "exclusiveValue": "yonbip_fi_ctmfc"
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-analysis",
+    "value": "hr_dataanalysis",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-border",
+    "value": "hr_border",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-budget",
+    "value": "diwork_hr_budget",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-commonbe",
+    "value": "yonbip_hr_common",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-cpt",
+    "value": "hr_cpt",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-dimp",
+    "value": "yonbip_hr_dimp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-esp",
+    "value": "diwork_esp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-insure",
+    "value": "hr_sinsurance",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-intelligent",
+    "value": "hr_intelligent",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-loc",
+    "value": "yonbip_hr_loc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-official",
+    "value": "hr_official",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-otd",
+    "value": "hr_otd",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-pay",
+    "value": "diwork_wa",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-paybiz",
+    "value": "diwork_wa_mdd",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-payext",
+    "value": "yonbip_hr_loc",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-pmcore",
+    "value": "performance",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-postqualify",
+    "value": "hr_otd",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-report",
+    "value": "hr_dataanalysis",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-spm",
+    "value": "performance",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-talent",
+    "value": "diwork_talent",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-tm",
+    "value": "yonbip_hr_tm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hr-train",
+    "value": "diwork_train",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hy-bajzemc",
+    "value": "yonbip_cc_cfm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hy-enc-yefd",
+    "value": "yefd_db",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hy-enc-yemp",
+    "value": "yemp_db",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-hy-smk-ausa",
+    "value": "indrp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscia",
+    "value": "intelligent_audit",
+    "exclusiveValue": "intelligent_audit"
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscibot",
+    "value": "intelligent_robot",
+    "exclusiveValue": "intelligent_robot"
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscimg",
+    "value": "iuap_apcom_file",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-ssckm",
+    "value": "yonbip_mid_sscex",
+    "exclusiveValue": "yonbip_mid_sscex"
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscmr",
+    "value": "yonbip_mid_sscex",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscpdm",
+    "value": "yonbip_mid_sscex",
+    "exclusiveValue": "yonbip_mid_sscex"
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscpe",
+    "value": "yonbip_mid_sscex",
+    "exclusiveValue": "yonbip_mid_sscex"
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscsc",
+    "value": "ssc_staff_credit",
+    "exclusiveValue": "ssc_staff_credit"
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscsfm",
+    "value": "yonbip_mid_sscex",
+    "exclusiveValue": "yonbip_mid_sscex"
+  },
+  {
+    "key": "mdd_schema.yonbip-mid-sscsla",
+    "value": "yonbip_mid_sscex",
+    "exclusiveValue": "yonbip_mid_sscex"
+  },
+  {
+    "key": "mdd_schema.yonbip-mkt-dsd",
+    "value": "inddsd",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-mkt-fsm",
+    "value": "indfsm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-mm-plan",
+    "value": "requirements_planning",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-mm-sop",
+    "value": "\tyonbip_mm_sop",
+    "exclusiveValue": "\tyonbip_mm_sop"
+  },
+  {
+    "key": "mdd_schema.yonbip-ndi-hrfp",
+    "value": "yonbip_ndi_extplugin",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-ndi-jgmj",
+    "value": "yonbip_ndi_jgmj",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-pm-budgetme",
+    "value": "pmcloud",
+    "exclusiveValue": "pmcloud"
+  },
+  {
+    "key": "mdd_schema.yonbip-pm-commonbd",
+    "value": "pmcloud",
+    "exclusiveValue": "pmcloud"
+  },
+  {
+    "key": "mdd_schema.yonbip-pm-planme",
+    "value": "pmcloud",
+    "exclusiveValue": "pmcloud"
+  },
+  {
+    "key": "mdd_schema.yonbip-pm-projectme",
+    "value": "pmcloud",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-pm-revexp",
+    "value": "pmcloud",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-pm-workhours",
+    "value": "pmcloud",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-rdc-plmgds",
+    "value": "imp_plm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-scm-dw",
+    "value": "yonbip_scm_dw",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-scm-scmbd",
+    "value": "scmbd",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip-scm-scp",
+    "value": "scp",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonbip_scm_scmbd",
+    "value": "scmbd",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yonyoufi",
+    "value": "fiproduct",
+    "exclusiveValue": "fiproduct"
+  },
+  {
+    "key": "mdd_schema.yssupplier",
+    "value": "iuap_apdoc_coredoc",
+    "exclusiveValue": "iuap_apdoc_coredoc"
+  },
+  {
+    "key": "mdd_schema.yuncai-demand",
+    "value": "cpu_sourcing",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yuncai-upu-service",
+    "value": "cpu_baseservice",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.yxybase",
+    "value": "pricecenter",
+    "exclusiveValue": "pricecenter"
+  },
+  {
+    "key": "mdd_schema.yycrm",
+    "value": "crm",
+    "exclusiveValue": "crm"
+  },
+  {
+    "key": "mdd_schema.znbz",
+    "value": "znbz",
+    "exclusiveValue": "znbz"
+  },
+  {
+    "key": "mdd_schema.znbzbx",
+    "value": "znbz",
+    "exclusiveValue": "znbz"
+  },
+  {
+    "key": "mdd_schema.zskbase",
+    "value": "imp_plm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.zskec",
+    "value": "imp_plm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.zskpd",
+    "value": "imp_plm",
+    "exclusiveValue": ""
+  },
+  {
+    "key": "mdd_schema.zskpm",
+    "value": "imp_plm",
+    "exclusiveValue": ""
+  }
+]

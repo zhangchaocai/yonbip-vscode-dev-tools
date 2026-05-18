@@ -35,7 +35,7 @@ npm run compile
 ### 步骤 3: 重新打包插件
 
 ```bash
-vsce package
+npx vsce package
 ```
 
 ### 步骤 4: 登录发布者账户

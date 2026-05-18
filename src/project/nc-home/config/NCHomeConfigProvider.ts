@@ -8,6 +8,7 @@ import { getHomeVersion, findClosestHomeVersion, HOME_VERSIONS } from '../../../
 import { ConfigurationUtils } from '../../../utils/ConfigurationUtils';
 import { ModuleConfigService } from '../../../utils/ModuleConfigService';
 import { ModuleInfo } from '../../../utils/ModuleUtils';
+import { DeployService } from './DeployService';
 /**
  * YonBIP Premium Home配置WebView提供者
  */
@@ -19,6 +20,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     private macHomeConversionService: MacHomeConversionService;
     private readonly context: vscode.ExtensionContext;
     private moduleConfigService: ModuleConfigService;
+    private deployService: DeployService;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -27,9 +29,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
     ) {
         this.context = context;
         this.configService = new NCHomeConfigService(context);
-        // 如果传入了MacHomeConversionService实例，则使用它，否则创建新的实例
         this.macHomeConversionService = macHomeConversionService || new MacHomeConversionService(this.configService);
         this.moduleConfigService = new ModuleConfigService(context);
+        this.deployService = new DeployService(context, this.configService);
     }
 
     /**
@@ -298,6 +300,31 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             if (convert === '是') {
                                 progress.report({ message: "正在执行HOME转换..." });
                                 await this.macHomeConversionService.convertToMacHome(homePath);
+                            }
+                        }
+                    }
+
+                    // 首次配置Home时主动提示用户执行Deploy
+                    // 检查extend目录是否已存在，如果存在则跳过挪包提醒
+                    const extendDir = path.join(homePath, 'hotwebs', 'nccloud', 'WEB-INF', 'extend');
+                    if (fs.existsSync(extendDir)) {
+                        this.configService.showOutputChannel();
+                        this.configService.getOutputChannel().appendLine('检测到extend目录已存在，跳过挪包');
+                    } else {
+                        // 重新创建configService以确保使用最新的配置
+                        const latestConfigService = new NCHomeConfigService(this.context);
+                        const latestDeployService = new DeployService(this.context, latestConfigService);
+                        const checkResult = await latestDeployService.checkCanDeploy();
+                        if (checkResult.canDeploy) {
+                            const runDeploy = await vscode.window.showInformationMessage(
+                                '首次配置Home完成，是否立即执行Deploy？',
+                                '是，立即执行',
+                                '否，稍后手动执行'
+                            );
+
+                            if (runDeploy === '是，立即执行') {
+                                progress.report({ message: "正在执行Deploy..." });
+                                await latestDeployService.executeDeploy();
                             }
                         }
                     }
@@ -594,7 +621,10 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 cancellable: false
             }, async (progress) => {
                 progress.report({ message: "正在连接数据库..." });
-                
+
+                // 自动切换到输出面板，方便查看日志
+                this.configService.showOutputChannel();
+
                 const result = await this.configService.testConnection(dataSource);
                 this._view?.webview.postMessage({
                     type: 'connectionTestResult',
@@ -1734,7 +1764,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
              transform: translateY(-1px);
              box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
          }
-         
+
          /* 按钮组样式 */
          .section-header .button-group {
              display: flex;
@@ -2205,7 +2235,7 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
         function convertToMacHome() {
             vscode.postMessage({ type: 'convertToMacHome' });
         }
-        
+
         // 启动HOME服务
         // function startHomeService() {
         //     vscode.postMessage({ type: 'startHomeService' });

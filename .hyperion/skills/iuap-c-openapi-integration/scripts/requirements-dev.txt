@@ -1,0 +1,10 @@
+# 开发/测试依赖
+
+# 测试依赖
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# 类型检查
+mypy>=1.0.0
+types-requests>=2.28.0
+types-PyYAML>=6.0.0

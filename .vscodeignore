@@ -9,6 +9,7 @@ src/**
 # 排除开发文件
 .gitignore
 .git/**
+.env
 .eslintrc.json
 tsconfig.json
 webpack.config.js

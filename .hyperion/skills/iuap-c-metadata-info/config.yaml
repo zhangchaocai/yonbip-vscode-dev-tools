@@ -1,0 +1,87 @@
+# 旗舰版元数据查询技能 — 全部可调参数（请按环境修改）
+#
+# 新特性:
+#   - 支持 ${ENV_VAR} 和 ${ENV_VAR:-default} 语法读取环境变量
+#   - 支持限流配置
+#   - 支持环境区分（通过环境变量）
+#
+# 安全建议:
+#   - app_secret 等敏感信息请使用环境变量
+#   - 示例: app_secret: "${API_APP_SECRET}" 或 "${API_APP_SECRET:-fallback}"
+#
+# 路径相对于本技能目录（含 config.yaml 的目录），也可用绝对路径
+
+paths:
+  # scheme-info.json：参照 schema 解析（对齐 BusinessObjectToolUtil.getSchemeByDomain）
+  scheme_info_json: "reference/scheme-info.json"
+  # metadata_lookup.json：快速元数据查找（包含URI、domain、tableName、schema）
+  metadata_lookup_json: "reference/metadata_lookup.json"
+  # write_result_json 为 true 时写入输出目录
+  output_dir: "output"
+
+# 开放平台鉴权（与工程 src/main/resources/app.yml 中 ultimate.* 及 bip_auth 一致）
+# 支持环境变量: ${ENV_VAR} 和 ${ENV_VAR:-default} 语法
+api:
+  base_url: "${API_BASE_URL:-https://c1pocpro.yonyoucloud.com/}"
+  app_key: "${API_APP_KEY:-your_app_key_here}"
+  app_secret: "${API_APP_SECRET:-your_app_secret_here}"
+  path_token: "/iuap-api-auth/open-auth/selfAppAuth/getAccessToken"
+  http_timeout_seconds: 120
+  insecure_tls: false
+  token_refresh_skew_seconds: 120
+  token_fallback_ttl_seconds: 3500
+  auth_retry_business_codes: []
+
+# 元数据 HTTP 路径（与 app.yml ultimate.metadata_* 一致；租户/网关前缀随环境变化时请同步修改）
+# 支持 ${YONBIP_TENANT_ID:-default} 语法
+metadata_api:
+  # GET queryByUri：access_token + uri
+  query_by_uri_path: "/iuap-api-gateway/${YONBIP_TENANT_ID:-q6shbpxc}/current_yonbip_default_sys/GDBG/queryByUri"
+  # GET searchByName：access_token + key
+  search_by_name_path: "/iuap-api-gateway/${YONBIP_TENANT_ID:-q6shbpxc}/current_yonbip_default_sys/GDBG/businessobject/searchByName"
+  # GET getEntityListByBOId：access_token + boId + businessObjectCode + version（默认 2，见 metadata_core.fetch_entity_detail_by_bo_id）
+  entity_list_by_bo_id_path: "/iuap-api-gateway/${YONBIP_TENANT_ID:-q6shbpxc}/current_yonbip_default_sys/GDBG/businessobject/getEntityListByBOId"
+  # entity_list_by_bo_id_version: "2"
+  # GET getEntityInfoByBOIdAndEntityId：access_token + entityId + uri + boId + businessObjectCode
+  entity_info_by_entity_id_path: "/iuap-api-gateway/${YONBIP_TENANT_ID:-q6shbpxc}/current_yonbip_default_sys/GDBG/getEntityInfoByBOIdAndEntityId"
+
+# 与 UltimateV2Controller.getUltimateMetadataInfo 参数对齐（可由命令行覆盖）
+request:
+  # 中文单据/元数据名称，多个英文逗号分隔
+  allbillname: ""
+  # 模块名称或编码（Java 侧当前未参与过滤，预留）
+  modulename: ""
+  # 是否包含子实体/子表：Y/N，默认 N
+  isIncludeSub: "N"
+  # 单据字段显示名，逗号分隔；与 isDescField 联用
+  docFields: ""
+  # 用户是否单独描述了字段：N 时忽略 docFields
+  isDescField: "N"
+  # Y 时拉取参照字段的 referenceStructure（与 Java isSQL 一致）
+  isSQL: "N"
+  # 报表表头模板字符串，用于参照属性 name/code 之外的列匹配
+  tableTemplate: ""
+  # 本地快速索引中同一 bizName 有多条不同 URI 时，用户/Agent 选定后回填；也可单独按 uri 拉取
+  queryUri: ""
+
+# 可选：将最后一次运行结果落盘（完整文本，含 JSON 与说明）
+output:
+  write_result_json: false
+  result_json_filename: "ultimate_metadata_last.json"
+
+# 限流配置（可选）
+rate_limit:
+  enabled: true
+  requests_per_second: 10.0
+  burst_capacity: 20.0
+
+# 缓存配置（用于 URI 等数据缓存）
+cache:
+  enabled: true
+  ttl_seconds: 300.0
+  max_entries: 1000
+
+# 环境配置（用于区分 dev/staging/prod）
+environment:
+  name: "${ENV_NAME:-development}"
+  debug: "${ENV_DEBUG:-false}"

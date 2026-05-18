@@ -1,0 +1,203 @@
+# 旗舰版报表 SQL 生成技能 — 全部可调参数（请按环境修改）
+#
+# 新特性:
+#   - 支持 ${ENV_VAR} 和 ${ENV_VAR:-default} 语法读取环境变量
+#   - 支持限流配置
+#   - 支持环境区分（通过环境变量）
+#
+# 安全建议:
+#   - app_secret 等敏感信息请使用环境变量
+#   - 示例: app_secret: "${API_APP_SECRET}" 或 "${API_APP_SECRET:-fallback}"
+#
+# 随技能打包的只读文件（scheme_info_json、sql_guide_md）相对「技能根目录」解析。
+# 脚本生成的产出（output_dir、report_deliverable_dir）相对「项目 workspace 根」解析，
+# 默认不写进技能目录，见 paths.workspace_root。
+
+paths:
+  # 项目根（或你希望存放生成物的根目录）。为空时自动推断：含 .hyperion 或 .git 的目录，
+  # 或路径 …/skills/<技能名>/… 时取 skills 的父级的父级。也可用环境变量 YONBIP_REPORT_SQL_WORKSPACE。
+  # 亦可运行时 --workspace-root 覆盖。
+  workspace_root: ""
+  # FastLookup 索引文件（精确匹配业务对象名称，命中后优先本地 Grep）
+  # 可省略：脚本默认从 SKILL_DIR/subskills/phase1-reqmeta/reference/metadata_lookup.json 加载
+  metadata_lookup_json: "subskills/phase1-reqmeta/reference/metadata_lookup.json"
+  # 领域 schema 映射（与 Java 工程 src/main/resources/json/scheme-info.json 同源）
+  scheme_info_json: "subskills/phase1-reqmeta/reference/scheme-info.json"
+  # 报表 SQL 规则长文档（已随技能提供）
+  sql_guide_md: "subskills/phase1-reqmeta/reference/旗舰版通用_后端_报表_SQL生成.md"
+  # fetch_metadata 写出 entities.json / report_sql_context.md；相对 workspace_root
+  output_dir: "output"
+  # 报表交付物 {报表名}.sql / _说明.md；相对 workspace_root。
+  # ⚠️【强制】禁止指向技能目录本身（如 .claude/skills/iuap-c-report-sqlgen/）。
+  #   脚本内置路径守卫，会自动拒绝输出到技能目录内，抛出 ValueError。
+  report_deliverable_dir: "report_sql_output"
+
+# 开放平台 / 旗舰版元数据 HTTP（与 ReportSQLGenTool → BusinessObjectMetadataParser 一致）
+api:
+  # API 基址（可通过环境变量覆盖）
+  base_url: "${API_BASE_URL:-https://v5devkk1.yonyoucloud.com/}"
+
+  # 应用密钥（建议使用环境变量）
+  app_key: "${API_APP_KEY:-your_app_key_here}"
+  app_secret: "${API_APP_SECRET:-your_app_secret_here}"
+
+  # 与 src/main/resources/app.yml 中 ultimate.* 路径一致，按租户/网关改写
+  path_token: "/iuap-api-auth/open-auth/selfAppAuth/getAccessToken"
+  metadata_byname: "/iuap-api-gateway/${YONBIP_TENANT_ID:-your_tenant_id}/current_yonbip_default_sys/GDBG/businessobject/searchByName"
+  metadata_byboid: "/iuap-api-gateway/${YONBIP_TENANT_ID:-your_tenant_id}/current_yonbip_default_sys/GDBG/businessobject/getEntityListByBOId"
+  metadata_entityid: "/iuap-api-gateway/${YONBIP_TENANT_ID:-your_tenant_id}/current_yonbip_default_sys/GDBG/getEntityInfoByBOIdAndEntityId"
+  metadata_uri: "/iuap-api-gateway/${YONBIP_TENANT_ID:-your_tenant_id}/current_yonbip_default_sys/GDBG/queryByUri"
+  http_timeout_seconds: 120
+  insecure_tls: false
+  # 与 GenericResponse.SUCCESS_CODE 一致：getAccessToken 成功码为 "00000"（五个 0）
+  # token 缓存：在过期时间前 token_refresh_skew_seconds 秒即刷新；无 expire 字段时用 token_fallback_ttl_seconds
+  token_refresh_skew_seconds: 120
+  token_fallback_ttl_seconds: 3500
+  # 业务 JSON 提示令牌失效时除 401 外可追加需重试的 code（字符串列表，可选）
+  auth_retry_business_codes: []
+
+# 与 Java ToolInput 对齐的查询参数（默认值；Agent 可从用户话术解析后注入，见 SKILL.md「话术 → request」）
+request:
+  # 必填：单据显示名，多个英文逗号分隔（Agent 从用户话术解析注入，默认为空不执行）
+  allbillname: ""
+  # 是否包含子实体：固定为N
+  isIncludeSub: "N"
+  # 仅保留这些 displayName 的字段（逗号分隔）；空表示不过滤
+  docFields: ""
+  # 是否拉取参照 SQL 结构：Y 时填充 referenceStructure
+  is_sql: "Y"
+  # N 时忽略 docFields（与 Java 一致）
+  isDescField: "Y"
+  # 参照属性额外保留的 displayName 子串（可为空）
+  tableTemplate: ""
+  # 元数据实体 uri（用于直接查询指定实体的元数据）
+  queryUri: ""
+
+# 性能（可选）：字段/单据多时脚本会发大量 queryByUri，可适当调高并行度以缩短总时间（注意网关与限流）
+# 【v7.0 优化】统一并发配置管理，集中所有并发相关参数
+performance:
+  # URI 查询并发（queryByUri API）
+  max_concurrent_query_by_uri: 64  # 从 32 调高至 64，充分利用网关并发能力
+  
+  # 单据并行拉取并发
+  max_concurrent_bills: 16          # 从 6 调高至 16，支持更多单据并行拉取
+  
+  # 实体解析并发
+  max_concurrent_entities: 16       # 从 12 调高至 16，加速多实体并行解析
+  
+  # 参照字段展开上限
+  max_reference_fields_expand: 30   # 保持 30，避免复杂报表关联字段被截断
+  
+  # 【v7.0 新增】Redis 批量写入缓冲区大小
+  redis_write_buffer_size: 50       # 缓冲区满时自动批量写入 Redis
+  
+  # 【v7.0 新增】FastLookup 索引自动更新配置
+  fastlookup_index_ttl_seconds: 86400       # 索引 TTL：24 小时
+  fastlookup_min_rebuild_interval: 3600     # 最小重建间隔：1 小时
+  
+  # 【v7.0 新增】数据库连接池配置
+  db_connection_pool_size: 20       # 连接池最大连接数
+  db_connection_warm_up_count: 5    # 连接池预热数量
+  
+  # 【v7.0 新增】缓存配置
+  cache_quick_path_enabled: true    # 启用缓存快速路径（进程内命中跳过 Redis）
+
+  # 【v11.x 新增】自动化模式配置
+  auto_select_first: true          # searchByName 多匹配时自动选择第一个，不阻塞等待用户选择
+
+# 输出与后处理
+output:
+  # 是否从 attributes 中移除 name 键（对齐 ReportSQLGenTool.filterAttributesName）
+  strip_attribute_names: true
+  write_entities_json: true
+  entities_json_filename: "entities.json"
+  write_bundle_md: true
+  bundle_md_filename: "report_sql_context.md"
+
+# 直连数据库执行校验 SQL。
+# 本技能默认应启用：报表 SQL 交付后须跑 db_query.py（见 SKILL「SQL 校验（硬性门禁）」）。
+# 仅在用户确认无法连库时改为 false，且不得在回复中声称「已做库校验」。
+database:
+  enabled: "${DB_ENABLED:-true}"
+  # mysql | postgresql | oracle | dm/dmdb/dameng | mssql/sqlserver/sql_server
+  driver: "${DB_DRIVER:-mysql}"
+  host: "${DB_HOST:-localhost}"
+  port: "${DB_PORT:-3306}"
+  user: "${DB_USER:-username}"
+  password: "${DB_PASSWORD:-your_password_here}"
+  database: "${DB_NAME:-database}"
+  # PostgreSQL 使用；MySQL/Oracle/达梦/SQL Server 可留空
+  sslmode: "${DB_SSLMODE:-prefer}"
+  charset: "${DB_CHARSET:-utf8mb4}"
+  # Oracle 专用：服务名/SID（如 ORCL、ORCLPDB1）
+  service_name: "${DB_SERVICE_NAME:-ORCL}"
+  # 达梦数据库默认端口 5236，SQL Server 默认端口 1433
+  # --sql-file 校验时每条 SELECT/WITH「执行」模式最多返回行数
+  report_sql_max_rows: 50
+  # true 时（或命令行 --explain）：SELECT/WITH 先跑 EXPLAIN（执行计划），再视 report_sql_execute_sample 做限量试跑
+  report_sql_use_explain: true
+  # EXPLAIN 通过后，对 SELECT/WITH 再执行一次原 SQL（限量行数），确保语法与运行时可用
+  report_sql_execute_sample: true
+  # MySQL：使用 EXPLAIN FORMAT=JSON 便于解析与核对计划（PostgreSQL 为 EXPLAIN (FORMAT JSON)）
+  report_sql_mysql_explain_json: true
+  # 将运行 scripts/db_query.py 时使用的 SQL；支持占位符 {schema} {virtual_table} {ytenant_id}
+  # ⚠️ schema 和 virtual_table_name 需根据实际业务域修改：
+  #    uorders → orders_character_define / upurchase → purchase_character_define 等
+  queries:
+    elastic_field_check:
+      enabled: true
+      schema: "uorders"
+      virtual_table_name: "orders_character_define"
+      ytenant_id: "${YONBIP_TENANT_ID:-your_tenant_id}"
+      # 若留空则使用内置模板
+      sql: ""
+
+# 限流配置
+#  - 全局默认 + 按 API 端点分层限流
+#  - queryByUri 是小查询，可以承受更高并发
+#  - searchByName/getEntityListByBOId 是大查询，适当降低频率
+rate_limit:
+  enabled: true
+  requests_per_second: 50.0    # 全局默认，从 30 调高至 50
+  burst_capacity: 100.0       # 从 60 调高至 100，支持更大瞬时突发
+  # 分层限流（按端点类型）
+  rps_queryByUri: 60.0       # queryByUri 小查询，可以更高
+  burst_queryByUri: 100.0
+  rps_searchByName: 10.0     # searchByName 大查询，适当降低
+  burst_searchByName: 20.0
+
+# 缓存配置（用于 URI 元数据持久化缓存）
+# 重复拉取相同单据时，90%+ 请求可直接命中磁盘缓存，速度提升 80%-90%
+cache:
+  enabled: true
+  dir: ".cache/fetch-metadata"  # 缓存目录（相对技能根目录，支持绝对路径）
+  ttl_seconds: 86400           # 缓存过期时间（秒），默认 1 天 = 24 * 60 * 60
+  max_entries: 2000            # 最大缓存条目数，超出不影响只是不缓存新条目
+
+# Redis 元数据缓存配置
+# 优先级: 内存缓存 > Redis > 磁盘缓存 > API
+# 适用于多进程/多机器共享缓存场景
+# 注意: 默认启用，连接失败自动降级为无 Redis 模式
+redis_cache:
+  enabled: true  # 默认启用，连接失败自动降级
+  # Redis 连接参数（可通过环境变量覆盖）
+  # 环境变量: REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB
+  host: "${REDIS_HOST:-192.168.19.70}"
+  port: "${REDIS_PORT:-6890}"
+  password: "${REDIS_PASSWORD:-}"
+  db: "${REDIS_DB:-1}"  # 使用独立的 db，避免与平台数据混在一起
+  # 缓存过期时间（秒），默认 7 天
+  ttl_seconds: 604800
+  # 连接超时（秒）
+  timeout: 5
+
+# 日志配置
+logging:
+  level: "${LOG_LEVEL:-INFO}"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: ""  # 空表示不写文件，stdout 输出
+
+# 环境配置（用于区分 dev/staging/prod）
+environment:
+  name: "${ENV_NAME:-development}"
+  debug: "${ENV_DEBUG:-false}"

@@ -1,0 +1,21 @@
+# 本机虚拟环境与缓存
+scripts/.venv/
+**/__pycache__/
+*.pyc
+.DS_Store
+._*
+
+# 开发工具本地配置
+scripts/.claude/
+scripts/.pytest_cache/
+scripts/tests/
+
+# 本地打包产物
+/*.zip
+
+# 环境变量配置（敏感信息）- 发布时排除
+.env
+
+# 本地输出目录
+output/
+report_sql_output/

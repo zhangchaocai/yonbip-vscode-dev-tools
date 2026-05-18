@@ -1,0 +1,94 @@
+# 业务接口查询技能配置（增强版 v2.0）
+#
+# 新特性:
+#   - 支持 ${ENV_VAR} 和 ${ENV_VAR:-default} 语法读取环境变量
+#   - 支持限流配置
+#   - 支持环境区分（通过环境变量）
+#
+# 安全建议:
+#   - app_secret 等敏感信息请使用环境变量
+#   - 示例: app_secret: "${API_APP_SECRET}" 或 "${API_APP_SECRET:-fallback}"
+
+paths:
+  output_dir: "output"
+
+# 开放平台鉴权配置
+api:
+  # API 基址（可通过环境变量覆盖）
+  base_url: "${API_BASE_URL:-https://v5devkk1.yonyoucloud.com/}"
+
+  # 应用密钥（建议使用环境变量）
+  app_key: "${API_APP_KEY:-your_app_key_here}"
+  app_secret: "${API_APP_SECRET:-your_app_secret_here}"  # 必须通过环境变量设置
+
+  # Token 获取路径
+  path_token: "/iuap-api-auth/open-auth/selfAppAuth/getAccessToken"
+
+  # 超时配置（秒）
+  http_timeout_seconds: 120
+
+  # TLS 配置
+  insecure_tls: false
+
+  # Token 缓存策略
+  token_refresh_skew_seconds: 120
+  token_fallback_ttl_seconds: 3500
+
+  # Token 失效时重试的业务码
+  auth_retry_business_codes: []
+
+# 业务接口 HTTP 配置
+business_interface:
+  # 列表接口路径（POST）
+  list_path: "/iuap-api-gateway/${YONBIP_TENANT_ID:-demo}/yonbip/CPC/api/search"
+
+  # 详情接口路径（GET）
+  detail_path: "/iuap-api-gateway/${YONBIP_TENANT_ID:-demo}/yonbip/CPC/api/detail/{apiId}"
+
+  # 列表请求体参数名
+  list_body_param_name: "param"
+
+  # 成功码
+  list_success_code: "200"
+  detail_success_code: "200"
+
+  # 匹配索引（取列表第几条）
+  match_index: 0
+
+  # 分页大小（新增）
+  page_size: 20
+
+# MCP 工具参数配置
+request:
+  allInterfaceDesc: ""
+  interface_input_hints: ""
+
+# 输出配置
+output:
+  write_result_json: false
+  result_json_filename: "business_interface_last.json"
+  # 输出格式（新增）
+  format: "json"
+
+# 限流配置（新增）
+rate_limit:
+  enabled: true
+  requests_per_second: 10.0
+  burst_capacity: 20.0
+
+# 缓存配置（新增）
+cache:
+  enabled: true
+  ttl_seconds: 300.0
+  max_entries: 1000
+
+# 日志配置（新增）
+logging:
+  level: "${LOG_LEVEL:-INFO}"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: ""  # 空表示不写文件，stdout 输出
+
+# 环境配置（新增，用于区分 dev/staging/prod）
+environment:
+  name: "${ENV_NAME:-development}"
+  debug: "${ENV_DEBUG:-false}"

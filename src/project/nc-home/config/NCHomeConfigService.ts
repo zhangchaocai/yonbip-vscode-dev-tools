@@ -57,6 +57,20 @@ export class NCHomeConfigService {
     }
 
     /**
+     * 显示输出面板
+     */
+    public showOutputChannel(): void {
+        this.outputChannel.show();
+    }
+
+    /**
+     * 获取输出面板
+     */
+    public getOutputChannel(): vscode.OutputChannel {
+        return this.outputChannel;
+    }
+
+    /**
      * 重新加载配置
      */
     public reloadConfig(): void {
@@ -381,14 +395,36 @@ export class NCHomeConfigService {
                 };
             }
 
-            // 使用从prop.xml中读取的已经解密的密码
-            // 注意：dataSource.password应该已经是从prop.xml中读取并处理过的密码
-            const secureDataSource = {
+            // 显式解密密码，避免前端传过来的密码仍是加密状态
+            let decryptedPassword = dataSource.password || '';
+            try {
+                if (decryptedPassword) {
+                    decryptedPassword = PasswordEncryptor.getSecurePassword(this.config.homePath, decryptedPassword);
+                    // 如果解密后仍然是"[加密密码-需要重新输入]"占位符，说明解密失败
+                    if (decryptedPassword === '[加密密码-需要重新输入]') {
+                        this.outputChannel.appendLine(`密码解密失败（密码可能已损坏），使用原始值尝试连接`);
+                    } else {
+                        this.outputChannel.appendLine(`密码解密成功`);
+                    }
+                }
+            } catch (decryptError: any) {
+                this.outputChannel.appendLine(`密码解密异常: ${decryptError.message}，使用原始值尝试连接`);
+            }
+
+            const secureDataSource: DataSourceMeta = {
                 ...dataSource,
-                password: dataSource.password || ''
+                password: decryptedPassword
             };
 
-            this.outputChannel.appendLine(`使用解密后的密码进行连接测试`);
+            this.outputChannel.appendLine(`========== 数据库连接测试开始 ==========`);
+            this.outputChannel.appendLine(`数据库类型: ${dataSource.databaseType}`);
+            this.outputChannel.appendLine(`主机地址: ${dataSource.host}`);
+            this.outputChannel.appendLine(`端口号: ${dataSource.port}`);
+            this.outputChannel.appendLine(`用户名: ${dataSource.username}`);
+            this.outputChannel.appendLine(`密码长度: ${decryptedPassword ? decryptedPassword.length : 0} 字符`);
+            this.outputChannel.appendLine(`密码类型: ${typeof decryptedPassword}`);
+            this.outputChannel.appendLine(`数据库名: ${dataSource.databaseName}`);
+            this.outputChannel.appendLine(`完整连接字符串: ${dataSource.databaseType}://${dataSource.username}@${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
 
             if (!dataSource.port || dataSource.port <= 0 || dataSource.port > 65535) {
                 return {
@@ -434,14 +470,14 @@ export class NCHomeConfigService {
                     };
             }
 
-            this.outputChannel.appendLine(`连接测试结果: ${connectionResult.success ? '成功' : '失败'}`);
-            this.outputChannel.appendLine(`消息: ${connectionResult.message}`);
+            this.outputChannel.appendLine(`========== 数据库连接测试结束 ==========`);
 
             return connectionResult;
 
         } catch (error: any) {
             const errorMsg = `连接测试失败: ${error.message}`;
             this.outputChannel.appendLine(errorMsg);
+            this.outputChannel.appendLine(`错误堆栈: ${error.stack}`);
 
             return {
                 success: false,
@@ -469,7 +505,7 @@ export class NCHomeConfigService {
                 timeout: 10000
             };
 
-            this.outputChannel.appendLine(`连接MySQL: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            this.outputChannel.appendLine(`[MySQL] 正在建立连接...`);
 
             const connection = await mysql.createConnection(connectionConfig);
 
@@ -483,6 +519,8 @@ export class NCHomeConfigService {
             };
 
         } catch (error: any) {
+            this.outputChannel.appendLine(`[MySQL] 连接失败: ${error.message}`);
+            this.outputChannel.appendLine(`[MySQL] 错误堆栈: ${error.stack}`);
             return {
                 success: false,
                 message: `MySQL连接失败: ${error.message}`,
@@ -515,7 +553,7 @@ export class NCHomeConfigService {
                 statement_timeout: 10000
             };
 
-            this.outputChannel.appendLine(`连接PostgreSQL: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            this.outputChannel.appendLine(`[PostgreSQL] 正在建立连接...`);
             this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}, 密码值: ${password}`);
 
             const client = new pg.Client(connectionConfig);
@@ -531,7 +569,8 @@ export class NCHomeConfigService {
             };
 
         } catch (error: any) {
-            this.outputChannel.appendLine(`PostgreSQL连接失败详情: ${error.message}`);
+            this.outputChannel.appendLine(`[PostgreSQL] 连接失败: ${error.message}`);
+            this.outputChannel.appendLine(`[PostgreSQL] 错误堆栈: ${error.stack}`);
             return {
                 success: false,
                 message: `PostgreSQL连接失败: ${error.message}`,
@@ -564,7 +603,7 @@ export class NCHomeConfigService {
                 socketTimeout: 10000
             };
 
-            this.outputChannel.appendLine(`连接达梦数据库: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            this.outputChannel.appendLine(`[达梦] 正在建立连接...`);
             this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}, 密码值: ${password}`);
 
             const connection = await dmdb.getConnection(connectionConfig);
@@ -574,8 +613,10 @@ export class NCHomeConfigService {
             return {
                 success: true,
                 message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}, 数据库: ${dataSource.databaseName}`
-            };        } catch (error: any) {
-            this.outputChannel.appendLine(`达梦数据库连接失败详情: ${error.message}`);
+            };
+        } catch (error: any) {
+            this.outputChannel.appendLine(`[达梦] 连接失败: ${error.message}`);
+            this.outputChannel.appendLine(`[达梦] 错误堆栈: ${error.stack}`);
             return {
                 success: false,
                 message: `达梦数据库连接失败: ${error.message}`,
@@ -606,7 +647,7 @@ export class NCHomeConfigService {
                 }
             };
 
-            this.outputChannel.appendLine(`连接SQL Server: ${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`);
+            this.outputChannel.appendLine(`[SQL Server] 正在建立连接...`);
 
             const pool = new mssql.ConnectionPool(connectionConfig);
             await pool.connect();
@@ -621,9 +662,11 @@ export class NCHomeConfigService {
             };
 
         } catch (error: any) {
+            this.outputChannel.appendLine(`[SQL Server] 连接失败: ${error.message}`);
+            this.outputChannel.appendLine(`[SQL Server] 错误堆栈: ${error.stack}`);
             return {
                 success: false,
-                message: `SQL Server连接失败: ${error.stack}`,
+                message: `SQL Server连接失败: ${error.message}`,
                 error: error.message
             };
         }
