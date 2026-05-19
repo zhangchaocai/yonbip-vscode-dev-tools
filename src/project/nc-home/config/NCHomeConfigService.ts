@@ -387,8 +387,9 @@ export class NCHomeConfigService {
         try {
             this.outputChannel.appendLine(`开始测试数据库连接: ${dataSource.name}`);
 
-            // 验证基本参数
-            if (!dataSource.host || !dataSource.username || !dataSource.databaseName) {
+            // 验证基本参数（达梦可以不填数据库名）
+            const isDM = dataSource.databaseType?.toLowerCase() === 'dm';
+            if (!dataSource.host || !dataSource.username || (!isDM && !dataSource.databaseName)) {
                 return {
                     success: false,
                     message: '连接参数不完整，请检查主机、用户名和数据库名'
@@ -585,7 +586,8 @@ export class NCHomeConfigService {
     private async testDMConnection(dataSource: DataSourceMeta): Promise<ConnectionTestResult> {
         try {
             // 动态导入达梦数据库驱动
-            const dmdb = await import('dmdb');
+            const dmdbModule = await import('dmdb');
+            const dmdb = dmdbModule.default || dmdbModule;
 
             // 确保密码是字符串类型
             let password = dataSource.password || '';
@@ -593,18 +595,19 @@ export class NCHomeConfigService {
                 password = String(password);
             }
 
-            const connectionConfig = {
-                host: dataSource.host,
-                port: dataSource.port,
+            const connectionConfig: any = {
+                connectString: dataSource.databaseName && dataSource.databaseName.trim() !== ''
+                    ? `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`
+                    : `${dataSource.host}:${dataSource.port}`,
                 user: dataSource.username,
                 password: password,
-                database: dataSource.databaseName,
                 connectTimeout: 10000,
                 socketTimeout: 10000
             };
 
             this.outputChannel.appendLine(`[达梦] 正在建立连接...`);
-            this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}, 密码值: ${password}`);
+            this.outputChannel.appendLine(`连接串: ${connectionConfig.connectString}`);
+            this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}`);
 
             const connection = await dmdb.getConnection(connectionConfig);
             // 执行简单的查询测试
@@ -612,7 +615,7 @@ export class NCHomeConfigService {
             await connection.close();
             return {
                 success: true,
-                message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}, 数据库: ${dataSource.databaseName}`
+                message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}${dataSource.databaseName ? ', 数据库: ' + dataSource.databaseName : ' (未指定数据库)'}`
             };
         } catch (error: any) {
             this.outputChannel.appendLine(`[达梦] 连接失败: ${error.message}`);
@@ -1155,7 +1158,8 @@ export class NCHomeConfigService {
             throw new Error('端口号必须在1-65535之间');
         }
 
-        if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+        const isDMDB = dataSource.databaseType?.toLowerCase() === 'dm';
+        if (!isDMDB && (!dataSource.databaseName || dataSource.databaseName.trim() === '')) {
             throw new Error('数据库名不能为空');
         }
 
@@ -1236,7 +1240,8 @@ export class NCHomeConfigService {
             throw new Error('端口号必须在1-65535之间');
         }
 
-        if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+        const isDMDB = dataSource.databaseType?.toLowerCase() === 'dm';
+        if (!isDMDB && (!dataSource.databaseName || dataSource.databaseName.trim() === '')) {
             throw new Error('数据库名不能为空');
         }
 

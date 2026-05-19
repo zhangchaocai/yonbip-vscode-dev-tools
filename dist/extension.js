@@ -3034,7 +3034,14 @@ class NCHomeConfigProvider {
             \`;
             
             document.body.appendChild(modal);
-            
+
+            // 达梦数据库名不强制，显示提示
+            const dbNameLabel = document.querySelector('label[for="dsDatabase"]');
+            const dbNameRequired = dbNameLabel && dbNameLabel.querySelector('span[style="color: red;"]');
+            if (dbNameRequired) {
+                dbNameLabel.innerHTML = '数据库名 <span style="font-size:11px; color: var(--vscode-descriptionForeground); font-weight: normal;">(达梦可选)</span>';
+            }
+
             // 添加密码显示/隐藏切换功能
             const togglePasswordButton = document.getElementById('togglePassword');
             const passwordInput = document.getElementById('dsPassword');
@@ -3298,14 +3305,14 @@ class NCHomeConfigProvider {
                 const dsVersionGroup = document.getElementById('dsVersionGroup');
                 const dsVersionSelect = document.getElementById('dsVersion');
                 if (dsVersionGroup && dsVersionSelect) {
-                    // 显示版本选择
-                    dsVersionGroup.style.display = 'block';
                     // 清空现有选项
                     dsVersionSelect.innerHTML = '';
-                    
+
                     // 根据数据库类型添加版本选项
                     const dbType = databaseTypeMap[dataSource.databaseType.toUpperCase()] || dataSource.databaseType.toLowerCase();
                     if (dbVersionMap[dbType]) {
+                        // 仅对有版本的数据库类型显示版本选择器
+                        dsVersionGroup.style.display = 'block';
                         dbVersionMap[dbType].forEach(version => {
                             const option = document.createElement('option');
                             option.value = version.value;
@@ -3316,6 +3323,9 @@ class NCHomeConfigProvider {
                             }
                             dsVersionSelect.appendChild(option);
                         });
+                    } else {
+                        // DM等无版本的数据库，隐藏版本选择器
+                        dsVersionGroup.style.display = 'none';
                     }
                 }
                 
@@ -3453,7 +3463,9 @@ class NCHomeConfigProvider {
                 return;
             }
             
-            if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+            // 达梦数据库可以不填数据库名
+            const isDM = (dsVersionValue || dsTypeValue).toLowerCase() === 'dm';
+            if (!isDM && (!dataSource.databaseName || dataSource.databaseName.trim() === '')) {
                 showMessage('请填写数据库名', 'error');
                 return;
             }
@@ -79492,7 +79504,8 @@ class NCHomeConfigService {
     async testConnection(dataSource) {
         try {
             this.outputChannel.appendLine(`开始测试数据库连接: ${dataSource.name}`);
-            if (!dataSource.host || !dataSource.username || !dataSource.databaseName) {
+            const isDM = dataSource.databaseType?.toLowerCase() === 'dm';
+            if (!dataSource.host || !dataSource.username || (!isDM && !dataSource.databaseName)) {
                 return {
                     success: false,
                     message: '连接参数不完整，请检查主机、用户名和数据库名'
@@ -79651,28 +79664,30 @@ class NCHomeConfigService {
     }
     async testDMConnection(dataSource) {
         try {
-            const dmdb = await Promise.resolve().then(() => __importStar(__webpack_require__(97769)));
+            const dmdbModule = await Promise.resolve().then(() => __importStar(__webpack_require__(97769)));
+            const dmdb = dmdbModule.default || dmdbModule;
             let password = dataSource.password || '';
             if (typeof password !== 'string') {
                 password = String(password);
             }
             const connectionConfig = {
-                host: dataSource.host,
-                port: dataSource.port,
+                connectString: dataSource.databaseName && dataSource.databaseName.trim() !== ''
+                    ? `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`
+                    : `${dataSource.host}:${dataSource.port}`,
                 user: dataSource.username,
                 password: password,
-                database: dataSource.databaseName,
                 connectTimeout: 10000,
                 socketTimeout: 10000
             };
             this.outputChannel.appendLine(`[达梦] 正在建立连接...`);
-            this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}, 密码值: ${password}`);
+            this.outputChannel.appendLine(`连接串: ${connectionConfig.connectString}`);
+            this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}`);
             const connection = await dmdb.getConnection(connectionConfig);
             const result = await connection.execute('SELECT 1 as test FROM DUAL');
             await connection.close();
             return {
                 success: true,
-                message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}, 数据库: ${dataSource.databaseName}`
+                message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}${dataSource.databaseName ? ', 数据库: ' + dataSource.databaseName : ' (未指定数据库)'}`
             };
         }
         catch (error) {
@@ -80078,7 +80093,8 @@ class NCHomeConfigService {
         if (!dataSource.port || dataSource.port <= 0 || dataSource.port > 65535) {
             throw new Error('端口号必须在1-65535之间');
         }
-        if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+        const isDMDB = dataSource.databaseType?.toLowerCase() === 'dm';
+        if (!isDMDB && (!dataSource.databaseName || dataSource.databaseName.trim() === '')) {
             throw new Error('数据库名不能为空');
         }
         if (!dataSource.username || dataSource.username.trim() === '') {
@@ -80137,7 +80153,8 @@ class NCHomeConfigService {
         if (!dataSource.port || dataSource.port <= 0 || dataSource.port > 65535) {
             throw new Error('端口号必须在1-65535之间');
         }
-        if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+        const isDMDB = dataSource.databaseType?.toLowerCase() === 'dm';
+        if (!isDMDB && (!dataSource.databaseName || dataSource.databaseName.trim() === '')) {
             throw new Error('数据库名不能为空');
         }
         if (!dataSource.username || dataSource.username.trim() === '') {

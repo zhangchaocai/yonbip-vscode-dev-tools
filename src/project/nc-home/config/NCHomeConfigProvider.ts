@@ -2489,7 +2489,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
             \`;
             
             document.body.appendChild(modal);
-            
+
+            // 达梦数据库名不强制，显示提示
+            const dbNameLabel = document.querySelector('label[for="dsDatabase"]');
+            const dbNameRequired = dbNameLabel && dbNameLabel.querySelector('span[style="color: red;"]');
+            if (dbNameRequired) {
+                dbNameLabel.innerHTML = '数据库名 <span style="font-size:11px; color: var(--vscode-descriptionForeground); font-weight: normal;">(达梦可选)</span>';
+            }
+
             // 添加密码显示/隐藏切换功能
             const togglePasswordButton = document.getElementById('togglePassword');
             const passwordInput = document.getElementById('dsPassword');
@@ -2753,14 +2760,14 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 const dsVersionGroup = document.getElementById('dsVersionGroup');
                 const dsVersionSelect = document.getElementById('dsVersion');
                 if (dsVersionGroup && dsVersionSelect) {
-                    // 显示版本选择
-                    dsVersionGroup.style.display = 'block';
                     // 清空现有选项
                     dsVersionSelect.innerHTML = '';
-                    
+
                     // 根据数据库类型添加版本选项
                     const dbType = databaseTypeMap[dataSource.databaseType.toUpperCase()] || dataSource.databaseType.toLowerCase();
                     if (dbVersionMap[dbType]) {
+                        // 仅对有版本的数据库类型显示版本选择器
+                        dsVersionGroup.style.display = 'block';
                         dbVersionMap[dbType].forEach(version => {
                             const option = document.createElement('option');
                             option.value = version.value;
@@ -2771,6 +2778,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                             }
                             dsVersionSelect.appendChild(option);
                         });
+                    } else {
+                        // DM等无版本的数据库，隐藏版本选择器
+                        dsVersionGroup.style.display = 'none';
                     }
                 }
                 
@@ -2908,7 +2918,9 @@ export class NCHomeConfigProvider implements vscode.WebviewViewProvider {
                 return;
             }
             
-            if (!dataSource.databaseName || dataSource.databaseName.trim() === '') {
+            // 达梦数据库可以不填数据库名
+            const isDM = (dsVersionValue || dsTypeValue).toLowerCase() === 'dm';
+            if (!isDM && (!dataSource.databaseName || dataSource.databaseName.trim() === '')) {
                 showMessage('请填写数据库名', 'error');
                 return;
             }
