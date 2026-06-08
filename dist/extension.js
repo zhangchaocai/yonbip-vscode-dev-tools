@@ -79256,6 +79256,8 @@ const vscode = __importStar(__webpack_require__(91398));
 const fs = __importStar(__webpack_require__(79896));
 const path = __importStar(__webpack_require__(16928));
 const iconv = __importStar(__webpack_require__(95249));
+const net = __importStar(__webpack_require__(69278));
+const child_process_1 = __webpack_require__(35317);
 const PasswordEncryptor_1 = __webpack_require__(11273);
 const PropXmlUpdater_1 = __webpack_require__(59071);
 const OracleClientService_1 = __webpack_require__(55128);
@@ -79663,42 +79665,135 @@ class NCHomeConfigService {
         }
     }
     async testDMConnection(dataSource) {
-        try {
-            const dmdbModule = await Promise.resolve().then(() => __importStar(__webpack_require__(97769)));
-            const dmdb = dmdbModule.default || dmdbModule;
-            let password = dataSource.password || '';
-            if (typeof password !== 'string') {
-                password = String(password);
-            }
-            const connectionConfig = {
-                connectString: dataSource.databaseName && dataSource.databaseName.trim() !== ''
-                    ? `${dataSource.host}:${dataSource.port}/${dataSource.databaseName}`
-                    : `${dataSource.host}:${dataSource.port}`,
-                user: dataSource.username,
-                password: password,
-                connectTimeout: 10000,
-                socketTimeout: 10000
-            };
-            this.outputChannel.appendLine(`[达梦] 正在建立连接...`);
-            this.outputChannel.appendLine(`连接串: ${connectionConfig.connectString}`);
-            this.outputChannel.appendLine(`用户名: ${dataSource.username}, 密码类型: ${typeof password}`);
-            const connection = await dmdb.getConnection(connectionConfig);
-            const result = await connection.execute('SELECT 1 as test FROM DUAL');
-            await connection.close();
+        this.outputChannel.appendLine(`[达梦] TCP 端口探测: ${dataSource.host}:${dataSource.port}`);
+        const tcpOk = await this.tcpProbe(dataSource.host, dataSource.port);
+        if (!tcpOk) {
+            const msg = `达梦端口不可达: ${dataSource.host}:${dataSource.port}（请检查 IP/端口/防火墙/DM 服务状态）`;
+            this.outputChannel.appendLine(`[达梦] ${msg}`);
+            return { success: false, message: msg };
+        }
+        this.outputChannel.appendLine(`[达梦] TCP 端口可达`);
+        this.outputChannel.appendLine(`[达梦] 检测 disql...`);
+        const disqlPath = await this.findDisql();
+        if (!disqlPath) {
+            this.outputChannel.appendLine(`[达梦] disql 未找到，跳过凭据验证`);
             return {
                 success: true,
-                message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}${dataSource.databaseName ? ', 数据库: ' + dataSource.databaseName : ' (未指定数据库)'}`
+                message: `网络可达 ${dataSource.host}:${dataSource.port}（disql 未安装，凭据验证已跳过；将由 YDS 端验证）`
             };
         }
-        catch (error) {
-            this.outputChannel.appendLine(`[达梦] 连接失败: ${error.message}`);
-            this.outputChannel.appendLine(`[达梦] 错误堆栈: ${error.stack}`);
-            return {
-                success: false,
-                message: `达梦数据库连接失败: ${error.message}`,
-                error: error.message
-            };
-        }
+        this.outputChannel.appendLine(`[达梦] disql 路径: ${disqlPath}`);
+        return await this.probeWithDisql(disqlPath, dataSource);
+    }
+    tcpProbe(host, port, timeoutMs = 3000) {
+        return new Promise((resolve) => {
+            const socket = net.createConnection({ host, port });
+            const timer = setTimeout(() => {
+                socket.destroy();
+                resolve(false);
+            }, timeoutMs);
+            socket.once('connect', () => {
+                clearTimeout(timer);
+                socket.end();
+                resolve(true);
+            });
+            socket.once('error', () => {
+                clearTimeout(timer);
+                resolve(false);
+            });
+        });
+    }
+    findDisql() {
+        return new Promise((resolve) => {
+            const cmd = process.platform === 'win32' ? 'where' : 'which';
+            (0, child_process_1.execFile)(cmd, ['disql'], { timeout: 3000 }, (err, stdout) => {
+                if (err) {
+                    return resolve(null);
+                }
+                const first = stdout.toString().split(/\r?\n/)[0]?.trim();
+                resolve(first || null);
+            });
+        });
+    }
+    probeWithDisql(disqlPath, dataSource) {
+        return new Promise((resolve) => {
+            const password = (dataSource.password || '').toString();
+            const escapedPwd = password.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            const connStr = `${dataSource.username}/"${escapedPwd}"@${dataSource.host}:${dataSource.port}`;
+            this.outputChannel.appendLine(`[达梦] 调用 disql 验证凭据...`);
+            const child = (0, child_process_1.spawn)(disqlPath, [connStr], {
+                timeout: 10000,
+                windowsHide: true
+            });
+            let stdout = '';
+            let stderr = '';
+            let killed = false;
+            const killTimer = setTimeout(() => {
+                killed = true;
+                child.kill('SIGKILL');
+            }, 10000);
+            child.stdout?.on('data', d => stdout += d.toString());
+            child.stderr?.on('data', d => stderr += d.toString());
+            child.on('error', (err) => {
+                clearTimeout(killTimer);
+                this.outputChannel.appendLine(`[达梦] disql 调用失败: ${err.message}`);
+                resolve({
+                    success: false,
+                    message: `disql 调用失败: ${err.message}`,
+                    error: err.message
+                });
+            });
+            child.on('close', (code) => {
+                clearTimeout(killTimer);
+                if (killed) {
+                    resolve({
+                        success: false,
+                        message: '达梦凭据验证超时（>10s）',
+                        error: 'timeout'
+                    });
+                    return;
+                }
+                const combined = stdout + stderr;
+                this.outputChannel.appendLine(`[达梦] disql 退出码: ${code}`);
+                const errLine = combined.split(/\r?\n/).find(line => /login\s*fail|登录失败|密码错|invalid\s*username|invalid\s*password|账户已锁定|ORA-\d+|错[误]信息/i.test(line));
+                if (errLine) {
+                    this.outputChannel.appendLine(`[达梦] 错误行: ${errLine.trim()}`);
+                }
+                const isLoginError = /login\s*fail|登录失败|密码错|invalid\s*username|invalid\s*password|账户已锁定|ORA-\d+/i.test(combined);
+                const statusMatch = combined.match(/SELECT\s+STATUS\$\s+FROM\s+V\$DATABASE[\s\S]*?^\s*(OPEN|MOUNT|SUSPEND)\s*$/im);
+                const dbStatus = statusMatch ? statusMatch[1].toUpperCase() : null;
+                if (dbStatus && dbStatus !== 'OPEN') {
+                    this.outputChannel.appendLine(`[达梦] 库状态异常: ${dbStatus}`);
+                    resolve({
+                        success: false,
+                        message: `达梦数据库连接成功，但库状态为 ${dbStatus}（仅 OPEN 状态可正常查询，请 DBA 确认库已 OPEN）`,
+                        error: `db_status_${dbStatus}`
+                    });
+                    return;
+                }
+                if (code === 0 && !isLoginError) {
+                    resolve({
+                        success: true,
+                        message: `达梦数据库连接成功 - 主机: ${dataSource.host}:${dataSource.port}`
+                    });
+                }
+                else {
+                    const errMatch = combined.match(/[^\n]*(?:login\s*fail|登录失败|密码错|invalid\s*username|invalid\s*password|账户已锁定|ORA-\d+)[^\n]*/i);
+                    const errMsg = errMatch ? errMatch[0].trim() : (isLoginError ? '凭据验证失败' : `disql 退出码: ${code}`);
+                    resolve({
+                        success: false,
+                        message: `达梦数据库连接失败: ${errMsg}`,
+                        error: errMsg
+                    });
+                }
+            });
+            try {
+                child.stdin?.write('SET LINESHOW OFF;\nSELECT STATUS$ FROM V$DATABASE;\nSELECT 1;\nEXIT;\n');
+                child.stdin?.end();
+            }
+            catch {
+            }
+        });
     }
     async testSQLServerConnection(dataSource) {
         try {
@@ -193380,14 +193475,6 @@ function prepareXMLRootList(obj, elementName, xmlNamespaceKey, xmlNamespace) {
     return result;
 }
 //# sourceMappingURL=serializationPolicy.js.map
-
-/***/ },
-
-/***/ 97769
-(module) {
-
-"use strict";
-module.exports = require("dmdb");
 
 /***/ },
 

@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Fusion",
   "description": "YDS Premium Fusion工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -563,7 +563,6 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "prepare": "node scripts/copy-dmdb-deps.js",
     "compile": "npm run build-webpack",
     "build-webpack": "webpack --mode production",
     "watch": "webpack --mode development --watch",
@@ -604,7 +603,6 @@
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "axios": "^1.12.2",
-    "dmdb": "^1.0.43524",
     "iconv-lite": "^0.7.0",
     "jschardet": "^3.1.4",
     "mssql": "^11.0.1",
