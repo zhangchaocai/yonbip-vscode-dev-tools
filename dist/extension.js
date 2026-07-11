@@ -57246,9 +57246,13 @@ class IconThemeUpdater {
         console.log('图标主题路径:', this.ICON_THEME_PATH);
         const themeJustActivated = this.ensureIconThemeActivated();
         await this.loadWorkspaceIconTheme(themeJustActivated);
+        await this.autoDetectAndRegisterYonbipRoots();
         context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(() => {
             console.log('工作空间文件夹已变化，计划重新加载图标主题配置');
             this.debouncedLoadWorkspaceIconTheme();
+        }));
+        context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(async () => {
+            await this.autoDetectAndRegisterYonbipRoots();
         }));
         this.iconThemeWatcher = vscode.workspace.createFileSystemWatcher('**/.vscode/yonbip-icon-theme.json');
         context.subscriptions.push(this.iconThemeWatcher);
@@ -57459,6 +57463,105 @@ class IconThemeUpdater {
             vscode.window.showErrorMessage(`更新图标主题配置失败: ${error}`);
             return false;
         }
+    }
+    static isYonbipProjectFolder(folderPath) {
+        try {
+            if (!folderPath || !fs.existsSync(folderPath)) {
+                return false;
+            }
+            const stat = fs.statSync(folderPath);
+            if (!stat.isDirectory()) {
+                return false;
+            }
+            const projectPath = path.join(folderPath, '.project');
+            const classpathPath = path.join(folderPath, '.classpath');
+            const buildPath = path.join(folderPath, 'build');
+            const metaInfPath = path.join(folderPath, 'META-INF');
+            return fs.existsSync(projectPath) &&
+                fs.existsSync(classpathPath) &&
+                fs.existsSync(buildPath) &&
+                fs.existsSync(metaInfPath);
+        }
+        catch {
+            return false;
+        }
+    }
+    static async autoDetectAndRegisterYonbipRoots() {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders || [];
+            if (workspaceFolders.length === 0) {
+                return;
+            }
+            const themeJson = this.getWorkspaceIconThemeConfig();
+            let changed = false;
+            for (const wsFolder of workspaceFolders) {
+                const rootPath = wsFolder.uri.fsPath;
+                if (!this.isYonbipProjectFolder(rootPath)) {
+                    continue;
+                }
+                const folderName = path.basename(rootPath);
+                if (themeJson.folderNames?.[folderName] === '_yonbip_project' &&
+                    themeJson.folderNamesExpanded?.[folderName] === '_yonbip_project') {
+                    continue;
+                }
+                if (!themeJson.folderNames)
+                    themeJson.folderNames = {};
+                if (!themeJson.folderNamesExpanded)
+                    themeJson.folderNamesExpanded = {};
+                themeJson.folderNames[folderName] = '_yonbip_project';
+                themeJson.folderNamesExpanded[folderName] = '_yonbip_project';
+                changed = true;
+                console.log(`自动识别 YonBIP 工程根目录: ${rootPath}`);
+            }
+            if (changed) {
+                this.saveWorkspaceIconThemeConfig(themeJson);
+                await this.refreshIconTheme(true);
+            }
+        }
+        catch (error) {
+            console.error('自动识别 YonBIP 工程根失败:', error);
+        }
+    }
+    static async syncPersistedInitializedFolders(folderPaths) {
+        try {
+            if (!folderPaths || folderPaths.length === 0) {
+                return;
+            }
+            const themeJson = this.getWorkspaceIconThemeConfig();
+            let changed = false;
+            for (const folderPath of folderPaths) {
+                if (!this.isYonbipProjectFolder(folderPath)) {
+                    continue;
+                }
+                const folderName = path.basename(folderPath);
+                if (themeJson.folderNames?.[folderName] === '_yonbip_project' &&
+                    themeJson.folderNamesExpanded?.[folderName] === '_yonbip_project') {
+                    continue;
+                }
+                if (!themeJson.folderNames)
+                    themeJson.folderNames = {};
+                if (!themeJson.folderNamesExpanded)
+                    themeJson.folderNamesExpanded = {};
+                themeJson.folderNames[folderName] = '_yonbip_project';
+                themeJson.folderNamesExpanded[folderName] = '_yonbip_project';
+                changed = true;
+                console.log(`从持久化状态补登记 YonBIP 模块: ${folderPath}`);
+            }
+            if (changed) {
+                this.saveWorkspaceIconThemeConfig(themeJson);
+                await this.refreshIconTheme(true);
+            }
+        }
+        catch (error) {
+            console.error('同步持久化 YonBIP 模块失败:', error);
+        }
+    }
+    static async registerYonbipFolder(folderPath) {
+        const absPath = path.resolve(folderPath);
+        if (!this.isYonbipProjectFolder(absPath)) {
+            return false;
+        }
+        return await this.addModuleToIconTheme(path.basename(absPath));
     }
     static async requestWindowReload() {
         const confirmed = await CustomDialogUtils_1.CustomDialogUtils.showCustomConfirmationDialog('图标主题更新完成', '图标主题已更新完成，为使更改立即生效，建议重新加载窗口。\n\n是否现在重新加载？');
@@ -133287,6 +133390,7 @@ class ProjectInitDecorationProvider {
                     }
                 });
                 console.log(`从持久化存储加载了 ${this.initializedFolders.size} 个已初始化项目`);
+                void IconThemeUpdater_1.IconThemeUpdater.syncPersistedInitializedFolders(Array.from(this.initializedFolders));
             }
             catch (error) {
                 console.error('加载持久化状态失败:', error);
@@ -133387,6 +133491,7 @@ class ProjectInitDecorationProvider {
         setTimeout(() => {
             this.forceRefresh();
         }, 500);
+        void IconThemeUpdater_1.IconThemeUpdater.registerYonbipFolder(absPath);
         console.log(`项目目录已标记为初始化: ${absPath}`);
     }
     removeInitialization(folderPath) {
@@ -133434,6 +133539,7 @@ class ProjectInitDecorationProvider {
                 if (!this.initializedFolders.has(absPath)) {
                     this.initializedFolders.add(absPath);
                     this.savePersistedState();
+                    void IconThemeUpdater_1.IconThemeUpdater.registerYonbipFolder(absPath);
                 }
                 decoration = {
                     tooltip: 'YonBIP 项目已初始化',

@@ -31,21 +31,32 @@ export class IconThemeUpdater {
         this.ICON_THEME_TEMPLATE_PATH = path.join(context.extensionPath, 'resources', 'icons', 'yonbip-icon-theme.json');
         this.ICON_THEME_PATH = this.ICON_THEME_TEMPLATE_PATH; // 插件内置的图标主题配置路径
         this.PACKAGE_JSON_PATH = path.join(context.extensionPath, 'package.json');
-        
+
         console.log('图标主题模板路径:', this.ICON_THEME_TEMPLATE_PATH);
         console.log('图标主题路径:', this.ICON_THEME_PATH);
-        
+
         // 确保图标主题被激活
         const themeJustActivated = this.ensureIconThemeActivated();
-        
+
         // 自动加载工作空间的图标配置
         await this.loadWorkspaceIconTheme(themeJustActivated);
-        
+
+        // 自动探测当前所有工作区根目录，把 YonBIP 工程根登记到 icon theme
+        // （解决用户用 yonbip init CLI 初始化过但插件从未标记过的情况）
+        await this.autoDetectAndRegisterYonbipRoots();
+
         // 注册工作空间变化事件 - 使用防抖
         context.subscriptions.push(
             vscode.workspace.onDidChangeWorkspaceFolders(() => {
                 console.log('工作空间文件夹已变化，计划重新加载图标主题配置');
                 this.debouncedLoadWorkspaceIconTheme();
+            })
+        );
+
+        // 工作区根目录本身变化时（用户重新打开 YonBIP 工程），也重新探测一遍
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeWorkspaceFolders(async () => {
+                await this.autoDetectAndRegisterYonbipRoots();
             })
         );
         
@@ -383,6 +394,127 @@ export class IconThemeUpdater {
         }
     }
     
+    /**
+     * 判断一个目录是否是 YonBIP 已初始化项目
+     * 判定标准与 ProjectInitDecorationProvider.isProjectInitialized 保持一致：
+     * 同时存在 .project / .classpath / build / META-INF
+     */
+    public static isYonbipProjectFolder(folderPath: string): boolean {
+        try {
+            if (!folderPath || !fs.existsSync(folderPath)) {
+                return false;
+            }
+            const stat = fs.statSync(folderPath);
+            if (!stat.isDirectory()) {
+                return false;
+            }
+            const projectPath = path.join(folderPath, '.project');
+            const classpathPath = path.join(folderPath, '.classpath');
+            const buildPath = path.join(folderPath, 'build');
+            const metaInfPath = path.join(folderPath, 'META-INF');
+            return fs.existsSync(projectPath) &&
+                   fs.existsSync(classpathPath) &&
+                   fs.existsSync(buildPath) &&
+                   fs.existsSync(metaInfPath);
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * 扫描当前所有工作区根目录，识别出 YonBIP 工程根并把目录名写入 icon theme。
+     * 注意：folderNames 在 VS Code 中是按名字全局匹配任意深度的，
+     * 所以这里只把"插件自己识别为 YonBIP 工程"的目录登记进去。
+     */
+    public static async autoDetectAndRegisterYonbipRoots(): Promise<void> {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders || [];
+            if (workspaceFolders.length === 0) {
+                return;
+            }
+
+            const themeJson = this.getWorkspaceIconThemeConfig();
+            let changed = false;
+
+            for (const wsFolder of workspaceFolders) {
+                const rootPath = wsFolder.uri.fsPath;
+                if (!this.isYonbipProjectFolder(rootPath)) {
+                    continue;
+                }
+                const folderName = path.basename(rootPath);
+                if (themeJson.folderNames?.[folderName] === '_yonbip_project' &&
+                    themeJson.folderNamesExpanded?.[folderName] === '_yonbip_project') {
+                    continue;
+                }
+                if (!themeJson.folderNames) themeJson.folderNames = {};
+                if (!themeJson.folderNamesExpanded) themeJson.folderNamesExpanded = {};
+                themeJson.folderNames[folderName] = '_yonbip_project';
+                themeJson.folderNamesExpanded[folderName] = '_yonbip_project';
+                changed = true;
+                console.log(`自动识别 YonBIP 工程根目录: ${rootPath}`);
+            }
+
+            if (changed) {
+                this.saveWorkspaceIconThemeConfig(themeJson);
+                await this.refreshIconTheme(true);
+            }
+        } catch (error) {
+            console.error('自动识别 YonBIP 工程根失败:', error);
+        }
+    }
+
+    /**
+     * 同步一组由 ProjectInitDecorationProvider 持久化的"已初始化模块"路径到 icon theme。
+     * 这些路径是历史上通过 yonbip.project.initContext 标记过的子模块，
+     * 它们的 basename 同样需要进入 folderNames 才能正确显示 YonBIP 图标。
+     */
+    public static async syncPersistedInitializedFolders(folderPaths: string[]): Promise<void> {
+        try {
+            if (!folderPaths || folderPaths.length === 0) {
+                return;
+            }
+
+            const themeJson = this.getWorkspaceIconThemeConfig();
+            let changed = false;
+
+            for (const folderPath of folderPaths) {
+                if (!this.isYonbipProjectFolder(folderPath)) {
+                    continue;
+                }
+                const folderName = path.basename(folderPath);
+                if (themeJson.folderNames?.[folderName] === '_yonbip_project' &&
+                    themeJson.folderNamesExpanded?.[folderName] === '_yonbip_project') {
+                    continue;
+                }
+                if (!themeJson.folderNames) themeJson.folderNames = {};
+                if (!themeJson.folderNamesExpanded) themeJson.folderNamesExpanded = {};
+                themeJson.folderNames[folderName] = '_yonbip_project';
+                themeJson.folderNamesExpanded[folderName] = '_yonbip_project';
+                changed = true;
+                console.log(`从持久化状态补登记 YonBIP 模块: ${folderPath}`);
+            }
+
+            if (changed) {
+                this.saveWorkspaceIconThemeConfig(themeJson);
+                await this.refreshIconTheme(true);
+            }
+        } catch (error) {
+            console.error('同步持久化 YonBIP 模块失败:', error);
+        }
+    }
+
+    /**
+     * 把任意一个 YonBIP 工程目录（根或子模块）登记到当前工作区的 icon theme。
+     * 与 addModuleToIconTheme 不同：会先校验该目录确实是 YonBIP 项目。
+     */
+    public static async registerYonbipFolder(folderPath: string): Promise<boolean> {
+        const absPath = path.resolve(folderPath);
+        if (!this.isYonbipProjectFolder(absPath)) {
+            return false;
+        }
+        return await this.addModuleToIconTheme(path.basename(absPath));
+    }
+
     /**
      * 请求用户确认重启窗口以应用图标更改
      */

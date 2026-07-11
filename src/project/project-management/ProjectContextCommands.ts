@@ -72,6 +72,10 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
                     }
                 });
                 console.log(`从持久化存储加载了 ${this.initializedFolders.size} 个已初始化项目`);
+
+                // 把持久化的"已初始化模块"路径同步到 icon theme，
+                // 确保历史上被标记过的子模块在重新打开工作区后仍能正确显示 YonBIP 图标
+                void IconThemeUpdater.syncPersistedInitializedFolders(Array.from(this.initializedFolders));
             } catch (error) {
                 console.error('加载持久化状态失败:', error);
             }
@@ -187,12 +191,15 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
         setTimeout(() => {
             this._onDidChangeFileDecorations.fire(undefined);
         }, 100);
-        
+
         // 额外的强制刷新，确保在有强调项的目录中也能显示
         setTimeout(() => {
             this.forceRefresh();
         }, 500);
-        
+
+        // 把这个目录同步登记到 icon theme（YonBIP 完整图标）
+        void IconThemeUpdater.registerYonbipFolder(absPath);
+
         console.log(`项目目录已标记为初始化: ${absPath}`);
     }
 
@@ -256,6 +263,8 @@ class ProjectInitDecorationProvider implements vscode.FileDecorationProvider {
                 if (!this.initializedFolders.has(absPath)) {
                     this.initializedFolders.add(absPath);
                     this.savePersistedState();
+                    // 同步登记到 icon theme，避免被动扫描到的 YonBIP 工程目录遗漏图标
+                    void IconThemeUpdater.registerYonbipFolder(absPath);
                 }
                 
                 decoration = {
