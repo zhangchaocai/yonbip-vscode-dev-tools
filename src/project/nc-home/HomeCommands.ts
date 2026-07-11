@@ -25,7 +25,7 @@ export class HomeCommands {
     /**
      * 注册HOME服务相关命令
      */
-    public static registerCommands(context: vscode.ExtensionContext, configService: NCHomeConfigService): void {
+    public static registerCommands(context: vscode.ExtensionContext, configService: NCHomeConfigService): HomeService {
         const homeCommands = new HomeCommands(context, configService);
 
         // 注册启动HOME服务命令
@@ -89,6 +89,8 @@ export class HomeCommands {
             startFromToolbarCommand,
             stopFromToolbarCommand
         );
+
+        return homeCommands.homeService;
     }
 
     /**

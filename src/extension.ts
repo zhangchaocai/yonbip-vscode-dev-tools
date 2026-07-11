@@ -32,6 +32,9 @@ import { ServiceStateManager } from './utils/ServiceStateManager';
 import { ExtensionVersionService } from './utils/ExtensionVersionService';
 // 导入图标主题更新服务
 import { IconThemeUpdater } from './utils/IconThemeUpdater';
+// 导入热部署服务
+import { HotDeployCommands } from './project/hot-deploy/HotDeployCommands';
+import { HotDeployService } from './project/hot-deploy/HotDeployService';
 
 // 全局变量用于在deactivate时释放资源
 let ncHomeConfigService: NCHomeConfigService | undefined;
@@ -40,6 +43,7 @@ let mcpService: McpService | undefined;
 let libraryService: LibraryService | undefined;
 let homeService: HomeService | undefined;
 let macHomeConversionService: MacHomeConversionService | undefined;
+let hotDeployService: HotDeployService | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -103,8 +107,37 @@ export async function activate(context: vscode.ExtensionContext) {
 	// NCHomeConfigCommands类没有实现dispose方法，因此不能添加到context.subscriptions中
 
 	// 注册HOME服务命令
-	HomeCommands.registerCommands(context, ncHomeConfigService);
-	
+	const homeServiceInstance = HomeCommands.registerCommands(context, ncHomeConfigService);
+	homeService = homeServiceInstance;
+
+	// 注册热部署命令（依赖 HOME 服务实例以读取状态/调试端口）
+	hotDeployService = HotDeployCommands.registerCommands(context, ncHomeConfigService, homeServiceInstance);
+
+	// 联动：HOME 服务一旦进入 RUNNING 状态，自动开启热部署监听
+	// 这样用户在"启动 YonBIP Premium 中间件"或"调试启动HOME服务"后，
+	// 改 Java 代码保存即可立即生效，无需再手动开启热部署。
+	homeServiceInstance.setOnStartedCallback(async () => {
+		if (!hotDeployService) {
+			return;
+		}
+		// 尊重显式配置：如果用户已经把 enabled 显式设为 false，则不强制开启
+		const explicitEnabled = vscode.workspace.getConfiguration().inspect('yonbip.hotDeploy.enabled');
+		const cfg = vscode.workspace.getConfiguration().get<boolean>('yonbip.hotDeploy.enabled', false);
+		// 仅在用户未显式关闭时才自动开启
+		if (explicitEnabled && explicitEnabled.globalValue === false) {
+			vscode.window.showInformationMessage('HOME 服务已启动；热部署监听已显式关闭，跳过自动开启。');
+			return;
+		}
+		try {
+			if (!hotDeployService.isWatching()) {
+				await hotDeployService.start();
+				vscode.window.showInformationMessage('🔥 YonBIP 热部署已随 HOME 服务自动开启，保存 .java 即可生效');
+			}
+		} catch (err: any) {
+			vscode.window.showWarningMessage(`热部署自动开启失败: ${err.message}`);
+		}
+	});
+
 	// 初始化工具栏图标状态上下文
 	vscode.commands.executeCommand('setContext', 'yonbip.home.stop.enabled', false);
 
@@ -306,7 +339,12 @@ export function deactivate() {
 	if (macHomeConversionService) {
 		macHomeConversionService.dispose();
 	}
-	
+
+	// 释放热部署服务资源
+	if (hotDeployService) {
+		hotDeployService.dispose();
+	}
+
 	// 释放图标主题更新器资源
 	IconThemeUpdater.dispose();
 }

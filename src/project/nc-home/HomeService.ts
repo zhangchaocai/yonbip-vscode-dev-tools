@@ -30,6 +30,11 @@ export class HomeService {
     private statusBarItem: vscode.StatusBarItem | null = null;
     private currentModuleInfo: { moduleName: string; modulePath: string } | null = null;
     private currentClasspathFile: string | null = null;
+    /**
+     * 状态切换到 RUNNING 时的回调（每个生命周期只触发一次）。
+     * 用于联动开启热部署监听等场景。
+     */
+    private onStartedCallback: (() => void | Promise<void>) | null = null;
 
     constructor(context: vscode.ExtensionContext, configService: NCHomeConfigService) {
         this.context = context;
@@ -2152,10 +2157,33 @@ export class HomeService {
     }
 
     /**
+     * 注册"服务进入 RUNNING 状态"的回调（仅触发一次，下次启动重新注册）。
+     * 用于联动开启热部署监听等场景。
+     */
+    public setOnStartedCallback(cb: (() => void | Promise<void>) | null): void {
+        this.onStartedCallback = cb;
+    }
+
+    /**
      * 设置服务状态
      */
     private setStatus(status: HomeStatus): void {
+        const prevStatus = this.status;
         this.status = status;
+
+        // 仅在进入 RUNNING 状态时触发一次 onStarted（避免反复触发）
+        if (status === HomeStatus.RUNNING && prevStatus !== HomeStatus.RUNNING && this.onStartedCallback) {
+            try {
+                const ret = this.onStartedCallback();
+                if (ret && typeof (ret as any).then === 'function') {
+                    (ret as Promise<void>).catch((err) => {
+                        console.error('[HomeService] onStarted 回调执行失败:', err);
+                    });
+                }
+            } catch (err) {
+                console.error('[HomeService] onStarted 回调执行抛出:', err);
+            }
+        }
         
         // 更新状态栏显示
         if (this.statusBarItem) {

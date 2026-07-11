@@ -2,7 +2,7 @@
   "name": "yonbip-devtool",
   "displayName": "YDS Premium Fusion",
   "description": "YDS Premium Fusion工具集成了MCP服务、配置HOME服务等功能，帮助开发者更高效地进行YonBIP应用开发",
-  "version": "2.3.2",
+  "version": "2.4.0",
   "publisher": "zhangchck",
   "author": {
     "name": "YonBIP开发社区",
@@ -268,6 +268,41 @@
         "command": "yonbip.function.showPrecastExport",
         "title": "显示预置脚本导出",
         "category": "YonBIP/功能导航"
+      },
+      {
+        "command": "yonbip.hotDeploy.start",
+        "title": "🔥 开启热部署监听",
+        "category": "YonBIP/热部署"
+      },
+      {
+        "command": "yonbip.hotDeploy.stop",
+        "title": "⛔ 停止热部署监听",
+        "category": "YonBIP/热部署"
+      },
+      {
+        "command": "yonbip.hotDeploy.toggle",
+        "title": "🔥 切换热部署开关",
+        "category": "YonBIP/热部署"
+      },
+      {
+        "command": "yonbip.hotDeploy.deployActive",
+        "title": "⚡ 热部署当前 Java 文件",
+        "category": "YonBIP/热部署"
+      },
+      {
+        "command": "yonbip.hotDeploy.deployAll",
+        "title": "⚡ 全量热部署",
+        "category": "YonBIP/热部署"
+      },
+      {
+        "command": "yonbip.hotDeploy.status",
+        "title": "ℹ️ 热部署状态",
+        "category": "YonBIP/热部署"
+      },
+      {
+        "command": "yonbip.hotDeploy.setMode",
+        "title": "🎛️ 切换热部署模式",
+        "category": "YonBIP/热部署"
       }
     ],
     "submenus": [
@@ -452,6 +487,16 @@
           "command": "yonbip.project.copyResourcesToHome",
           "group": "2_utils@1",
           "when": "resourceExtname"
+        },
+        {
+          "command": "yonbip.hotDeploy.deployActive",
+          "group": "3_hotdeploy@1",
+          "when": "resourceExtname == .java"
+        },
+        {
+          "command": "yonbip.hotDeploy.toggle",
+          "group": "3_hotdeploy@2",
+          "when": "resourceExtname == .java"
         }
       ],
       "yonbip.terminal.submenu": [
@@ -549,6 +594,27 @@
           "type": "string",
           "default": "",
           "description": "用户选择的服务目录路径"
+        },
+        "yonbip.hotDeploy.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否在 HOME 服务运行时自动开启热部署监听（修改 .java 自动编译并推送到运行中的 JVM）"
+        },
+        "yonbip.hotDeploy.mode": {
+          "type": "string",
+          "enum": ["jdi", "ncHotDeploy", "auto"],
+          "default": "auto",
+          "description": "热部署模式：jdi=通过 JPDA 推送 class 到运行中的 JVM；ncHotDeploy=拷贝到 NC HOME/external/classes；auto=优先 jdi 失败回退 ncHotDeploy"
+        },
+        "yonbip.hotDeploy.autoCompile": {
+          "type": "boolean",
+          "default": true,
+          "description": "保存 .java 文件后是否自动调用 javac 编译"
+        },
+        "yonbip.hotDeploy.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "热部署防抖时间（毫秒），保存后多久触发编译与推送"
         }
       }
     },
